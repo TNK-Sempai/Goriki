@@ -2,37 +2,21 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { fetchSets, fetchSet } from '@/lib/tcgdex'
+import { importPokemonSet, buildCodeToIdMap, type LogFn } from '@/lib/import/pokemon'
 
-// Le bulk import peut traiter 100+ sets × 200ms de pause → dépasse les 60s par défaut Vercel
+// Le bulk import peut traiter 190+ sets × pause entre chaque → dépasse les 60s par défaut Vercel
 export const maxDuration = 300 // 5 min — Vercel Pro
 
-// TCGdex renvoie aussi `symbol` (icône du set) en plus de `logo` — souvent sans extension
-function symbolUrl(symbol?: string): string | null {
-  if (!symbol) return null
-  return symbol.match(/\.(png|jpg|webp|svg)$/) ? symbol : symbol + '.png'
+interface ImportError {
+  item: string
+  message: string
 }
 
-export async function POST(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const action = searchParams.get('action')
-
-  if (action === 'bulk') return handleBulkImport(request)
-  if (action === 'sync') return handleSync(request)
-  return handleSingleImport(request) // comportement actuel (import unitaire)
-}
-
-export async function GET() {
-  const sets = await fetch('https://api.tcgdex.net/v2/fr/sets').then(r => r.json())
-  return NextResponse.json(sets)
-}
-
-// ─────────────────────────────────────────────────────────────
-// Import unitaire (comportement historique)
-// ─────────────────────────────────────────────────────────────
-async function handleSingleImport(request: NextRequest) {
+async function getSupabase(): Promise<SupabaseClient> {
   const cookieStore = await cookies()
-  const supabase = createServerClient(
+  return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -44,420 +28,210 @@ async function handleSingleImport(request: NextRequest) {
       },
     }
   )
+}
 
+// Garde admin partagée par TOUS les handlers, y compris GET (sécurisation : la
+// liste des sets et le déclenchement d'import ne doivent pas être accessibles anonymement).
+async function requireAdmin(): Promise<{ supabase: SupabaseClient; response: NextResponse | null }> {
+  const supabase = await getSupabase()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+  if (!user) {
+    return { supabase, response: NextResponse.json({ error: 'Non autorisé' }, { status: 401 }) }
+  }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+  if (!profile || profile.role !== 'admin') {
+    return { supabase, response: NextResponse.json({ error: 'Accès refusé' }, { status: 403 }) }
+  }
 
+  return { supabase, response: null }
+}
+
+export async function GET() {
+  const { response } = await requireAdmin()
+  if (response) return response
+
+  const sets = await fetchSets()
+  return NextResponse.json(sets)
+}
+
+export async function POST(request: NextRequest) {
+  const { supabase, response } = await requireAdmin()
+  if (response) return response
+
+  const { searchParams } = new URL(request.url)
+  const action = searchParams.get('action')
+
+  if (action === 'bulk') return handleBulkImport(supabase)
+  if (action === 'sync') return handleSync(supabase)
+  return handleSingleImport(request, supabase)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Import unitaire
+// ─────────────────────────────────────────────────────────────
+async function handleSingleImport(request: NextRequest, supabase: SupabaseClient) {
   const { setId } = await request.json()
-  if (!setId) return NextResponse.json({ error: 'setId requis' }, { status: 400 })
+  if (!setId) return NextResponse.json({ ok: false, logs: [], error: 'setId requis' }, { status: 400 })
 
   const logs: string[] = []
+  const log: LogFn = (line) => logs.push(line)
 
   try {
-    // 1. Récupérer le set depuis TCGdex
-    logs.push(`[TCGdex] Récupération du set ${setId}...`)
-    const setData = await fetchSet(setId)
-    logs.push(`[TCGdex] Set trouvé : ${setData.name} (${setData.cards?.length ?? 0} cartes)`)
-
-    // 2. Upsert le set
-    const { data: setRow, error: setError } = await supabase
-      .from('pokemon_sets')
-      .upsert({
-        code: setData.id.toUpperCase(),
-        name_fr: setData.name,
-        release_date: setData.releaseDate ?? null,
-        image_url: setData.logo
-          ? (setData.logo.match(/\.(png|jpg|webp|svg)$/) ? setData.logo : setData.logo + '.png')
-          : null,
-        symbol_url: symbolUrl((setData as { symbol?: string }).symbol),
-        card_count: setData.cardCount?.total ?? null,
-      }, { onConflict: 'code' })
-      .select('id')
-      .single()
-
-    if (setError || !setRow) {
-      logs.push(`[ERREUR] Upsert set : ${setError?.message}`)
-      return NextResponse.json({ logs, error: setError?.message }, { status: 500 })
-    }
-    logs.push(`[DB] Set upserted → id: ${setRow.id}`)
-
-    // 3. Récupérer les variantes globales (set_id IS NULL)
-    const { data: globalVariants } = await supabase
-      .from('pokemon_variant_types')
-      .select('id, code')
-      .is('set_id', null)
-
-    const normalVariant   = globalVariants?.find(v => v.code === 'NORMAL')
-    const reverseVariant  = globalVariants?.find(v => v.code === 'REVERSE')
-    const holoVariant     = globalVariants?.find(v => v.code === 'HOLO')
-    const firstEdVariant  = globalVariants?.find(v => v.code === 'FIRST_EDITION')
-
-    // 4. Importer les cartes
-    const cards = setData.cards ?? []
-    let imported = 0
-    let skipped = 0
-
-    for (const card of cards) {
-      const cardNumber = String(card.localId ?? card.id)
-      const imageSuffix = card.image
-        ? (card.image.match(/\.(png|jpg|webp)$/) ? card.image : `${card.image}/high.webp`)
-        : null
-
-      const { data: cardRow, error: cardError } = await supabase
-        .from('pokemon_cards')
-        .upsert({
-          set_id: setRow.id,
-          number: cardNumber,
-          name_fr: card.name,
-          image_url: imageSuffix,
-          rarity: card.rarity ?? null,
-          card_type: card.category ?? null,
-          attribute: card.types?.[0] ?? null,
-          tcgdex_id: card.id,
-        }, { onConflict: 'set_id,number' })
-        .select('id')
-        .single()
-
-      if (cardError || !cardRow) {
-        logs.push(`[SKIP] ${card.name} — ${cardError?.message}`)
-        skipped++
-        continue
-      }
-
-      // Créer uniquement les listings correspondant aux variantes réelles TCGdex
-      const cardVariants = (card as { variants?: { normal?: boolean; reverse?: boolean; holo?: boolean; firstEdition?: boolean } }).variants ?? {}
-
-      const listingsToCreate = [
-        cardVariants.normal       && normalVariant   ? normalVariant.id   : null,
-        cardVariants.reverse      && reverseVariant  ? reverseVariant.id  : null,
-        cardVariants.holo         && holoVariant     ? holoVariant.id     : null,
-        cardVariants.firstEdition && firstEdVariant  ? firstEdVariant.id  : null,
-      ].filter(Boolean) as string[]
-
-      for (const variantTypeId of listingsToCreate) {
-        await supabase.from('pokemon_listings').upsert({
-          card_id: cardRow.id,
-          variant_type_id: variantTypeId,
-          quantity: 0,
-          price: 0.00,
-          image_api: imageSuffix,
-        }, { onConflict: 'card_id,variant_type_id,condition' })
-      }
-
-      imported++
-    }
-
-    logs.push(`[DONE] ${imported} cartes importées, ${skipped} ignorées`)
-    return NextResponse.json({ logs, imported, skipped, setId: setRow.id })
-
+    const stats = await importPokemonSet(supabase, setId, log)
+    return NextResponse.json({ ok: true, logs, stats })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur inconnue'
-    logs.push(`[ERREUR] ${message}`)
-    return NextResponse.json({ logs, error: message }, { status: 500 })
+    logs.push(`[ERR] ${message}`)
+    return NextResponse.json({ ok: false, logs, error: message }, { status: 500 })
   }
 }
 
 // ─────────────────────────────────────────────────────────────
 // Import bulk — tous les sets TCGdex en une passe
 // ─────────────────────────────────────────────────────────────
-async function handleBulkImport(request: NextRequest) {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-        },
-      },
-    }
-  )
+async function handleBulkImport(supabase: SupabaseClient) {
+  const logs: string[] = [
+    '[WARN] Le bulk complet (190+ sets) peut dépasser le timeout serverless (maxDuration=300s) — ' +
+    "préférer l'import set par set depuis la page admin, ou `npx tsx scripts/import-catalogue-pokemon.ts --all` en local.",
+  ]
+  const log: LogFn = (line) => logs.push(line)
+  const start = Date.now()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
-
-  const logs: string[] = []
-  let totalImported = 0
-  let totalSkipped = 0
   let setsProcessed = 0
+  let cardsImported = 0
+  let listingsCreated = 0
+  const errors: ImportError[] = []
 
   try {
-    // Récupérer tous les sets TCGdex
-    logs.push('[START] Récupération de tous les sets TCGdex...')
+    log('[START] Récupération de tous les sets TCGdex...')
     const allSets = await fetchSets()
-    logs.push(`[TCGdex] ${allSets.length} sets trouvés`)
+    log(`[TCGdex] ${allSets.length} set(s) trouvé(s)`)
 
     for (const setMeta of allSets) {
       try {
-        logs.push(`[SET] Import de ${setMeta.name} (${setMeta.id})...`)
-        const setData = await fetchSet(setMeta.id)
-
-        // Upsert set
-        const { data: setRow, error: setError } = await supabase
-          .from('pokemon_sets')
-          .upsert({
-            code: setData.id.toUpperCase(),
-            name_fr: setData.name,
-            release_date: setData.releaseDate ?? null,
-            image_url: setData.logo
-          ? (setData.logo.match(/\.(png|jpg|webp|svg)$/) ? setData.logo : setData.logo + '.png')
-          : null,
-            symbol_url: symbolUrl((setData as { symbol?: string }).symbol),
-            card_count: setData.cardCount?.total ?? null,
-          }, { onConflict: 'code' })
-          .select('id')
-          .single()
-
-        if (setError || !setRow) {
-          logs.push(`[SKIP] ${setMeta.name} — erreur set: ${setError?.message}`)
-          totalSkipped++
-          continue
-        }
-
-        // Variantes globales
-        const { data: globalVariants } = await supabase
-          .from('pokemon_variant_types')
-          .select('id, code')
-          .is('set_id', null)
-
-        const normalVariant   = globalVariants?.find(v => v.code === 'NORMAL')
-        const reverseVariant  = globalVariants?.find(v => v.code === 'REVERSE')
-        const holoVariant     = globalVariants?.find(v => v.code === 'HOLO')
-        const firstEdVariant  = globalVariants?.find(v => v.code === 'FIRST_EDITION')
-
-        // Upsert cartes + listings
-        let setImported = 0
-        for (const card of (setData.cards ?? [])) {
-          const cardNumber = String(card.localId ?? card.id)
-          const imageSuffix = card.image
-        ? (card.image.match(/\.(png|jpg|webp)$/) ? card.image : `${card.image}/high.webp`)
-        : null
-
-          const { data: cardRow } = await supabase
-            .from('pokemon_cards')
-            .upsert({
-              set_id: setRow.id,
-              number: cardNumber,
-              name_fr: card.name,
-              image_url: imageSuffix,
-              rarity: card.rarity ?? null,
-              card_type: card.category ?? null,
-              attribute: card.types?.[0] ?? null,
-              tcgdex_id: card.id,
-            }, { onConflict: 'set_id,number' })
-            .select('id')
-            .single()
-
-          if (!cardRow) continue
-
-          // Créer uniquement les listings correspondant aux variantes réelles TCGdex
-          const cardVariants = (card as { variants?: { normal?: boolean; reverse?: boolean; holo?: boolean; firstEdition?: boolean } }).variants ?? {}
-
-          const listingsToCreate = [
-            cardVariants.normal       && normalVariant   ? normalVariant.id   : null,
-            cardVariants.reverse      && reverseVariant  ? reverseVariant.id  : null,
-            cardVariants.holo         && holoVariant     ? holoVariant.id     : null,
-            cardVariants.firstEdition && firstEdVariant  ? firstEdVariant.id  : null,
-          ].filter(Boolean) as string[]
-
-          for (const variantTypeId of listingsToCreate) {
-            await supabase.from('pokemon_listings').upsert({
-              card_id: cardRow.id,
-              variant_type_id: variantTypeId,
-              quantity: 0,
-              price: 0.00,
-              image_api: imageSuffix,
-            }, { onConflict: 'card_id,variant_type_id,condition' })
-          }
-          setImported++
-        }
-
-        totalImported += setImported
+        const stats = await importPokemonSet(supabase, setMeta.id, log)
         setsProcessed++
-        logs.push(`[OK] ${setMeta.name} — ${setImported} cartes`)
-
-        // Pause pour éviter rate limit TCGdex
-        await new Promise(r => setTimeout(r, 200))
-
+        cardsImported += stats.cardsImported
+        listingsCreated += stats.listingsCreated
+        errors.push(...stats.errors)
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Erreur inconnue'
-        logs.push(`[ERR] ${setMeta.name} — ${msg}`)
-        totalSkipped++
+        const message = err instanceof Error ? err.message : 'Erreur inconnue'
+        log(`[ERR] ${setMeta.name} (${setMeta.id}) — ${message}`)
+        errors.push({ item: setMeta.id, message })
       }
+      await new Promise(r => setTimeout(r, 150))
     }
 
-    logs.push(`[DONE] ${setsProcessed} sets · ${totalImported} cartes importées · ${totalSkipped} sets ignorés`)
-    return NextResponse.json({ logs, setsProcessed, totalImported, totalSkipped })
-
+    log(`[DONE] ${setsProcessed}/${allSets.length} set(s) · ${cardsImported} carte(s) · ${listingsCreated} listing(s) · ${errors.length} erreur(s)`)
+    return NextResponse.json({
+      ok: true,
+      logs,
+      stats: { setsProcessed, cardsImported, listingsCreated, errors, durationMs: Date.now() - start },
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur inconnue'
-    logs.push(`[ERREUR] ${message}`)
-    return NextResponse.json({ logs, error: message }, { status: 500 })
+    logs.push(`[ERR] ${message}`)
+    return NextResponse.json({ ok: false, logs, error: message }, { status: 500 })
   }
 }
 
 // ─────────────────────────────────────────────────────────────
 // Sync — nouveaux sets + cartes manquantes (listings existants conservés)
 // ─────────────────────────────────────────────────────────────
-async function handleSync(request: NextRequest) {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-        },
-      },
-    }
-  )
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
-
+async function handleSync(supabase: SupabaseClient) {
   const logs: string[] = []
-  let newCards = 0
-  let newSets = 0
+  const log: LogFn = (line) => logs.push(line)
+  const start = Date.now()
+
+  let setsProcessed = 0
+  let cardsImported = 0
+  let listingsCreated = 0
+  const errors: ImportError[] = []
 
   try {
-    logs.push('[SYNC] Vérification des sets TCGdex...')
+    log('[SYNC] Vérification des sets TCGdex...')
 
-    // Sets déjà en BDD
-    const { data: existingSets } = await supabase
+    const { data: existingSets, error: existingError } = await supabase
       .from('pokemon_sets')
       .select('id, code')
+    if (existingError) throw new Error(`Lecture sets existants : ${existingError.message}`)
 
     const existingCodes = new Set((existingSets ?? []).map(s => s.code))
-
-    // Tous les sets TCGdex
     const allSets = await fetchSets()
-    logs.push(`[TCGdex] ${allSets.length} sets disponibles · ${existingCodes.size} déjà en BDD`)
+    // FIX : plus de `existingSet.code.toLowerCase()` — l'id API n'est pas déductible du
+    // code de façon fiable (15 sets TCG Pocket case-sensitive : A1, A1a, A2, ...). On
+    // résout via une map construite depuis la liste réelle des sets TCGdex.
+    const codeToId = buildCodeToIdMap(allSets)
+    log(`[TCGdex] ${allSets.length} set(s) disponible(s) · ${existingCodes.size} déjà en BDD`)
 
-    // Nouveaux sets
+    // 1. Nouveaux sets (diff par code)
     const newSetsMeta = allSets.filter(s => !existingCodes.has(s.id.toUpperCase()))
-    logs.push(`[SYNC] ${newSetsMeta.length} nouveau(x) set(s) détecté(s)`)
+    log(`[SYNC] ${newSetsMeta.length} nouveau(x) set(s) détecté(s)`)
 
-    // Importer les nouveaux sets complets
     for (const setMeta of newSetsMeta) {
       try {
-        const setData = await fetchSet(setMeta.id)
-        const { data: setRow } = await supabase
-          .from('pokemon_sets')
-          .upsert({
-            code: setData.id.toUpperCase(),
-            name_fr: setData.name,
-            release_date: setData.releaseDate ?? null,
-            image_url: setData.logo
-          ? (setData.logo.match(/\.(png|jpg|webp|svg)$/) ? setData.logo : setData.logo + '.png')
-          : null,
-            symbol_url: symbolUrl((setData as { symbol?: string }).symbol),
-            card_count: setData.cardCount?.total ?? null,
-          }, { onConflict: 'code' })
-          .select('id')
-          .single()
-
-        if (!setRow) continue
-
-        const { data: globalVariants } = await supabase
-          .from('pokemon_variant_types').select('id, code').is('set_id', null)
-        const normalVariant = globalVariants?.find(v => v.code === 'NORMAL')
-        const reverseVariant = globalVariants?.find(v => v.code === 'REVERSE')
-
-        for (const card of (setData.cards ?? [])) {
-          const { data: cardRow } = await supabase
-            .from('pokemon_cards')
-            .upsert({
-              set_id: setRow.id,
-              number: String(card.localId ?? card.id),
-              name_fr: card.name,
-              image_url: card.image
-                ? (card.image.match(/\.(png|jpg|webp)$/) ? card.image : `${card.image}/high.webp`)
-                : null,
-              rarity: card.rarity ?? null,
-              card_type: card.category ?? null,
-              tcgdex_id: card.id,
-            }, { onConflict: 'set_id,number' })
-            .select('id').single()
-
-          if (cardRow) {
-            if (normalVariant) await supabase.from('pokemon_listings').upsert({ card_id: cardRow.id, variant_type_id: normalVariant.id, quantity: 0, price: 0 }, { onConflict: 'card_id,variant_type_id,condition' })
-            if (reverseVariant) await supabase.from('pokemon_listings').upsert({ card_id: cardRow.id, variant_type_id: reverseVariant.id, quantity: 0, price: 0 }, { onConflict: 'card_id,variant_type_id,condition' })
-            newCards++
-          }
-        }
-
-        newSets++
-        logs.push(`[NEW] ${setMeta.name} ajouté — ${setData.cards?.length ?? 0} cartes`)
-        await new Promise(r => setTimeout(r, 200))
-
+        const stats = await importPokemonSet(supabase, setMeta.id, log)
+        setsProcessed++
+        cardsImported += stats.cardsImported
+        listingsCreated += stats.listingsCreated
+        errors.push(...stats.errors)
+        log(`[NEW] ${stats.setName} ajouté — ${stats.cardsImported} carte(s)`)
       } catch (err) {
-        logs.push(`[ERR] ${setMeta.name} — ${err instanceof Error ? err.message : 'Erreur'}`)
+        const message = err instanceof Error ? err.message : 'Erreur inconnue'
+        log(`[ERR] ${setMeta.name} (${setMeta.id}) — ${message}`)
+        errors.push({ item: setMeta.id, message })
       }
+      await new Promise(r => setTimeout(r, 150))
     }
 
-    // Sync cartes manquantes dans sets existants
-    logs.push('[SYNC] Vérification cartes manquantes dans sets existants...')
-    for (const existingSet of (existingSets ?? [])) {
+    // 2. Cartes manquantes dans les sets déjà en BDD
+    log('[SYNC] Vérification des cartes manquantes dans les sets existants...')
+    for (const existingSet of existingSets ?? []) {
+      const apiId = codeToId.get(existingSet.code)
+      if (!apiId) {
+        const message = `Set TCGdex introuvable pour le code ${existingSet.code} (id API non résolu)`
+        log(`[ERR] ${existingSet.code} — ${message}`)
+        errors.push({ item: existingSet.code, message })
+        continue
+      }
+
       try {
-        const setData = await fetchSet(existingSet.code.toLowerCase())
-        const { data: existingCards } = await supabase
+        const setData = await fetchSet(apiId)
+        const { data: existingCards, error: cardsError } = await supabase
           .from('pokemon_cards')
           .select('number')
           .eq('set_id', existingSet.id)
+        if (cardsError) throw new Error(cardsError.message)
 
         const existingNumbers = new Set((existingCards ?? []).map(c => c.number))
-        const missingCards = (setData.cards ?? []).filter(c => !existingNumbers.has(String(c.localId ?? c.id)))
+        const missing = (setData.cards ?? []).filter(c => !existingNumbers.has(String(c.localId ?? c.id)))
 
-        if (missingCards.length > 0) {
-          logs.push(`[SYNC] ${existingSet.code} — ${missingCards.length} carte(s) manquante(s)`)
-          const { data: globalVariants } = await supabase.from('pokemon_variant_types').select('id, code').is('set_id', null)
-          const normalVariant = globalVariants?.find(v => v.code === 'NORMAL')
-
-          for (const card of missingCards) {
-            const { data: cardRow } = await supabase
-              .from('pokemon_cards')
-              .upsert({
-                set_id: existingSet.id,
-                number: String(card.localId ?? card.id),
-                name_fr: card.name,
-                image_url: card.image
-                ? (card.image.match(/\.(png|jpg|webp)$/) ? card.image : `${card.image}/high.webp`)
-                : null,
-                rarity: card.rarity ?? null,
-                tcgdex_id: card.id,
-              }, { onConflict: 'set_id,number' })
-              .select('id').single()
-
-            if (cardRow && normalVariant) {
-              await supabase.from('pokemon_listings').upsert({ card_id: cardRow.id, variant_type_id: normalVariant.id, quantity: 0, price: 0 }, { onConflict: 'card_id,variant_type_id,condition' })
-              newCards++
-            }
-          }
+        if (missing.length > 0) {
+          log(`[SYNC] ${existingSet.code} — ${missing.length} carte(s) manquante(s)`)
+          const stats = await importPokemonSet(supabase, apiId, log)
+          setsProcessed++
+          cardsImported += stats.cardsImported
+          listingsCreated += stats.listingsCreated
+          errors.push(...stats.errors)
         }
-
-        await new Promise(r => setTimeout(r, 100))
-      } catch {
-        // Set TCGdex introuvable par ce code — ignorer
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erreur inconnue'
+        log(`[ERR] ${existingSet.code} — ${message}`)
+        errors.push({ item: existingSet.code, message })
       }
+      await new Promise(r => setTimeout(r, 100))
     }
 
-    logs.push(`[DONE] ${newSets} nouveau(x) set(s) · ${newCards} nouvelle(s) carte(s) ajoutée(s)`)
-    return NextResponse.json({ logs, newSets, newCards })
-
+    log(`[DONE] ${setsProcessed} set(s) traité(s) · ${cardsImported} carte(s) · ${listingsCreated} listing(s) · ${errors.length} erreur(s)`)
+    return NextResponse.json({
+      ok: true,
+      logs,
+      stats: { setsProcessed, cardsImported, listingsCreated, errors, durationMs: Date.now() - start },
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur inconnue'
-    logs.push(`[ERREUR] ${message}`)
-    return NextResponse.json({ logs, error: message }, { status: 500 })
+    logs.push(`[ERR] ${message}`)
+    return NextResponse.json({ ok: false, logs, error: message }, { status: 500 })
   }
 }

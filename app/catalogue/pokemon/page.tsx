@@ -8,7 +8,7 @@ export default async function CataloguePokemonPage() {
   const supabase = await createClient()
   const { data: sets } = await supabase
     .from('pokemon_sets')
-    .select('id, code, name_fr, image_url, symbol_url, card_count, release_date')
+    .select('id, code, name_fr, image_url, symbol_url, card_count, release_date, serie_id, serie_name')
     .eq('is_active', true)
     .order('release_date', { ascending: false })
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useCart } from '@/hooks/useCart'
 import { formatPrice } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
@@ -10,9 +10,22 @@ export default function CheckoutPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hydrated, setHydrated] = useState(false)
 
-  if (items.length === 0) {
-    router.push('/panier')
+  // Mark component as hydrated after mount
+  useEffect(() => {
+    setHydrated(true)
+  }, [])
+
+  // Redirect to cart if empty after hydration
+  useEffect(() => {
+    if (hydrated && items.length === 0) {
+      router.push('/panier')
+    }
+  }, [hydrated, items, router])
+
+  // Return null while hydrating or redirecting
+  if (!hydrated || items.length === 0) {
     return null
   }
 
@@ -67,7 +80,7 @@ export default function CheckoutPage() {
           </div>
           <div className="flex justify-between items-center mb-4">
             <span className="text-muted text-sm">Livraison</span>
-            <span className="text-muted text-sm">Calculée par Stripe</span>
+            <span className="text-muted text-sm">Sélectionnée à l'étape de paiement</span>
           </div>
           <div className="flex justify-between items-center pt-4 border-t border-dim">
             <span className="font-display text-lg text-cream">Total</span>

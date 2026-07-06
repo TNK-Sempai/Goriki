@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
+import { getShippingProvider } from '@/lib/shipping'
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
@@ -75,6 +76,24 @@ export async function POST(request: NextRequest) {
     })
   }
 
+  const shippingOptions: Stripe.Checkout.SessionCreateParams.ShippingOption[] = (
+    await getShippingProvider().getOptions({ subtotal: Math.round(subtotal * 100) })
+  ).map((option) => ({
+    shipping_rate_data: {
+      type: 'fixed_amount',
+      fixed_amount: { amount: option.amount, currency: option.currency },
+      display_name: option.displayName,
+      ...(option.minDeliveryDays !== undefined && option.maxDeliveryDays !== undefined
+        ? {
+            delivery_estimate: {
+              minimum: { unit: 'business_day', value: option.minDeliveryDays },
+              maximum: { unit: 'business_day', value: option.maxDeliveryDays },
+            },
+          }
+        : {}),
+    },
+  }))
+
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     payment_method_types: ['card'],
@@ -95,6 +114,7 @@ export async function POST(request: NextRequest) {
     cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/panier`,
     locale: 'fr',
     shipping_address_collection: { allowed_countries: ['BE', 'FR', 'LU', 'NL', 'DE'] },
+    shipping_options: shippingOptions,
   })
 
   return NextResponse.json({ url: session.url })

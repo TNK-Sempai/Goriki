@@ -21,14 +21,31 @@ export interface OPECard {
   life?: number
 }
 
-export async function fetchOPESets(): Promise<OPESet[]> {
-  const res = await fetch(`${OPECARDS_BASE}/sets`, { next: { revalidate: 3600 } })
-  if (!res.ok) throw new Error(`OPECards sets error: ${res.status}`)
+// Domaine api.opecards.fr mort (DNS ne résout plus) — distingue explicitement
+// « API injoignable » d'une simple erreur HTTP ponctuelle sur un endpoint.
+export class OPECardsUnavailableError extends Error {
+  constructor(message = 'API OPECards injoignable (domaine mort — DNS ne résout plus). Import One Piece indisponible.') {
+    super(message)
+    this.name = 'OPECardsUnavailableError'
+  }
+}
+
+async function opeFetch<T>(path: string): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(`${OPECARDS_BASE}${path}`, { next: { revalidate: 3600 } })
+  } catch {
+    // fetch qui rejette (TypeError) = échec réseau/DNS, pas une erreur HTTP
+    throw new OPECardsUnavailableError()
+  }
+  if (!res.ok) throw new Error(`OPECards error ${res.status} sur ${path}`)
   return res.json()
 }
 
+export async function fetchOPESets(): Promise<OPESet[]> {
+  return opeFetch<OPESet[]>('/sets')
+}
+
 export async function fetchOPESet(setId: string): Promise<OPESet & { cards: OPECard[] }> {
-  const res = await fetch(`${OPECARDS_BASE}/sets/${setId}/cards`, { next: { revalidate: 3600 } })
-  if (!res.ok) throw new Error(`OPECards set error: ${res.status}`)
-  return res.json()
+  return opeFetch<OPESet & { cards: OPECard[] }>(`/sets/${setId}/cards`)
 }

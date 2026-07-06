@@ -15,3 +15,10 @@ export type Condition = (typeof CONDITIONS)[number]
 export const PHOTO_PRICE_THRESHOLD = 1.0
 
 export const ADMIN_EMAILS: string[] = []
+
+// TODO tarifs à valider
+export const SHIPPING_RATES = {
+  BE: 5.00,              // zone Belgique (euros)
+  EU: 8.00,              // zone UE-proche : FR, LU, NL, DE (euros)
+  FREE_THRESHOLD: 60.00, // livraison offerte dès ce sous-total marchandises (euros)
+} as const

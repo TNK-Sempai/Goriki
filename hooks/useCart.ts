@@ -15,6 +15,14 @@ export interface CartItem {
 
 const CART_KEY = 'goriki_cart'
 
+export const CART_UPDATED_EVENT = 'goriki:cart-updated'
+export const CART_OPEN_EVENT = 'goriki:cart-open'
+
+export function openCartDrawer() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(CART_OPEN_EVENT))
+}
+
 function readCart(): CartItem[] {
   if (typeof window === 'undefined') return []
   try {
@@ -33,11 +41,19 @@ export function useCart() {
 
   useEffect(() => {
     setItems(readCart())
+
+    function handleCartUpdated() {
+      setItems(readCart())
+    }
+
+    window.addEventListener(CART_UPDATED_EVENT, handleCartUpdated)
+    return () => window.removeEventListener(CART_UPDATED_EVENT, handleCartUpdated)
   }, [])
 
   const sync = useCallback((next: CartItem[]) => {
     writeCart(next)
     setItems(next)
+    window.dispatchEvent(new CustomEvent(CART_UPDATED_EVENT))
   }, [])
 
   const addItem = useCallback((item: CartItem) => {

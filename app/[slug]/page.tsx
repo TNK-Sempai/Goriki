@@ -4,6 +4,7 @@ import Navbar from '@/components/blocks/Navbar'
 import Footer from '@/components/blocks/Footer'
 import CardFlip from '@/components/product/CardFlip'
 import WishlistButton from '@/components/product/WishlistButton'
+import AddToCartButton from '@/components/product/AddToCartButton'
 import SameSetGrid from '@/components/product/SameSetGrid'
 import { formatPrice } from '@/lib/utils'
 import Link from 'next/link'
@@ -82,6 +83,9 @@ export default async function ProductPage({ params }: Props) {
   const name = card?.name_fr ?? listing.name
   const frontUrl = listing.front_photo_url ?? listing.image_api ?? null
   const backUrl = listing.back_photo_url ?? null
+  const cartImageUrl = frontUrl && tcg !== 'sealed' && !frontUrl.match(/\.(png|jpg|webp|svg)$/)
+    ? frontUrl + '/high.webp'
+    : frontUrl
 
   // Cartes du même set
   let sameSet: any[] = []
@@ -188,24 +192,15 @@ export default async function ProductPage({ params }: Props) {
             </div>
 
             <div style={{ display: 'flex', gap: '8px', marginBottom: '28px' }}>
-              <button
-                style={{
-                  flex: 1,
-                  fontSize: '11px',
-                  letterSpacing: '1px',
-                  textTransform: 'uppercase',
-                  color: 'var(--bg)',
-                  background: 'var(--cream)',
-                  border: 'none',
-                  padding: '12px 24px',
-                  borderRadius: '2px',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-body)',
-                  fontWeight: 500,
-                }}
-              >
-                Ajouter au panier
-              </button>
+              <AddToCartButton
+                listingId={listing.id}
+                tcg={tcg}
+                name={name}
+                variantLabel={variant?.label}
+                price={listing.price}
+                maxQuantity={listing.quantity}
+                imageUrl={cartImageUrl}
+              />
               {tcg !== 'sealed' && (
                 <WishlistButton itemType={tcg} itemId={listing.id} variantTypeId={variant?.id ?? null} />
               )}

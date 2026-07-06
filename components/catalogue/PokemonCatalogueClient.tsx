@@ -12,6 +12,8 @@ interface CatalogueSet {
   symbol_url: string | null
   card_count: number | null
   release_date: string | null
+  serie_id: string | null
+  serie_name: string | null
 }
 
 const GRADIENTS = [
@@ -23,69 +25,33 @@ const GRADIENTS = [
   'linear-gradient(160deg,#203420,#060808)',
 ]
 
-function detectSerie(code: string): string {
-  const c = code.toUpperCase()
-
-  // TCG Pocket — Méga Évolution (ME*) et sets Pocket (A*, B*)
-  if (c.startsWith('ME') || c.match(/^[AB][0-9]/)) return 'TCG Pocket'
-
-  // Écarlate & Violet (SV*)
-  if (c.startsWith('SV')) return 'Écarlate & Violet'
-
-  // Épée & Bouclier (SW*)
-  if (c.startsWith('SW')) return 'Épée & Bouclier'
-
-  // Soleil & Lune (SM*)
-  if (c.startsWith('SM')) return 'Soleil & Lune'
-
-  // XY / Méga Évolution
-  if (c.startsWith('XY') || c === 'G1' || c === 'DC1') return 'XY / Méga Évolution'
-
-  // Noir & Blanc (BW*)
-  if (c.startsWith('BW')) return 'Noir & Blanc'
-
-  // HeartGold SoulSilver / Diamond Pearl / Platine
-  if (c.startsWith('DP') || c.startsWith('PL') || c.startsWith('HS')
-      || c.startsWith('HGSS') || c === 'COL' || c === 'RC') return 'HeartGold SoulSilver / DP'
-
-  // EX (2003-2007)
-  if (c.startsWith('EX') || c.startsWith('POP')) return 'EX'
-
-  // Sets Originaux (Base, Neo, e-Card)
-  if (c.startsWith('BASE') || c.startsWith('NEO') || c.startsWith('ECARD')
-      || c === 'NP' || c === 'WP' || c === 'JUMBO') return 'Sets Originaux'
-
-  // Promos, Kits, McDonald's — tout le reste
-  return 'Promos & Kits'
-}
-
-const SERIES_ORDER = [
-  'Écarlate & Violet',
-  'Épée & Bouclier',
-  'Soleil & Lune',
-  'XY / Méga Évolution',
-  'Noir & Blanc',
-  'HeartGold SoulSilver / DP',
-  'EX',
-  'Sets Originaux',
-  'TCG Pocket',
-  'Promos & Kits',
-]
+const AUTRES = 'Autres'
 
 export default function PokemonCatalogueClient({ sets }: { sets: CatalogueSet[] }) {
-  // Ouvrir uniquement la 1ère série par défaut
-  const [openSeries, setOpenSeries] = useState<Set<string>>(new Set([SERIES_ORDER[0]]))
-
+  // Groupement data-driven par serie_name (source de vérité : colonnes serie_id/serie_name
+  // de pokemon_sets, remplies à l'import). Les sets arrivent déjà triés release_date desc
+  // depuis la page serveur, donc l'ordre de première apparition de chaque groupe donne
+  // directement l'ordre chronologique décroissant des séries.
   const series: Record<string, CatalogueSet[]> = {}
+  const groupOrder: string[] = []
   sets.forEach(s => {
-    const serie = detectSerie(s.code)
-    if (!series[serie]) series[serie] = []
+    const serie = s.serie_name ?? AUTRES
+    if (!series[serie]) {
+      series[serie] = []
+      groupOrder.push(serie)
+    }
     series[serie].push(s)
   })
 
-  const sortedSeries = SERIES_ORDER
-    .filter(s => (series[s]?.length ?? 0) > 0)
+  const sortedSeries = groupOrder
+    .filter(s => s !== AUTRES)
+    .concat(groupOrder.includes(AUTRES) ? [AUTRES] : [])
     .map(s => ({ name: s, sets: series[s]! }))
+
+  // Ouvrir uniquement la 1ère série par défaut
+  const [openSeries, setOpenSeries] = useState<Set<string>>(
+    new Set(sortedSeries[0] ? [sortedSeries[0].name] : [])
+  )
 
   function toggle(name: string) {
     setOpenSeries(prev => {
