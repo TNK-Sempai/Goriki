@@ -2,6 +2,10 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { stripe } from '@/lib/stripe'
+import { createServiceClient } from '@/lib/supabase/service'
+import { resend, FROM_EMAIL } from '@/lib/resend'
+import { orderShippedHtml } from '@/lib/emails/order-shipped'
 
 async function adminClient() {
   const cookieStore = await cookies()
@@ -46,13 +50,129 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const supabase = await adminClient()
   if (!supabase) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+
   const { id, status, tracking_number } = await request.json()
+
+  const { data: current, error: readError } = await supabase
+    .from('orders')
+    .select('id, status, total, user_id, store_credit_used, stripe_payment_id, tracking_number')
+    .eq('id', id)
+    .single()
+
+  if (readError || !current) {
+    return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 })
+  }
+
+  // ── Remboursement réel (mission 03 §C) ────────────────────────────────────
+  // Remboursement TOTAL uniquement — le partiel est hors périmètre (V2).
+  if (status === 'refunded' && current.status !== 'refunded') {
+    const refund = await refundOrder(current)
+    if (!refund.ok) {
+      // Le statut n'est PAS modifié tant que l'argent n'est pas reparti.
+      return NextResponse.json({ error: refund.error }, { status: 502 })
+    }
+  }
+
   const { data, error } = await supabase
     .from('orders')
     .update({ status, tracking_number })
     .eq('id', id)
     .select()
     .single()
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Email d'expédition : uniquement à la PREMIÈRE saisie d'un numéro de suivi.
+  if (tracking_number && tracking_number !== current.tracking_number) {
+    await sendShippedEmail(current.user_id, id, tracking_number)
+  }
+
   return NextResponse.json(data)
+}
+
+interface RefundableOrder {
+  id: string
+  total: number
+  user_id: string | null
+  store_credit_used: number
+  stripe_payment_id: string | null
+}
+
+/**
+ * Rembourse : argent chez Stripe, puis stock ré-incrémenté, puis crédit boutique re-crédité.
+ * L'ordre compte — rien n'est rendu au client tant que Stripe n'a pas confirmé.
+ */
+async function refundOrder(order: RefundableOrder): Promise<{ ok: true } | { ok: false; error: string }> {
+  const service = createServiceClient()
+
+  // Une commande réglée intégralement en crédit boutique n'a pas de PaymentIntent :
+  // il n'y a rien à rembourser chez Stripe, seulement du crédit à rendre.
+  if (order.total > 0) {
+    if (!order.stripe_payment_id) {
+      return { ok: false, error: 'Aucun paiement Stripe rattaché à cette commande — remboursement impossible' }
+    }
+    try {
+      await stripe.refunds.create({ payment_intent: order.stripe_payment_id })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur Stripe'
+      console.error(`[commandes] refund Stripe échoué (${order.id}):`, message)
+      return { ok: false, error: `Remboursement Stripe refusé : ${message}` }
+    }
+  }
+
+  const { error: restockError } = await service.rpc('restock_order', { p_order_id: order.id })
+  if (restockError) {
+    // L'argent est parti : on ne bloque pas, mais la commande est signalée.
+    console.error(`[commandes] ré-incrément du stock échoué (${order.id}):`, restockError.message)
+    await service
+      .from('orders')
+      .update({
+        needs_review: true,
+        review_reason: `Remboursé chez Stripe mais ré-incrément du stock échoué : ${restockError.message}`,
+      })
+      .eq('id', order.id)
+  }
+
+  if (order.store_credit_used > 0 && order.user_id) {
+    const { data: profile } = await service
+      .from('profiles')
+      .select('store_credit')
+      .eq('id', order.user_id)
+      .single()
+
+    await service
+      .from('profiles')
+      .update({ store_credit: (profile?.store_credit ?? 0) + order.store_credit_used })
+      .eq('id', order.user_id)
+  }
+
+  return { ok: true }
+}
+
+/** Email d'expédition — non bloquant, comme la confirmation de commande. */
+async function sendShippedEmail(userId: string | null, orderId: string, trackingNumber: string) {
+  if (!userId) return
+  try {
+    const service = createServiceClient()
+    const { data: profile } = await service
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', userId)
+      .single()
+
+    if (!profile?.email) return
+
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: profile.email,
+      subject: 'Votre commande est expédiée — Goriki',
+      html: orderShippedHtml({
+        orderNumber: orderId,
+        customerName: profile.full_name ?? profile.email,
+        trackingNumber,
+      }),
+    })
+  } catch (err) {
+    console.error(`[commandes] envoi de l'email d'expédition échoué (${orderId}):`, err)
+  }
 }

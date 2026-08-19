@@ -34,8 +34,16 @@ export async function updateSession(request: NextRequest) {
       url.searchParams.set('redirect', request.nextUrl.pathname)
       return NextResponse.redirect(url)
     }
-    const isAdmin = user.app_metadata?.role === 'admin'
-    if (!isAdmin) {
+    // Source de vérité UNIQUE des rôles : `profiles.role` — comme les layouts et
+    // toutes les routes API. Lire `app_metadata.role` ici créait deux vérités
+    // divergentes (mission 03 §E1).
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'admin') {
       const url = request.nextUrl.clone()
       url.pathname = '/'
       return NextResponse.redirect(url)

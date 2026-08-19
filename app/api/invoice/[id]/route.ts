@@ -100,13 +100,26 @@ const styles = StyleSheet.create({
 
 // Composant PDF
 function InvoicePDF({ order, items, profile }: {
-  order: { id: string; total: number; created_at: string; shipping_address: Record<string, string> | null }
+  order: {
+    id: string
+    total: number
+    created_at: string
+    shipping_address: Record<string, string> | null
+    shipping_cost: number | null
+    store_credit_used: number | null
+  }
   items: { id: string; item_snapshot: { name?: string } | null; item_type: string; quantity: number; price_at_purchase: number }[]
   profile: { email: string; full_name: string | null }
 }) {
   const date = new Date(order.created_at).toLocaleDateString('fr-FR', {
     day: 'numeric', month: 'long', year: 'numeric'
   })
+
+  // Le total encaissé = articles + port − crédit boutique : sans ces deux lignes,
+  // les articles ne totalisaient pas le montant facturé.
+  const itemsSubtotal = items.reduce((sum, i) => sum + i.price_at_purchase * i.quantity, 0)
+  const shippingCost = order.shipping_cost ?? 0
+  const storeCreditUsed = order.store_credit_used ?? 0
 
   return createElement(Document, {},
     createElement(Page, { size: 'A4', style: styles.page },
@@ -158,6 +171,20 @@ function InvoicePDF({ order, items, profile }: {
           ),
         ),
         createElement(View, { style: styles.totalRow },
+          createElement(Text, { style: styles.totalLabel }, 'Sous-total articles'),
+          createElement(Text, { style: styles.totalLabel }, `${itemsSubtotal.toFixed(2)} €`),
+        ),
+        createElement(View, { style: styles.totalRow },
+          createElement(Text, { style: styles.totalLabel }, 'Frais de port'),
+          createElement(Text, { style: styles.totalLabel }, `${shippingCost.toFixed(2)} €`),
+        ),
+        storeCreditUsed > 0
+          ? createElement(View, { style: styles.totalRow },
+              createElement(Text, { style: styles.totalLabel }, 'Crédit boutique'),
+              createElement(Text, { style: styles.totalLabel }, `− ${storeCreditUsed.toFixed(2)} €`),
+            )
+          : null,
+        createElement(View, { style: styles.totalRow },
           createElement(Text, { style: styles.totalLabel }, 'Total TTC'),
           createElement(Text, { style: styles.totalAmount }, `${order.total.toFixed(2)} €`),
         ),
@@ -191,7 +218,7 @@ export async function GET(
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, total, created_at, shipping_address, user_id, order_items(*)')
+    .select('id, total, created_at, shipping_address, user_id, shipping_cost, store_credit_used, order_items(*)')
     .eq('id', id)
     .single()
 
@@ -214,6 +241,8 @@ export async function GET(
       total: order.total,
       created_at: order.created_at,
       shipping_address: order.shipping_address as Record<string, string> | null,
+      shipping_cost: order.shipping_cost,
+      store_credit_used: order.store_credit_used,
     },
     items: order.order_items ?? [],
     profile: {

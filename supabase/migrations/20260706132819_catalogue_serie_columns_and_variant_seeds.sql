@@ -1,10 +1,11 @@
--- Appliquée le 2026-07-06 via MCP par RYUU — ce fichier est du versionnage
--- (le SQL a déjà été exécuté en base ; ne pas le rejouer manuellement).
-
+-- Mission 01 CATALOGUE_IMPORTS — mapping séries data-driven + seed des types de variantes
+-- 1. Colonnes série (source : TCGdex serie {id, name}, stockées à l'import)
 ALTER TABLE public.pokemon_sets
   ADD COLUMN IF NOT EXISTS serie_id text,
   ADD COLUMN IF NOT EXISTS serie_name text;
 
+-- 2. Seed variantes globales Pokémon (set_id NULL — WHERE NOT EXISTS car UNIQUE(set_id,code)
+--    ne matche pas sur NULL avec ON CONFLICT, NULLS DISTINCT par défaut)
 INSERT INTO public.pokemon_variant_types (set_id, code, label, source, sort_order)
 SELECT NULL, v.code, v.label, 'api', v.sort_order
 FROM (VALUES
@@ -18,6 +19,7 @@ WHERE NOT EXISTS (
   WHERE t.set_id IS NULL AND t.code = v.code
 );
 
+-- 3. Seed variante globale One Piece
 INSERT INTO public.onepiece_variant_types (set_id, code, label, sort_order)
 SELECT NULL, 'STANDARD', 'Standard', 1
 WHERE NOT EXISTS (

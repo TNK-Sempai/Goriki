@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import type Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import Stripe from 'stripe'
-import { resend, FROM_EMAIL } from '@/lib/resend'
-import { orderConfirmedHtml } from '@/lib/emails/order-confirmed'
+import { createServiceClient } from '@/lib/supabase/service'
+import { finalizeOrder } from '@/lib/orders/finalize'
+
+const HANDLED_EVENTS = [
+  'checkout.session.completed',
+  'checkout.session.expired',
+  'payment_intent.payment_failed',
+] as const
 
 export async function POST(request: NextRequest) {
   const body = await request.text()
@@ -16,124 +20,149 @@ export async function POST(request: NextRequest) {
   }
 
   let event: Stripe.Event
-
   try {
     event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET)
   } catch (err) {
-    console.error('Webhook signature error:', err)
+    console.error('[webhook] signature invalide:', err)
     return NextResponse.json({ error: 'Signature invalide' }, { status: 400 })
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
-    const userId = session.metadata?.user_id
-    const itemsJson = session.metadata?.items_json
+  if (!(HANDLED_EVENTS as readonly string[]).includes(event.type)) {
+    return NextResponse.json({ received: true, ignored: event.type })
+  }
 
-    if (!userId || !itemsJson) return NextResponse.json({ received: true })
+  const service = createServiceClient()
+  const orderId = extractOrderId(event)
 
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!, // service role pour bypass RLS
-      { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
-    )
+  // ── Idempotence niveau 1 : un event.id n'est traité qu'une fois ────────────
+  // (le niveau 2 — transition d'état sous verrou — vit dans la RPC finalize_paid_order)
+  const { error: eventError } = await service.from('stripe_events').insert({
+    id: event.id,
+    type: event.type,
+    order_id: orderId,
+    payload: event.data.object as unknown as Record<string, unknown>,
+  })
 
-    const items = JSON.parse(itemsJson)
-    const shippingAddress = session.collected_information?.shipping_details?.address
-
-    // Créer la commande
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        user_id: userId,
-        status: 'paid',
-        total: (session.amount_total ?? 0) / 100,
-        stripe_payment_id: session.payment_intent as string,
-        stripe_session_id: session.id,
-        shipping_address: shippingAddress,
-      })
-      .select('id')
-      .single()
-
-    if (orderError || !order) {
-      console.error('Order creation error:', orderError)
-      return NextResponse.json({ error: 'Erreur création commande' }, { status: 500 })
+  if (eventError) {
+    // 23505 = clé dupliquée : Stripe rejoue un événement déjà traité.
+    if (eventError.code === '23505') {
+      return NextResponse.json({ received: true, duplicate: true })
     }
+    console.error('[webhook] journalisation de l\'événement:', eventError.message)
+    // On continue : mieux vaut traiter deux fois (la RPC est idempotente) que pas du tout.
+  }
 
-    // Créer les order_items et décrémenter les stocks
-    for (const item of items) {
-      await supabase.from('order_items').insert({
-        order_id: order.id,
-        item_type: item.tcg,
-        item_id: item.listing_id,
-        quantity: item.quantity,
-        price_at_purchase: item.price,
-        item_snapshot: { name: item.name },
-      })
-
-      // Décrémenter le stock
-      const table = item.tcg === 'sealed' ? 'sealed_products' : `${item.tcg}_listings`
-      const { data: current } = await supabase
-        .from(table).select('quantity').eq('id', item.listing_id).single()
-
-      if (current) {
-        const newQty = Math.max(0, current.quantity - item.quantity)
-        await supabase.from(table).update({
-          quantity: newQty,
-          is_active: newQty > 0,
-        }).eq('id', item.listing_id)
-      }
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed':
+        return await handleCompleted(service, event.data.object as Stripe.Checkout.Session)
+      case 'checkout.session.expired':
+        return await handleExpired(service, event.data.object as Stripe.Checkout.Session)
+      case 'payment_intent.payment_failed':
+        return await handlePaymentFailed(service, event.data.object as Stripe.PaymentIntent, orderId)
     }
-
-    // Déduire le store credit utilisé
-    const creditUsed = parseFloat(session.metadata?.store_credit_used ?? '0')
-    if (creditUsed > 0) {
-      const { data: currentProfile } = await supabase
-        .from('profiles')
-        .select('store_credit')
-        .eq('id', userId)
-        .single()
-
-      const newCredit = Math.max(0, (currentProfile?.store_credit ?? 0) - creditUsed)
-      await supabase.from('profiles').update({ store_credit: newCredit }).eq('id', userId)
-
-      // Enregistrer dans la commande
-      await supabase.from('orders')
-        .update({ store_credit_used: creditUsed })
-        .eq('id', order.id)
-    }
-
-    // Envoyer email de confirmation
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email, full_name')
-        .eq('id', userId)
-        .single()
-
-      if (profile?.email) {
-        await resend.emails.send({
-          from: FROM_EMAIL,
-          to: profile.email,
-          subject: `Commande confirmée — Goriki`,
-          html: orderConfirmedHtml({
-            orderNumber: order.id,
-            customerName: profile.full_name ?? profile.email,
-            items: items.map((i: { name: string; quantity: number; price: number }) => ({
-              name: i.name,
-              quantity: i.quantity,
-              price: i.price,
-            })),
-            total: (session.amount_total ?? 0) / 100,
-            shippingAddress: (session.collected_information?.shipping_details?.address as unknown as Record<string, string> | undefined) ?? null,
-          }),
-        })
-      }
-    } catch (emailError) {
-      // Email non bloquant — la commande est créée même si l'email échoue
-      console.error('Email confirmation error:', emailError)
-    }
+  } catch (err) {
+    console.error(`[webhook] traitement de ${event.type} échoué:`, err)
+    // 500 → Stripe rejouera ; l'idempotence protège le rejeu.
+    return NextResponse.json({ error: 'Traitement échoué' }, { status: 500 })
   }
 
   return NextResponse.json({ received: true })
+}
+
+/** Paiement confirmé : finalisation par le chemin partagé avec le bypass 0 €. */
+async function handleCompleted(
+  service: ReturnType<typeof createServiceClient>,
+  session: Stripe.Checkout.Session
+) {
+  const orderId = session.metadata?.order_id ?? (await findOrderIdBySession(service, session.id))
+
+  if (!orderId) {
+    console.error(`[webhook] aucune commande rattachée à la session ${session.id}`)
+    // 200 : rejouer n'y changerait rien (session hors de ce système, ex. ancienne version).
+    return NextResponse.json({ received: true, orphan: true })
+  }
+
+  const shippingCost =
+    (session.shipping_cost?.amount_total ?? session.total_details?.amount_shipping ?? 0) / 100
+
+  const result = await finalizeOrder(service, {
+    orderId,
+    paymentId: typeof session.payment_intent === 'string' ? session.payment_intent : null,
+    sessionId: session.id,
+    total: (session.amount_total ?? 0) / 100,
+    shippingCost,
+    shippingAddress:
+      (session.collected_information?.shipping_details?.address as unknown as Record<string, unknown>) ?? null,
+    storeCreditUsed: parseFloat(session.metadata?.store_credit_used ?? '0'),
+  })
+
+  if (!result.ok) {
+    return NextResponse.json({ error: 'Finalisation échouée' }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    received: true,
+    already_finalized: result.alreadyFinalized,
+    stock_failures: result.stockFailures.length,
+  })
+}
+
+/** Session expirée : la commande pending est purgée, le stock réservé revient en vente. */
+async function handleExpired(
+  service: ReturnType<typeof createServiceClient>,
+  session: Stripe.Checkout.Session
+) {
+  const orderId = session.metadata?.order_id ?? (await findOrderIdBySession(service, session.id))
+  if (!orderId) return NextResponse.json({ received: true, orphan: true })
+
+  const { data, error } = await service.rpc('release_order_checkout', { p_order_id: orderId })
+  if (error) {
+    console.error('[webhook] RPC release_order_checkout:', error.message)
+    return NextResponse.json({ error: 'Libération échouée' }, { status: 500 })
+  }
+
+  return NextResponse.json({ received: true, release: data })
+}
+
+/**
+ * Échec de paiement : trace en base (la ligne `stripe_events` fait foi) et signalement
+ * de la commande pending pour que l'admin la retrouve. Le stock reste réservé jusqu'à
+ * expiration de la session — le client peut encore réessayer.
+ */
+async function handlePaymentFailed(
+  service: ReturnType<typeof createServiceClient>,
+  intent: Stripe.PaymentIntent,
+  orderId: string | null
+) {
+  const reason = intent.last_payment_error?.message ?? 'Paiement refusé'
+
+  if (orderId) {
+    await service
+      .from('orders')
+      .update({ review_reason: `Échec de paiement Stripe : ${reason}` })
+      .eq('id', orderId)
+      .eq('status', 'pending')
+  }
+
+  console.error(`[webhook] payment_intent.payment_failed (${intent.id}) : ${reason}`)
+  return NextResponse.json({ received: true, traced: true })
+}
+
+/** L'order_id voyage en metadata ; sur un PaymentIntent il vient de la session d'origine. */
+function extractOrderId(event: Stripe.Event): string | null {
+  const object = event.data.object as { metadata?: Record<string, string> | null }
+  return object.metadata?.order_id ?? null
+}
+
+async function findOrderIdBySession(
+  service: ReturnType<typeof createServiceClient>,
+  sessionId: string
+): Promise<string | null> {
+  const { data } = await service
+    .from('orders')
+    .select('id')
+    .eq('stripe_session_id', sessionId)
+    .maybeSingle()
+  return data?.id ?? null
 }

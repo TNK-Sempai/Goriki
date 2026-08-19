@@ -26,6 +26,11 @@ export async function GET(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
 
+  // Données de gestion (listings inactifs, needs_photo, price_cm) : admin uniquement
+  // — un simple compte client y avait accès (mission 03 §E2).
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
+
   const { searchParams } = new URL(request.url)
   const tcg = searchParams.get('tcg') ?? 'pokemon'
   const setId = searchParams.get('set_id')
