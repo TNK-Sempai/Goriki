@@ -12,7 +12,7 @@ async function getClient() {
   )
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   const supabase = await getClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json([], { status: 200 })
