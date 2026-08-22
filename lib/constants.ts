@@ -30,3 +30,39 @@ export const MIN_ORDER_AMOUNT = 5.00
 // expirent au-delà. Aligné sur `expires_at` de la Checkout Session Stripe,
 // dont le minimum autorisé est 30 minutes.
 export const CHECKOUT_TTL_MINUTES = 30
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rachat
+//
+// RÈGLE MÉTIER NON NÉGOCIABLE : aucun prix n'est jamais affiché à l'utilisateur
+// avant inspection physique. Il n'y a donc AUCUN barème de reprise ici — les
+// anciens `BUYBACK_RATES` ont été supprimés avec l'estimateur instantané qui
+// affichait « 0,00 € » en direct, à rebours de la logique de la maison.
+// L'offre est saisie par Goriki après réception du lot (`buyback_requests.offer_amount`,
+// NULL par construction à la soumission).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Au-delà de ce nombre de cartes, le bulk ne passe plus par un formulaire :
+ * on invite à un contact direct. Un lot de cette taille se négocie, il ne se
+ * déclare pas en cases à cocher.
+ *
+ * TODO seuil à valider par l'utilisateur.
+ */
+export const BULK_CONTACT_THRESHOLD = 2000
+
+/**
+ * Catégories grossières du rachat bulk. Volontairement peu nombreuses : le
+ * bulk se pèse et se trie au lot, il ne s'inventorie pas carte par carte.
+ *
+ * TODO catégories à valider par l'utilisateur.
+ */
+export const BULK_CATEGORIES = [
+  { code: 'commune', label: 'Communes & peu communes', hint: 'Le gros du volume, tout état confondu' },
+  { code: 'rare', label: 'Rares', hint: 'Rares classiques, holos incluses' },
+  { code: 'brillante', label: 'Brillantes & spéciales', hint: 'EX, V, SR, alt art…' },
+  { code: 'abime', label: 'Abîmées', hint: 'Pliées, rayées, jouées sans protection' },
+] as const
+
+/** Adresse de contact pour les gros stocks bulk. */
+export const BULK_CONTACT_EMAIL = 'contact@goriki.be'

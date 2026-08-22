@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#E8E1D8; background-image:radial-gradient(900px 600px at 15% 0%, rgba(200,134,10,0.10), transparent 60%), radial-gradient(800px 700px at 90% 20%, rgba(26,22,17,0.07), transparent 60%), radial-gradient(700px 500px at 50% 100%, rgba(200,134,10,0.07), transparent 60%); background-attachment:fixed; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#1A1611; text-decoration:none; }
+a:hover { color:#C8860A; }
+</style>
+</helmet>
+<div data-screen-label="Accueil" style="min-height:100vh; color:#1A1611;">
+  <header style="position:sticky; top:16px; z-index:50; max-width:1360px; margin:16px auto 0; display:flex; align-items:center; justify-content:space-between; padding:14px 28px; background:rgba(248,244,236,0.55); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.65); border-radius:20px; box-shadow:0 8px 32px -12px rgba(26,22,17,0.18);">
+    <a href="#" style="font-size:18px; font-weight:600; letter-spacing:-0.01em;">Tanuki <span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:400; letter-spacing:0.2em; vertical-align:middle; margin-left:6px;">TCG</span></a>
+    <nav style="display:flex; gap:6px; font-size:13px;">
+      <a href="Tanuki One Piece.dc.html" style="padding:8px 14px; border-radius:12px;" style-hover="background:rgba(26,22,17,0.06);">One Piece</a>
+      <a href="Tanuki Pokemon.dc.html" style="padding:8px 14px; border-radius:12px;" style-hover="background:rgba(26,22,17,0.06);">Pokémon</a>
+      <a href="#" style="padding:8px 14px; border-radius:12px;" style-hover="background:rgba(26,22,17,0.06);">Dépôt-vente</a>
+      <a href="#" style="padding:8px 14px; border-radius:12px;" style-hover="background:rgba(26,22,17,0.06);">Rachat</a>
+      <a href="#" style="padding:8px 14px; border-radius:12px;" style-hover="background:rgba(26,22,17,0.06);">Want to Buy</a>
+    </nav>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <a href="#" style="font-size:13px; padding:8px 16px; background:rgba(255,255,255,0.5); border:1px solid rgba(255,255,255,0.7); border-radius:12px; color:rgba(26,22,17,0.6);">Rechercher une carte…</a>
+      <a href="#" style="font-family:'JetBrains Mono',monospace; font-size:11px; padding:9px 14px; background:rgba(26,22,17,0.9); color:#E8E1D8; border-radius:12px;">PANIER · 0</a>
+    </div>
+  </header>
+
+  <section style="display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:center; padding:88px 56px 72px; max-width:1360px; margin:0 auto; box-sizing:border-box;">
+    <div style="display:flex; flex-direction:column; gap:26px;">
+      <div style="align-self:flex-start; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:rgba(26,22,17,0.6); padding:8px 14px; background:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.65); border-radius:999px; backdrop-filter:blur(12px);">Maison de vente — cartes à collectionner</div>
+      <h1 style="font-weight:600; font-size:64px; line-height:1.03; letter-spacing:-0.03em; margin:0; text-wrap:balance;">One Piece.<br>Pokémon.</h1>
+      <p style="font-size:17px; line-height:1.6; color:rgba(26,22,17,0.72); max-width:44ch; margin:0;">Cartes scellées, singles &amp; plus. Chaque pièce au-dessus d'un euro est scannée recto-verso, authentifiée, et se tourne entre vos mains avant l'achat.</p>
+      <div style="display:flex; gap:14px; align-items:center; margin-top:4px;">
+        <a href="Tanuki Catalogue.dc.html" style="background:#C8860A; color:#FDF9F2; padding:16px 30px; font-size:15px; border-radius:16px; box-shadow:0 12px 28px -10px rgba(200,134,10,0.55);" style-hover="background:#1A1611; color:#E8E1D8;">Découvrir les cartes</a>
+        <a href="#" style="padding:16px 26px; font-size:15px; background:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.7); border-radius:16px; backdrop-filter:blur(12px);" style-hover="background:rgba(255,255,255,0.75);">Dépôt-vente</a>
+      </div>
+    </div>
+    <div style="position:relative; display:flex; align-items:center; justify-content:center; min-height:520px;">
+      <img src="assets/don-foil.webp" alt="" style="position:absolute; width:180px; border-radius:10px; transform:rotate(-14deg) translate(-150px, -40px); opacity:0.45; filter:blur(2px); box-shadow:0 30px 60px -25px rgba(26,22,17,0.4);">
+      <img src="assets/don-standard.webp" alt="" style="position:absolute; width:170px; border-radius:10px; transform:rotate(12deg) translate(160px, 60px); opacity:0.45; filter:blur(2px); box-shadow:0 30px 60px -25px rgba(26,22,17,0.4);">
+      <a href="Tanuki Fiche Carte.dc.html" style="position:relative; display:flex; flex-direction:column; align-items:center;">
+        <img src="assets/don-gold.webp" alt="Carte DON!! dorée" style="width:290px; border-radius:14px; box-shadow:0 50px 90px -30px rgba(26,22,17,0.5); display:block;">
+        <div style="position:absolute; bottom:-22px; display:flex; gap:10px; align-items:center; background:rgba(248,244,236,0.6); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.7); border-radius:14px; padding:10px 18px; box-shadow:0 12px 32px -12px rgba(26,22,17,0.3);">
+          <span style="font-size:16px; font-weight:600;">49 €</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.08em; color:rgba(26,22,17,0.6);">+11,3 %</span>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section style="max-width:1360px; margin:0 auto; padding:0 56px; box-sizing:border-box;">
+    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:20px;">
+      <sc-for list="{{ cats }}" as="c" hint-placeholder-count="4">
+        <a href="Tanuki Catalogue.dc.html" style="padding:28px 26px; background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:20px; display:flex; flex-direction:column; gap:8px; box-shadow:0 10px 30px -14px rgba(26,22,17,0.18);" style-hover="background:rgba(255,255,255,0.7);">
+          <span style="font-size:21px; font-weight:600; letter-spacing:-0.02em;">{{ c.name }}</span>
+          <span style="font-size:13px; color:rgba(26,22,17,0.6);">{{ c.sub }}</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; margin-top:8px; color:rgba(26,22,17,0.7);">VOIR →</span>
+        </a>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="padding:80px 56px 0; max-width:1360px; margin:0 auto; box-sizing:border-box;">
+    <div style="background:rgba(248,244,236,0.5); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.65); border-radius:28px; padding:40px; box-shadow:0 16px 48px -20px rgba(26,22,17,0.2);">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:32px;">
+        <h2 style="font-weight:600; font-size:28px; letter-spacing:-0.02em; margin:0;">Cartes populaires</h2>
+        <a href="Tanuki Catalogue.dc.html" style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; color:rgba(26,22,17,0.6);">TOUT VOIR →</a>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:20px;">
+        <sc-for list="{{ featured }}" as="card" hint-placeholder-count="5">
+          <a href="Tanuki Fiche Carte.dc.html" style="display:flex; flex-direction:column; gap:12px; background:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.7); border-radius:18px; padding:14px; box-shadow:0 8px 24px -12px rgba(26,22,17,0.2);" style-hover="background:rgba(255,255,255,0.75);">
+{{ card.imgEl }}
+            <sc-if value="{{ card.noImg }}" hint-placeholder-val="{{ false }}">
+              <div style="aspect-ratio:63/88; background:rgba(232,225,216,0.8); background-image:repeating-linear-gradient(45deg, rgba(26,22,17,0.05) 0 10px, transparent 10px 20px); border:1px solid rgba(26,22,17,0.12); border-radius:12px; display:flex; align-items:center; justify-content:center;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.45);">scan à venir</span>
+              </div>
+            </sc-if>
+            <div style="display:flex; flex-direction:column; gap:3px;">
+              <span style="font-size:14px; font-weight:600;">{{ card.name }}</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(26,22,17,0.55);">{{ card.ref }}</span>
+              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:4px;">
+                <span style="font-size:15px; font-weight:600;">{{ card.price }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(26,22,17,0.55);">{{ card.delta }}</span>
+              </div>
+            </div>
+          </a>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding:24px 56px 0; max-width:1360px; margin:0 auto; box-sizing:border-box;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+      <div style="background:rgba(248,244,236,0.5); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.65); border-radius:28px; padding:40px; display:flex; flex-direction:column; gap:16px; box-shadow:0 16px 48px -20px rgba(26,22,17,0.2);">
+        <h3 style="font-weight:600; font-size:26px; letter-spacing:-0.02em; margin:0;">Dépôt-vente</h3>
+        <p style="font-size:14px; line-height:1.6; color:rgba(26,22,17,0.7); max-width:44ch; margin:0;">Des cartes de collection proposées par la communauté — scannées, cotées et clairement distinguées du stock Tanuki.</p>
+        <a href="#" style="align-self:flex-start; padding:12px 22px; font-size:14px; background:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.75); border-radius:14px;" style-hover="background:#1A1611; color:#E8E1D8;">Voir les cartes</a>
+      </div>
+      <div style="background:rgba(248,244,236,0.5); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.65); border-radius:28px; padding:40px; display:flex; flex-direction:column; gap:16px; box-shadow:0 16px 48px -20px rgba(26,22,17,0.2);">
+        <h3 style="font-weight:600; font-size:26px; letter-spacing:-0.02em; margin:0;">Rachat de cartes</h3>
+        <p style="font-size:14px; line-height:1.6; color:rgba(26,22,17,0.7); max-width:44ch; margin:0;">Rachat immédiat au meilleur prix. Paiement rapide, offre transparente, cartes authentifiées.</p>
+        <a href="#" style="align-self:flex-start; padding:12px 22px; font-size:14px; background:rgba(255,255,255,0.55); border:1px solid rgba(255,255,255,0.75); border-radius:14px;" style-hover="background:#1A1611; color:#E8E1D8;">Estimer mes cartes</a>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding:24px 56px 64px; max-width:1360px; margin:0 auto; box-sizing:border-box;">
+    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:20px;">
+      <sc-for list="{{ badges }}" as="b" hint-placeholder-count="4">
+        <div style="display:flex; flex-direction:column; gap:4px; padding:22px 24px; background:rgba(255,255,255,0.4); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,0.6); border-radius:18px;">
+          <span style="font-size:14px; font-weight:600;">{{ b.t }}</span>
+          <span style="font-size:12px; color:rgba(26,22,17,0.6);">{{ b.s }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <footer style="max-width:1360px; margin:0 auto 32px; padding:20px 32px; background:rgba(248,244,236,0.45); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.6); border-radius:18px; display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.55); box-sizing:border-box;">
+    <span>© 2026 TANUKI TCG — TOUS DROITS RÉSERVÉS</span>
+    <span>AUTHENTIFIÉ · SCANNÉ · GARANTI</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const withFlags = (arr) => arr.map(c => ({ ...c, noImg: !c.img, imgEl: c.img ? React.createElement('img', { src: c.img, alt: c.name, style: { width: '100%', aspectRatio: '63/88', objectFit: 'cover', borderRadius: 12, display: 'block', boxShadow: '0 14px 30px -14px rgba(26,22,17,0.35)' } }) : null }));
+    return {
+      cats: [
+        { name: 'One Piece', sub: 'Singles, scellés & bulk' },
+        { name: 'Pokémon', sub: 'Singles, scellés & bulk' },
+        { name: 'Scellés', sub: 'Boosters, displays, coffrets' },
+        { name: 'Bulk', sub: 'Lots & communes au poids' },
+      ],
+      featured: withFlags([
+        { name: 'DON!! Dorée', ref: 'OP-PROMO', price: '49 €', delta: '+11,3 %', img: 'assets/don-gold.webp' },
+        { name: 'DON!! Foil texturé', ref: 'OP-PROMO', price: '19 €', delta: '+4,2 %', img: 'assets/don-foil.webp' },
+        { name: 'DON!! Standard', ref: 'OP05', price: '4,90 €', delta: '−1,1 %', img: 'assets/don-standard.webp' },
+        { name: 'Monkey D. Luffy', ref: 'OP05-119', price: '1 249 €', delta: '+12,4 %', img: null },
+        { name: 'Trafalgar Law', ref: 'OP01-002', price: '599 €', delta: '−0,7 %', img: null },
+      ]),
+      badges: [
+        { t: 'Cartes 100 % authentifiées', s: 'Scannées & vérifiées' },
+        { t: 'Scans haute résolution', s: 'Voir chaque détail' },
+        { t: 'Envoi sécurisé', s: 'Emballage premium' },
+        { t: 'Support réactif', s: 'Réponse sous 24 h' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

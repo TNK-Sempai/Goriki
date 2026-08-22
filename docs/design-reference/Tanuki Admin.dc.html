@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#14110D; color:#E8E1D8; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#E8E1D8; text-decoration:none; }
+a:hover { color:#C8860A; }
+input, select { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; }
+</style>
+</helmet>
+<div data-screen-label="Admin" style="display:grid; grid-template-columns:200px 1fr; min-height:100vh; color:#E8E1D8;">
+
+  <aside style="position:sticky; top:0; height:100vh; box-sizing:border-box; background:rgba(232,225,216,0.03); border-right:1px solid rgba(232,225,216,0.1); display:flex; flex-direction:column; padding:24px 14px;">
+    <div style="padding:0 10px 24px;">
+      <div style="font-size:16px; font-weight:600; letter-spacing:-0.01em;">Tanuki <span style="font-family:'JetBrains Mono',monospace; font-size:9px; font-weight:400; letter-spacing:0.2em; vertical-align:middle; margin-left:5px; color:#C8860A;">ADMIN</span></div>
+    </div>
+    <nav style="display:flex; flex-direction:column; gap:2px; flex:1;">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="7">
+        <button onClick="{{ n.go }}" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; font-size:13px; border:none; cursor:pointer; border-radius:4px; background:{{ n.bg }}; color:{{ n.fg }}; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight:{{ n.w }}; text-align:left; width:100%;">
+          <span>{{ n.label }}</span>
+          <sc-if value="{{ n.badge }}" hint-placeholder-val="{{ false }}">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:rgba(232,225,216,0.45);">{{ n.badge }}</span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </nav>
+    <a href="Tanuki Accueil.dc.html" style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; padding:12px 10px; border-top:1px solid rgba(232,225,216,0.1); color:rgba(232,225,216,0.5);">← VOIR LA BOUTIQUE</a>
+  </aside>
+
+  <main style="padding:24px 36px 48px; box-sizing:border-box; min-width:0;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+      <div style="display:flex; flex-direction:column; gap:3px;">
+        <h1 style="font-weight:600; font-size:24px; letter-spacing:-0.02em; margin:0;">{{ pageTitle }}</h1>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; color:rgba(232,225,216,0.45);">{{ pageSub }}</span>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <span style="font-size:12px; color:rgba(232,225,216,0.5);">tanuki.corporation@gmail.com</span>
+        <a href="#" style="font-size:12px; padding:8px 16px; background:rgba(232,225,216,0.06); border:1px solid rgba(232,225,216,0.15); border-radius:4px;" style-hover="background:rgba(232,225,216,0.12);">Déconnexion</a>
+      </div>
+    </div>
+
+    <sc-if value="{{ vDashboard }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
+        <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:20px 22px; display:flex; flex-direction:column; gap:7px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(232,225,216,0.45);">CA DU MOIS</span>
+          <span style="font-size:26px; font-weight:600; color:#C8860A;">4 218 €</span>
+          <span style="font-size:12px; color:rgba(232,225,216,0.5);">38 commandes payées</span>
+        </div>
+        <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="3">
+          <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:20px 22px; display:flex; flex-direction:column; gap:7px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(232,225,216,0.45);">{{ k.label }}</span>
+            <span style="font-size:26px; font-weight:600;">{{ k.value }}</span>
+            <span style="font-size:12px; color:rgba(232,225,216,0.5);">{{ k.sub }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:12px; margin-top:12px;">
+        <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px;">
+            <span style="font-size:15px; font-weight:600;">CA — 6 derniers mois</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:rgba(232,225,216,0.45);">TOTAL 19 340 €</span>
+          </div>
+          <div style="display:flex; align-items:flex-end; gap:16px; height:160px;">
+            <sc-for list="{{ months }}" as="m" hint-placeholder-count="6">
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:7px; height:100%; justify-content:flex-end;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:rgba(232,225,216,0.5);">{{ m.amount }}</span>
+                <div style="width:100%; height:{{ m.h }}%; background:{{ m.color }}; border-radius:2px;"></div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:rgba(232,225,216,0.4);">{{ m.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:24px; display:flex; flex-direction:column;">
+          <span style="font-size:15px; font-weight:600; margin-bottom:18px;">Alertes</span>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <sc-for list="{{ alerts }}" as="a" hint-placeholder-count="4">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; padding:11px 14px; background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.08); border-radius:4px;">
+                <span style="color:rgba(232,225,216,0.8);">{{ a.text }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:{{ a.color }};">{{ a.n }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:24px; margin-top:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
+          <span style="font-size:15px; font-weight:600;">Commandes du jour</span>
+          <button onClick="{{ goCommandes }}" style="background:none; border:none; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; color:rgba(232,225,216,0.5); padding:0;" style-hover="color:#C8860A;">TOUT VOIR →</button>
+        </div>
+        <sc-for list="{{ todayOrders }}" as="o" hint-placeholder-count="3">
+          <div style="display:grid; grid-template-columns:100px 1fr 1fr 110px 90px; gap:12px; padding:12px 0; border-bottom:1px solid rgba(232,225,216,0.07); font-size:12px; align-items:center;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.55);">{{ o.id }}</span>
+            <span style="font-weight:500;">{{ o.client }}</span>
+            <span style="color:rgba(232,225,216,0.6);">{{ o.contenu }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.08em; color:{{ o.color }};">● {{ o.statut }}</span>
+            <span style="text-align:right; font-weight:600;">{{ o.montant }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ vStats }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:24px;">
+          <span style="font-size:15px; font-weight:600; display:block; margin-bottom:20px;">CA par période — 12 mois</span>
+          <div style="display:flex; align-items:flex-end; gap:8px; height:180px;">
+            <sc-for list="{{ year }}" as="m" hint-placeholder-count="12">
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end;">
+                <div style="width:100%; height:{{ m.h }}%; background:rgba(232,225,216,0.55); border-radius:2px;"></div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:8px; color:rgba(232,225,216,0.4);">{{ m.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:24px;">
+            <span style="font-size:15px; font-weight:600; display:block; margin-bottom:18px;">Ventes par jeu</span>
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <sc-for list="{{ byGame }}" as="g" hint-placeholder-count="2">
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                  <div style="display:flex; justify-content:space-between; font-size:12px;">
+                    <span>{{ g.label }}</span><span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.55);">{{ g.amount }}</span>
+                  </div>
+                  <div style="height:5px; background:rgba(232,225,216,0.08); border-radius:2px;">
+                    <div style="height:100%; width:{{ g.w }}%; background:{{ g.color }}; border-radius:2px;"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:24px;">
+            <span style="font-size:15px; font-weight:600; display:block; margin-bottom:18px;">Top sets</span>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <sc-for list="{{ bySets }}" as="s" hint-placeholder-count="5">
+                <div style="display:flex; justify-content:space-between; font-size:12px;">
+                  <span style="color:rgba(232,225,216,0.8);">{{ s.label }}</span>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.55);">{{ s.amount }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ vListings }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex; gap:10px; margin-bottom:14px; align-items:center;">
+        <input placeholder="Rechercher (nom, set, numéro…)" style="flex:1; padding:11px 14px; font-size:13px; background:rgba(232,225,216,0.05); border:1px solid rgba(232,225,216,0.14); border-radius:4px; color:#E8E1D8; box-sizing:border-box;">
+        <sc-for list="{{ listingFilters }}" as="f" hint-placeholder-count="3">
+          <button onClick="{{ f.pick }}" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.08em; padding:11px 16px; background:{{ f.bg }}; color:{{ f.fg }}; border:1px solid rgba(232,225,216,0.14); border-radius:4px; cursor:pointer;">{{ f.label }}</button>
+        </sc-for>
+        <button onClick="{{ goMasse }}" style="font-size:12px; padding:11px 18px; background:#C8860A; color:#14110D; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Édition en masse</button>
+      </div>
+      <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; overflow:hidden;">
+        <div style="display:grid; grid-template-columns:44px 1fr 130px 90px 80px 70px 90px 60px; gap:10px; padding:12px 18px; border-bottom:1px solid rgba(232,225,216,0.1); font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; color:rgba(232,225,216,0.4);">
+          <span></span><span>CARTE</span><span>SET</span><span>VARIANTE</span><span>ÉTAT</span><span>STOCK</span><span style="text-align:right;">PRIX</span><span></span>
+        </div>
+        <sc-for list="{{ listings }}" as="l" hint-placeholder-count="8">
+          <div style="display:grid; grid-template-columns:44px 1fr 130px 90px 80px 70px 90px 60px; gap:10px; padding:11px 18px; border-bottom:1px solid rgba(232,225,216,0.06); font-size:12px; align-items:center;" style-hover="background:rgba(232,225,216,0.03);">
+            <input type="checkbox" style="accent-color:#C8860A;">
+            <span style="font-weight:500;">{{ l.name }} <sc-if value="{{ l.needsPhoto }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace; font-size:8px; letter-spacing:0.1em; color:#C8860A; margin-left:8px;">PHOTO MANQUANTE</span></sc-if></span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.55);">{{ l.set }}</span>
+            <span style="color:rgba(232,225,216,0.7);">{{ l.variant }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.6);">{{ l.etat }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:{{ l.stockColor }};">{{ l.stock }}</span>
+            <span style="text-align:right; font-weight:600;">{{ l.price }}</span>
+            <button onClick="{{ l.edit }}" style="background:none; border:none; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:rgba(232,225,216,0.5); text-align:right; padding:4px;" style-hover="color:#C8860A;">ÉDITER</button>
+          </div>
+        </sc-for>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 18px; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:rgba(232,225,216,0.45);">
+          <span>29 104 LISTINGS · PAGE 1 / 2 911</span>
+          <div style="display:flex; gap:6px;">
+            <button style="background:rgba(232,225,216,0.06); border:1px solid rgba(232,225,216,0.14); color:rgba(232,225,216,0.6); padding:7px 14px; border-radius:4px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:9px;">← PRÉC</button>
+            <button style="background:rgba(232,225,216,0.06); border:1px solid rgba(232,225,216,0.14); color:rgba(232,225,216,0.6); padding:7px 14px; border-radius:4px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:9px;">SUIV →</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ vListingDetail }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ goListings }}" style="background:none; border:none; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.12em; color:rgba(232,225,216,0.5); padding:0; margin-bottom:18px;" style-hover="color:#C8860A;">← LISTINGS</button>
+      <div style="display:grid; grid-template-columns:300px 1fr; gap:12px; align-items:start;">
+        <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:22px; display:flex; flex-direction:column; gap:14px;">
+          <img src="assets/don-gold.webp" alt="" style="width:100%; border-radius:4px; display:block;">
+          <button style="background:rgba(232,225,216,0.06); border:1px dashed rgba(232,225,216,0.25); color:rgba(232,225,216,0.6); padding:13px; font-size:12px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">+ Ajouter des photos (Cloudinary)</button>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+            <span style="color:rgba(232,225,216,0.6);">Flag needs_photo</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:oklch(0.7 0.12 150);">RÉSOLU ✓</span>
+          </div>
+        </div>
+        <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:28px;">
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:24px;">
+            <span style="font-size:18px; font-weight:600;">Carte DON!! Dorée — OP-PROMO</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.12em; color:rgba(232,225,216,0.45);">ID LST-18442</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; color:rgba(232,225,216,0.45);">PRIX (€)</label>
+              <input value="49.00" style="padding:12px 14px; font-size:14px; background:rgba(232,225,216,0.05); border:1px solid rgba(232,225,216,0.14); border-radius:4px; color:#E8E1D8; box-sizing:border-box; width:100%;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; color:rgba(232,225,216,0.45);">STOCK</label>
+              <input value="1" style="padding:12px 14px; font-size:14px; background:rgba(232,225,216,0.05); border:1px solid rgba(232,225,216,0.14); border-radius:4px; color:#E8E1D8; box-sizing:border-box; width:100%;">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; color:rgba(232,225,216,0.45);">VARIANTE</label>
+              <input value="Near Mint · FR" style="padding:12px 14px; font-size:14px; background:rgba(232,225,216,0.05); border:1px solid rgba(232,225,216,0.14); border-radius:4px; color:#E8E1D8; box-sizing:border-box; width:100%;">
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:24px;">
+            <button style="background:#C8860A; color:#14110D; border:none; padding:13px 26px; font-size:13px; font-weight:600; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Enregistrer</button>
+            <button onClick="{{ goListings }}" style="background:rgba(232,225,216,0.06); border:1px solid rgba(232,225,216,0.14); color:#E8E1D8; padding:13px 22px; font-size:13px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Annuler</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ vMasse }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ goListings }}" style="background:none; border:none; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.12em; color:rgba(232,225,216,0.5); padding:0; margin-bottom:18px;" style-hover="color:#C8860A;">← LISTINGS</button>
+      <div style="display:flex; gap:10px; align-items:center; background:rgba(200,134,10,0.08); border:1px solid rgba(200,134,10,0.3); border-radius:4px; padding:14px 18px; margin-bottom:14px;">
+        <span style="font-size:13px; font-weight:500;">{{ masseCount }} listings sélectionnés</span>
+        <span style="flex:1;"></span>
+        <input placeholder="Prix : −10 %" style="width:120px; padding:9px 12px; font-size:12px; background:rgba(232,225,216,0.05); border:1px solid rgba(232,225,216,0.18); border-radius:4px; color:#E8E1D8;">
+        <input placeholder="Stock : =0" style="width:100px; padding:9px 12px; font-size:12px; background:rgba(232,225,216,0.05); border:1px solid rgba(232,225,216,0.18); border-radius:4px; color:#E8E1D8;">
+        <button style="background:#C8860A; color:#14110D; border:none; padding:10px 20px; font-size:12px; font-weight:600; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Appliquer</button>
+      </div>
+      <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; overflow:hidden;">
+        <sc-for list="{{ masseRows }}" as="l" hint-placeholder-count="6">
+          <div style="display:grid; grid-template-columns:44px 1fr 130px 80px 90px; gap:10px; padding:11px 18px; border-bottom:1px solid rgba(232,225,216,0.06); font-size:12px; align-items:center; background:{{ l.rowBg }};">
+            <input type="checkbox" checked="{{ l.checked }}" onChange="{{ l.toggle }}" style="accent-color:#C8860A;">
+            <span style="font-weight:500;">{{ l.name }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.55);">{{ l.set }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.6);">{{ l.stock }}</span>
+            <span style="text-align:right; font-weight:600;">{{ l.price }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ vProduits }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
+        <button style="background:#C8860A; color:#14110D; border:none; padding:11px 20px; font-size:12px; font-weight:600; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">+ Nouveau produit scellé</button>
+      </div>
+      <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; overflow:hidden;">
+        <div style="display:grid; grid-template-columns:1fr 110px 110px 70px 90px 60px; gap:10px; padding:12px 18px; border-bottom:1px solid rgba(232,225,216,0.1); font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; color:rgba(232,225,216,0.4);">
+          <span>PRODUIT</span><span>JEU</span><span>CATÉGORIE</span><span>STOCK</span><span style="text-align:right;">PRIX</span><span></span>
+        </div>
+        <sc-for list="{{ produits }}" as="p" hint-placeholder-count="6">
+          <div style="display:grid; grid-template-columns:1fr 110px 110px 70px 90px 60px; gap:10px; padding:12px 18px; border-bottom:1px solid rgba(232,225,216,0.06); font-size:12px; align-items:center;" style-hover="background:rgba(232,225,216,0.03);">
+            <span style="font-weight:500;">{{ p.name }}</span>
+            <span style="color:rgba(232,225,216,0.65);">{{ p.jeu }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.55);">{{ p.cat }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:{{ p.stockColor }};">{{ p.stock }}</span>
+            <span style="text-align:right; font-weight:600;">{{ p.price }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:rgba(232,225,216,0.5); text-align:right; cursor:pointer;">ÉDITER</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ vImport }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+        <button onClick="{{ pickPokemon }}" style="text-align:left; background:{{ importPkBg }}; border:1px solid {{ importPkBorder }}; border-radius:4px; padding:24px; cursor:pointer; display:flex; flex-direction:column; gap:6px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#E8E1D8;">
+          <span style="font-size:16px; font-weight:600;">Import Pokémon</span>
+          <span style="font-size:12px; color:rgba(232,225,216,0.55);">API TCGdex — sets FR/EN, cartes, listings de base</span>
+        </button>
+        <button onClick="{{ pickOnePiece }}" style="text-align:left; background:{{ importOpBg }}; border:1px solid {{ importOpBorder }}; border-radius:4px; padding:24px; cursor:pointer; display:flex; flex-direction:column; gap:6px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#E8E1D8;">
+          <span style="font-size:16px; font-weight:600;">Import One Piece</span>
+          <span style="font-size:12px; color:rgba(232,225,216,0.55);">Source apitcg — OP01 → OP11, promos, DON!!</span>
+        </button>
+      </div>
+      <div style="background:#0E0C09; border:1px solid rgba(232,225,216,0.12); border-radius:4px; padding:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+          <div style="display:flex; gap:20px; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em;">
+            <span style="color:rgba(232,225,216,0.6);">SETS <span style="color:#E8E1D8;">12/15</span></span>
+            <span style="color:rgba(232,225,216,0.6);">CARTES <span style="color:#E8E1D8;">4 812</span></span>
+            <span style="color:rgba(232,225,216,0.6);">LISTINGS <span style="color:#E8E1D8;">9 624</span></span>
+            <span style="color:rgba(232,225,216,0.6);">ERREURS <span style="color:#C8860A;">3</span></span>
+            <span style="color:rgba(232,225,216,0.6);">DURÉE <span style="color:#E8E1D8;">04:12</span></span>
+          </div>
+          <button style="background:rgba(232,225,216,0.06); border:1px solid rgba(232,225,216,0.18); color:#E8E1D8; padding:9px 18px; font-size:11px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" style-hover="border-color:#C8860A; color:#C8860A;">Annuler l'import</button>
+        </div>
+        <div style="height:5px; background:rgba(232,225,216,0.08); border-radius:2px; margin-bottom:18px;">
+          <div style="height:100%; width:80%; background:#C8860A; border-radius:2px;"></div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; line-height:1.9; color:rgba(232,225,216,0.65); max-height:240px; overflow:auto;">
+          <div><span style="color:rgba(232,225,216,0.35);">14:02:41</span>  set SV8.5 « Prismatic Evolutions » — 180 cartes importées</div>
+          <div><span style="color:rgba(232,225,216,0.35);">14:02:52</span>  set SV9 « Journey Together » — 190 cartes importées</div>
+          <div><span style="color:rgba(232,225,216,0.35);">14:03:10</span>  <span style="color:#C8860A;">WARN</span> image manquante SV9-172 → flag needs_photo</div>
+          <div><span style="color:rgba(232,225,216,0.35);">14:03:24</span>  set SV10 « Destined Rivals » — 182 cartes importées</div>
+          <div><span style="color:rgba(232,225,216,0.35);">14:03:58</span>  génération listings NM/EX/GD… 9 624 créés</div>
+          <div><span style="color:rgba(232,225,216,0.35);">14:04:12</span>  <span style="color:#C8860A;">ERR</span> timeout TCGdex /sets/sv10.5 — retry 1/3</div>
+          <div><span style="color:rgba(232,225,216,0.35);">14:04:19</span>  retry OK — set SV10.5 récupéré</div>
+          <div><span style="color:rgba(232,225,216,0.35);">14:04:31</span>  ▍import en cours…</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ vCommandes }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex; gap:8px; margin-bottom:14px; align-items:center;">
+        <sc-for list="{{ orderFilters }}" as="f" hint-placeholder-count="5">
+          <button onClick="{{ f.pick }}" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.08em; padding:10px 16px; background:{{ f.bg }}; color:{{ f.fg }}; border:1px solid rgba(232,225,216,0.14); border-radius:4px; cursor:pointer;">{{ f.label }}</button>
+        </sc-for>
+        <span style="flex:1;"></span>
+        <button style="background:rgba(232,225,216,0.06); border:1px solid rgba(232,225,216,0.18); color:#E8E1D8; padding:10px 18px; font-size:12px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Export CSV</button>
+      </div>
+      <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; overflow:hidden;">
+        <sc-for list="{{ allOrders }}" as="o" hint-placeholder-count="6">
+          <button onClick="{{ o.open }}" style="display:grid; grid-template-columns:100px 130px 1fr 1fr 120px 90px 40px; gap:12px; padding:13px 18px; border:none; border-bottom:1px solid rgba(232,225,216,0.06); font-size:12px; align-items:center; background:none; cursor:pointer; width:100%; text-align:left; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#E8E1D8; box-sizing:border-box;" style-hover="background:rgba(232,225,216,0.03);">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.55);">{{ o.id }}</span>
+            <span style="color:rgba(232,225,216,0.6);">{{ o.date }}</span>
+            <span style="font-weight:500;">{{ o.client }}</span>
+            <span style="color:rgba(232,225,216,0.6);">{{ o.contenu }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.08em; color:{{ o.color }};">● {{ o.statut }}</span>
+            <span style="text-align:right; font-weight:600;">{{ o.montant }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.4); text-align:right;">→</span>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ vCommandeDetail }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ goCommandes }}" style="background:none; border:none; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.12em; color:rgba(232,225,216,0.5); padding:0; margin-bottom:18px;" style-hover="color:#C8860A;">← COMMANDES</button>
+      <div style="display:grid; grid-template-columns:1fr 340px; gap:12px; align-items:start;">
+        <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:28px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+            <span style="font-size:18px; font-weight:600;">#TNK-0147 — Julien M.</span>
+            <div style="display:flex; gap:8px;">
+              <select style="background:rgba(232,225,216,0.06); border:1px solid rgba(232,225,216,0.18); color:#E8E1D8; padding:9px 14px; font-size:12px; border-radius:4px;">
+                <option>Payée — à expédier</option><option>Expédiée</option><option>Livrée</option><option>Remboursée</option>
+              </select>
+              <button style="background:rgba(232,225,216,0.06); border:1px solid rgba(232,225,216,0.18); color:#E8E1D8; padding:9px 16px; font-size:12px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" style-hover="border-color:#8A2F1D; color:#D4826F;">Rembourser</button>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:12px; font-size:13px; margin-bottom:24px;">
+            <div style="display:flex; justify-content:space-between;"><span>Carte DON!! Dorée <span style="color:rgba(232,225,216,0.45);">× 1</span></span><span style="font-weight:500;">49,00 €</span></div>
+            <div style="display:flex; justify-content:space-between;"><span style="color:rgba(232,225,216,0.55);">Livraison Colissimo</span><span>4,95 €</span></div>
+            <div style="height:1px; background:rgba(232,225,216,0.1);"></div>
+            <div style="display:flex; justify-content:space-between; font-weight:600;"><span>Total</span><span style="color:#C8860A;">53,95 €</span></div>
+          </div>
+          <div style="background:rgba(232,225,216,0.03); border:1px solid rgba(232,225,216,0.08); border-radius:4px; padding:18px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.16em; color:rgba(232,225,216,0.45); display:block; margin-bottom:10px;">ADRESSE DE LIVRAISON</span>
+            <div style="font-size:13px; line-height:1.6;">Julien Martin — 12 rue des Lilas, 69003 Lyon</div>
+          </div>
+        </div>
+        <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:24px; display:flex; flex-direction:column; gap:16px;">
+          <span style="font-size:14px; font-weight:600;">Stripe</span>
+          <div style="display:flex; flex-direction:column; gap:10px; font-size:12px;">
+            <div style="display:flex; justify-content:space-between;"><span style="color:rgba(232,225,216,0.55);">PaymentIntent</span><a href="#" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#C8860A;">pi_3PqK…8dF2 ↗</a></div>
+            <div style="display:flex; justify-content:space-between;"><span style="color:rgba(232,225,216,0.55);">Charge</span><a href="#" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#C8860A;">ch_3PqK…1xB9 ↗</a></div>
+            <div style="display:flex; justify-content:space-between;"><span style="color:rgba(232,225,216,0.55);">Client Stripe</span><a href="#" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#C8860A;">cus_QhT…4mZ ↗</a></div>
+          </div>
+          <div style="height:1px; background:rgba(232,225,216,0.1);"></div>
+          <span style="font-size:14px; font-weight:600;">Suivi</span>
+          <input placeholder="N° de suivi Colissimo" style="padding:11px 14px; font-size:12px; background:rgba(232,225,216,0.05); border:1px solid rgba(232,225,216,0.14); border-radius:4px; color:#E8E1D8; box-sizing:border-box; width:100%;">
+          <button style="background:#C8860A; color:#14110D; border:none; padding:12px; font-size:13px; font-weight:600; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Marquer expédiée</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ vClients }}" hint-placeholder-val="{{ false }}">
+      <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; overflow:hidden;">
+        <div style="display:grid; grid-template-columns:1fr 1fr 110px 110px 120px 40px; gap:12px; padding:12px 18px; border-bottom:1px solid rgba(232,225,216,0.1); font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; color:rgba(232,225,216,0.4);">
+          <span>CLIENT</span><span>E-MAIL</span><span>COMMANDES</span><span>TOTAL</span><span>STORE CREDIT</span><span></span>
+        </div>
+        <sc-for list="{{ clients }}" as="c" hint-placeholder-count="5">
+          <button onClick="{{ c.open }}" style="display:grid; grid-template-columns:1fr 1fr 110px 110px 120px 40px; gap:12px; padding:13px 18px; border:none; border-bottom:1px solid rgba(232,225,216,0.06); font-size:12px; align-items:center; background:none; cursor:pointer; width:100%; text-align:left; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#E8E1D8; box-sizing:border-box;" style-hover="background:rgba(232,225,216,0.03);">
+            <span style="font-weight:500;">{{ c.name }}</span>
+            <span style="color:rgba(232,225,216,0.6);">{{ c.email }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.6);">{{ c.n }}</span>
+            <span style="font-weight:600;">{{ c.total }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:{{ c.creditColor }};">{{ c.credit }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.4); text-align:right;">→</span>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ vClientDetail }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ goClients }}" style="background:none; border:none; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.12em; color:rgba(232,225,216,0.5); padding:0; margin-bottom:18px;" style-hover="color:#C8860A;">← CLIENTS</button>
+      <div style="display:grid; grid-template-columns:340px 1fr; gap:12px; align-items:start;">
+        <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:28px; display:flex; flex-direction:column; gap:18px;">
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <span style="font-size:18px; font-weight:600;">Julien Martin</span>
+            <span style="font-size:12px; color:rgba(232,225,216,0.55);">julien.martin@gmail.com · client depuis mars 2026</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(200,134,10,0.08); border:1px solid rgba(200,134,10,0.3); border-radius:4px; padding:16px 18px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.16em; color:rgba(232,225,216,0.6);">STORE CREDIT</span>
+            <span style="font-size:20px; font-weight:600; color:#C8860A;">12,50 €</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <input placeholder="+ / − montant" style="flex:1; padding:10px 12px; font-size:12px; background:rgba(232,225,216,0.05); border:1px solid rgba(232,225,216,0.14); border-radius:4px; color:#E8E1D8; min-width:0;">
+            <button style="background:rgba(232,225,216,0.06); border:1px solid rgba(232,225,216,0.18); color:#E8E1D8; padding:10px 16px; font-size:12px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">Ajuster</button>
+          </div>
+          <div style="font-size:12px; line-height:1.7; color:rgba(232,225,216,0.6);">12 rue des Lilas<br>69003 Lyon · 06 12 34 56 78</div>
+        </div>
+        <div style="background:rgba(232,225,216,0.04); border:1px solid rgba(232,225,216,0.1); border-radius:4px; padding:28px;">
+          <span style="font-size:15px; font-weight:600; display:block; margin-bottom:16px;">Commandes — 5</span>
+          <sc-for list="{{ clientOrders }}" as="o" hint-placeholder-count="5">
+            <div style="display:grid; grid-template-columns:110px 1fr 130px 90px; gap:12px; padding:12px 0; border-bottom:1px solid rgba(232,225,216,0.07); font-size:12px; align-items:center;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(232,225,216,0.55);">{{ o.id }}</span>
+              <span style="color:rgba(232,225,216,0.6);">{{ o.date }}</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.08em; color:{{ o.color }};">● {{ o.statut }}</span>
+              <span style="text-align:right; font-weight:600;">{{ o.montant }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { view: 'dashboard', listingFilter: 'TOUS', orderFilter: 'TOUTES', importGame: 'pokemon', masseSel: [1, 2, 4] };
+  renderVals() {
+    const v = this.state.view;
+    const go = (view) => () => this.setState({ view });
+    const sc = { 'À EXPÉDIER': '#C8860A', 'PAYÉE': '#C8860A', 'EXPÉDIÉE': 'oklch(0.7 0.12 150)', 'LIVRÉE': 'oklch(0.55 0.06 150)', 'REMBOURSÉE': '#D4826F', 'LITIGE': '#D4826F' };
+    const titles = {
+      dashboard: ['Dashboard', 'MERCREDI 19 AOÛT 2026'], stats: ['Statistiques', 'CA · VENTES PAR JEU & SET'],
+      listings: ['Listings', '29 104 LISTINGS · POKÉMON & ONE PIECE'], listingDetail: ['Édition listing', 'LST-18442'],
+      masse: ['Édition en masse', 'MODIFICATION GROUPÉE PRIX / STOCK'], produits: ['Produits scellés', '48 RÉFÉRENCES'],
+      import: ['Import', 'HUB TCGDEX / APITCG'], commandes: ['Commandes', '47 COMMANDES'], commandeDetail: ['Détail commande', '#TNK-0147'],
+      clients: ['Clients', '214 COMPTES'], clientDetail: ['Fiche client', 'JULIEN MARTIN'],
+    };
+    const listingsBase = [
+      { id: 1, name: 'Carte DON!! Dorée', set: 'OP-PROMO', variant: 'NM · FR', etat: 'NM', stock: 1, p: '49,00 €', needsPhoto: false },
+      { id: 2, name: 'Monkey D. Luffy', set: 'OP05', variant: 'NM · JP', etat: 'NM', stock: 1, p: '1 249,00 €', needsPhoto: false },
+      { id: 3, name: 'Dracaufeu ex', set: 'SV3.5 · 151', variant: 'NM · FR', etat: 'NM', stock: 2, p: '189,00 €', needsPhoto: true },
+      { id: 4, name: 'Pikachu ex', set: 'SV8.5', variant: 'EX · EN', etat: 'EX', stock: 0, p: '74,00 €', needsPhoto: false },
+      { id: 5, name: 'Trafalgar Law', set: 'OP01', variant: 'NM · FR', etat: 'NM', stock: 1, p: '599,00 €', needsPhoto: false },
+      { id: 6, name: 'Évoli — holo', set: 'SV8.5', variant: 'NM · FR', etat: 'NM', stock: 4, p: '12,50 €', needsPhoto: true },
+      { id: 7, name: 'Shanks', set: 'OP01', variant: 'NM · JP', etat: 'NM', stock: 1, p: '549,00 €', needsPhoto: false },
+      { id: 8, name: 'Mew ex', set: 'SV3.5 · 151', variant: 'GD · FR', etat: 'GD', stock: 3, p: '28,00 €', needsPhoto: false },
+    ];
+    return {
+      pageTitle: titles[v][0], pageSub: titles[v][1],
+      nav: [
+        { key: 'dashboard', label: 'Dashboard' },
+        { key: 'produits', label: 'Produits' },
+        { key: 'listings', label: 'Listings', badge: '29k', match: ['listings', 'listingDetail', 'masse'] },
+        { key: 'import', label: 'Imports' },
+        { key: 'commandes', label: 'Commandes', badge: '9', match: ['commandes', 'commandeDetail'] },
+        { key: 'clients', label: 'Clients', match: ['clients', 'clientDetail'] },
+        { key: 'stats', label: 'Stats' },
+      ].map(n => {
+        const active = (n.match || [n.key]).includes(v);
+        return { ...n, badge: n.badge || null, bg: active ? 'rgba(232,225,216,0.1)' : 'transparent', fg: '#E8E1D8', w: active ? 600 : 400, go: go(n.key) };
+      }),
+      vDashboard: v === 'dashboard', vStats: v === 'stats', vListings: v === 'listings', vListingDetail: v === 'listingDetail',
+      vMasse: v === 'masse', vProduits: v === 'produits', vImport: v === 'import', vCommandes: v === 'commandes',
+      vCommandeDetail: v === 'commandeDetail', vClients: v === 'clients', vClientDetail: v === 'clientDetail',
+      goCommandes: go('commandes'), goListings: go('listings'), goMasse: go('masse'), goClients: go('clients'),
+      kpis: [
+        { label: 'COMMANDES DU JOUR', value: '6', sub: '9 à expédier au total' },
+        { label: 'STOCK ACTIF', value: '29 104', sub: '312 singles premium' },
+        { label: 'ALERTES', value: '14', sub: '11 photos manquantes · 3 erreurs import' },
+      ],
+      months: [
+        { label: 'MARS', v: 1840 }, { label: 'AVR', v: 2620 }, { label: 'MAI', v: 3110 },
+        { label: 'JUIN', v: 2480 }, { label: 'JUIL', v: 5070 }, { label: 'AOÛT', v: 4218 },
+      ].map((m, i, arr) => ({ ...m, h: Math.round(m.v / 5070 * 100), color: i === arr.length - 1 ? '#C8860A' : 'rgba(232,225,216,0.55)', amount: (m.v / 1000).toFixed(1).replace('.', ',') + ' k' })),
+      alerts: [
+        { text: 'Photos manquantes (needs_photo)', n: '11', color: '#C8860A' },
+        { text: 'Erreurs d\'import à revoir', n: '3', color: '#D4826F' },
+        { text: 'Commandes à expédier', n: '9', color: '#E8E1D8' },
+        { text: 'Stock épuisé sur wishlist client', n: '5', color: 'rgba(232,225,216,0.6)' },
+      ],
+      todayOrders: [
+        { id: '#TNK-0147', client: 'Julien M.', contenu: 'DON!! Dorée · OP-PROMO', statut: 'À EXPÉDIER', montant: '53,95 €' },
+        { id: '#TNK-0146', client: 'Sarah L.', contenu: 'Display Destined Rivals', statut: 'À EXPÉDIER', montant: '289,00 €' },
+        { id: '#TNK-0145', client: 'Kevin T.', contenu: '3 singles · OP05', statut: 'EXPÉDIÉE', montant: '74,50 €' },
+      ].map(o => ({ ...o, color: sc[o.statut] })),
+      year: ['S', 'O', 'N', 'D', 'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A'].map((label, i) => ({ label, h: [42, 48, 66, 92, 38, 45, 36, 52, 61, 49, 100, 83][i] })),
+      byGame: [
+        { label: 'Pokémon', amount: '11 210 €', w: 100, color: 'rgba(232,225,216,0.7)' },
+        { label: 'One Piece', amount: '8 130 €', w: 73, color: '#C8860A' },
+      ],
+      bySets: [
+        { label: 'SV3.5 — 151', amount: '3 840 €' }, { label: 'OP05 — Awakening', amount: '2 910 €' },
+        { label: 'SV8.5 — Prismatic', amount: '2 450 €' }, { label: 'OP01 — Romance Dawn', amount: '1 980 €' },
+        { label: 'SV10 — Destined Rivals', amount: '1 120 €' },
+      ],
+      listingFilters: ['TOUS', 'POKÉMON', 'ONE PIECE', 'NEEDS_PHOTO'].map(label => ({
+        label,
+        bg: this.state.listingFilter === label ? 'rgba(232,225,216,0.14)' : 'rgba(232,225,216,0.04)',
+        fg: '#E8E1D8',
+        pick: () => this.setState({ listingFilter: label }),
+      })),
+      listings: listingsBase
+        .filter(l => this.state.listingFilter !== 'NEEDS_PHOTO' || l.needsPhoto)
+        .filter(l => this.state.listingFilter !== 'POKÉMON' || l.set.startsWith('SV'))
+        .filter(l => this.state.listingFilter !== 'ONE PIECE' || l.set.startsWith('OP'))
+        .map(l => ({ ...l, price: l.p, stock: String(l.stock), stockColor: l.stock === 0 ? '#D4826F' : (l.stock <= 1 ? '#C8860A' : 'rgba(232,225,216,0.7)'), edit: go('listingDetail') })),
+      masseCount: this.state.masseSel.length,
+      masseRows: listingsBase.slice(0, 6).map(l => {
+        const checked = this.state.masseSel.includes(l.id);
+        return { ...l, price: l.p, stock: String(l.stock), checked, rowBg: checked ? 'rgba(200,134,10,0.05)' : 'transparent',
+          toggle: () => this.setState(s => ({ masseSel: checked ? s.masseSel.filter(x => x !== l.id) : [...s.masseSel, l.id] })) };
+      }),
+      produits: [
+        { name: 'Display Écarlate et Violet — 151', jeu: 'Pokémon', cat: 'DISPLAY', stock: 2, price: '649 €' },
+        { name: 'ETB Prismatic Evolutions', jeu: 'Pokémon', cat: 'ETB', stock: 5, price: '119 €' },
+        { name: 'UPC Charizard', jeu: 'Pokémon', cat: 'UPC', stock: 1, price: '449 €' },
+        { name: 'Display One Piece OP-09 FR', jeu: 'One Piece', cat: 'DISPLAY', stock: 7, price: '139 €' },
+        { name: 'Starter Deck ST-21', jeu: 'One Piece', cat: 'STARTER', stock: 12, price: '34,90 €' },
+        { name: 'Coffret Premium OP-08', jeu: 'One Piece', cat: 'COFFRET', stock: 0, price: '89 €' },
+      ].map(p => ({ ...p, stock: String(p.stock), stockColor: p.stock === 0 ? '#D4826F' : (p.stock <= 2 ? '#C8860A' : 'rgba(232,225,216,0.7)') })),
+      pickPokemon: () => this.setState({ importGame: 'pokemon' }),
+      pickOnePiece: () => this.setState({ importGame: 'onepiece' }),
+      importPkBg: this.state.importGame === 'pokemon' ? 'rgba(200,134,10,0.08)' : 'rgba(232,225,216,0.04)',
+      importPkBorder: this.state.importGame === 'pokemon' ? 'rgba(200,134,10,0.4)' : 'rgba(232,225,216,0.1)',
+      importOpBg: this.state.importGame === 'onepiece' ? 'rgba(200,134,10,0.08)' : 'rgba(232,225,216,0.04)',
+      importOpBorder: this.state.importGame === 'onepiece' ? 'rgba(200,134,10,0.4)' : 'rgba(232,225,216,0.1)',
+      orderFilters: ['TOUTES', 'À EXPÉDIER', 'EXPÉDIÉES', 'LIVRÉES', 'REMBOURSÉES'].map(label => ({
+        label,
+        bg: this.state.orderFilter === label ? 'rgba(232,225,216,0.14)' : 'rgba(232,225,216,0.04)',
+        fg: '#E8E1D8',
+        pick: () => this.setState({ orderFilter: label }),
+      })),
+      allOrders: [
+        { id: '#TNK-0147', date: '19 août 2026', client: 'Julien M.', contenu: 'DON!! Dorée · OP-PROMO', statut: 'À EXPÉDIER', montant: '53,95 €' },
+        { id: '#TNK-0146', date: '19 août 2026', client: 'Sarah L.', contenu: 'Display Destined Rivals', statut: 'À EXPÉDIER', montant: '289,00 €' },
+        { id: '#TNK-0145', date: '18 août 2026', client: 'Kevin T.', contenu: '3 singles · OP05', statut: 'EXPÉDIÉE', montant: '74,50 €' },
+        { id: '#TNK-0144', date: '17 août 2026', client: 'Mélanie R.', contenu: 'ETB Prismatic Evolutions', statut: 'EXPÉDIÉE', montant: '119,00 €' },
+        { id: '#TNK-0143', date: '15 août 2026', client: 'Hugo B.', contenu: 'Bulk 500 communes', statut: 'LIVRÉE', montant: '25,00 €' },
+        { id: '#TNK-0142', date: '14 août 2026', client: 'Inès D.', contenu: 'Pikachu ex · SV8.5', statut: 'REMBOURSÉE', montant: '74,00 €' },
+      ].filter(o => {
+        const f = this.state.orderFilter;
+        if (f === 'TOUTES') return true;
+        if (f === 'À EXPÉDIER') return o.statut === 'À EXPÉDIER';
+        return o.statut === f.slice(0, -1);
+      }).map(o => ({ ...o, color: sc[o.statut], open: go('commandeDetail') })),
+      clients: [
+        { name: 'Julien Martin', email: 'julien.martin@gmail.com', n: '5', total: '512 €', credit: '12,50 €' },
+        { name: 'Sarah Lemoine', email: 'sarah.lmn@outlook.fr', n: '3', total: '641 €', credit: '—' },
+        { name: 'Kevin Thibault', email: 'kevin.thb@gmail.com', n: '8', total: '389 €', credit: '5,00 €' },
+        { name: 'Mélanie Roux', email: 'mel.roux@proton.me', n: '2', total: '238 €', credit: '—' },
+        { name: 'Hugo Bernard', email: 'hugo.brnrd@gmail.com', n: '11', total: '1 204 €', credit: '32,00 €' },
+      ].map(c => ({ ...c, creditColor: c.credit === '—' ? 'rgba(232,225,216,0.4)' : '#C8860A', open: go('clientDetail') })),
+      clientOrders: [
+        { id: '#TNK-0147', date: '19 août 2026', statut: 'À EXPÉDIER', montant: '53,95 €' },
+        { id: '#TNK-0121', date: '2 août 2026', statut: 'LIVRÉE', montant: '289,00 €' },
+        { id: '#TNK-0097', date: '11 juillet 2026', statut: 'LIVRÉE', montant: '24,50 €' },
+        { id: '#TNK-0089', date: '28 juin 2026', statut: 'REMBOURSÉE', montant: '119,00 €' },
+        { id: '#TNK-0075', date: '9 juin 2026', statut: 'LIVRÉE', montant: '74,50 €' },
+      ].map(o => ({ ...o, color: sc[o.statut] })),
+    };
+  }
+}
+</script>
+</body>
+</html>

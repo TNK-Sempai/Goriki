@@ -1,13 +1,15 @@
-import Navbar from '@/components/blocks/Navbar'
-import Footer from '@/components/blocks/Footer'
+import SiteHeader from '@/components/layout/SiteHeader'
+import SiteFooter from '@/components/layout/SiteFooter'
 import PanierClient from '@/components/cart/PanierClient'
+
+export const metadata = { title: 'Panier' }
 
 export default function PanierPage() {
   return (
     <>
-      <Navbar />
+      <SiteHeader />
       <PanierClient />
-      <Footer />
+      <SiteFooter />
     </>
   )
 }

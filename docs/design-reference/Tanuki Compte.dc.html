@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#E8E1D8; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#1A1611; text-decoration:none; }
+a:hover { color:#C8860A; }
+input { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; }
+</style>
+</helmet>
+<div data-screen-label="Espace client" style="min-height:100vh; color:#1A1611;">
+  <dc-import name="Tanuki Header" hint-size="100%,90px"></dc-import>
+
+  <div style="max-width:1360px; margin:0 auto; padding:32px 56px 64px; box-sizing:border-box;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.55); margin-bottom:20px;">
+      <a href="Tanuki Accueil.dc.html" style="color:rgba(26,22,17,0.55);">ACCUEIL</a> / <span style="color:#1A1611;">MON COMPTE</span>
+    </div>
+    <h1 style="font-weight:600; font-size:44px; letter-spacing:-0.03em; margin:0 0 32px;">Mon compte</h1>
+
+    <div style="display:grid; grid-template-columns:240px 1fr; gap:24px; align-items:start;">
+      <aside style="background:rgba(248,244,236,0.55); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:16px; display:flex; flex-direction:column; gap:2px; position:sticky; top:96px; box-shadow:0 12px 36px -16px rgba(26,22,17,0.18);">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+          <button onClick="{{ t.go }}" style="display:flex; justify-content:space-between; align-items:center; padding:11px 14px; font-size:13px; border:none; cursor:pointer; border-radius:4px; background:{{ t.bg }}; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight:{{ t.w }}; text-align:left;">
+            <span>{{ t.label }}</span>
+            <sc-if value="{{ t.v2 }}" hint-placeholder-val="{{ false }}">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:8px; letter-spacing:0.14em; color:rgba(26,22,17,0.5);">V2</span>
+            </sc-if>
+          </button>
+        </sc-for>
+      </aside>
+
+      <div style="display:flex; flex-direction:column; gap:16px;">
+
+        <sc-if value="{{ showProfil }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <section style="grid-column:span 2; background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:32px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(26,22,17,0.55);">STORE CREDIT</span>
+                <span style="font-size:32px; font-weight:600; color:#C8860A;">12,50 €</span>
+              </div>
+              <span style="font-size:13px; color:rgba(26,22,17,0.6); max-width:34ch; text-align:right;">Votre avoir s'applique automatiquement au checkout. Issu de vos rachats et dépôts-ventes.</span>
+            </section>
+            <section style="background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:32px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+              <span style="font-size:16px; font-weight:600; display:block; margin-bottom:20px;">Profil</span>
+              <div style="display:flex; flex-direction:column; gap:14px; font-size:14px;">
+                <div style="display:flex; justify-content:space-between;"><span style="color:rgba(26,22,17,0.6);">Nom</span><span style="font-weight:500;">Julien Martin</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="color:rgba(26,22,17,0.6);">E-mail</span><span style="font-weight:500;">julien.martin@gmail.com</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="color:rgba(26,22,17,0.6);">Téléphone</span><span style="font-weight:500;">06 12 34 56 78</span></div>
+              </div>
+              <a href="#" style="display:inline-block; margin-top:20px; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.6);">MODIFIER →</a>
+            </section>
+            <section style="background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:32px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+              <span style="font-size:16px; font-weight:600; display:block; margin-bottom:20px;">Adresse de livraison</span>
+              <div style="font-size:14px; line-height:1.7; color:rgba(26,22,17,0.75);">12 rue des Lilas<br>69003 Lyon<br>France</div>
+              <a href="#" style="display:inline-block; margin-top:20px; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.6);">MODIFIER →</a>
+            </section>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ showCommandes }}" hint-placeholder-val="{{ false }}">
+          <section style="background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:32px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+            <span style="font-size:16px; font-weight:600; display:block; margin-bottom:20px;">Mes commandes</span>
+            <div style="display:grid; grid-template-columns:120px 1fr 130px 110px 60px; gap:12px; padding:10px 0; border-bottom:1px solid rgba(26,22,17,0.12); font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.16em; color:rgba(26,22,17,0.5);">
+              <span>N°</span><span>DATE</span><span>STATUT</span><span style="text-align:right;">TOTAL</span><span></span>
+            </div>
+            <sc-for list="{{ orders }}" as="o" hint-placeholder-count="4">
+              <button onClick="{{ o.open }}" style="display:grid; grid-template-columns:120px 1fr 130px 110px 60px; gap:12px; padding:16px 0; border:none; border-bottom:1px solid rgba(26,22,17,0.08); font-size:13px; align-items:center; background:none; cursor:pointer; width:100%; text-align:left; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#1A1611;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px;">{{ o.id }}</span>
+                <span style="color:rgba(26,22,17,0.7);">{{ o.date }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.08em; color:{{ o.color }};">● {{ o.statut }}</span>
+                <span style="text-align:right; font-weight:600;">{{ o.total }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(26,22,17,0.5); text-align:right;">→</span>
+              </button>
+            </sc-for>
+          </section>
+        </sc-if>
+
+        <sc-if value="{{ showDetail }}" hint-placeholder-val="{{ false }}">
+          <section style="background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:32px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+            <button onClick="{{ backToOrders }}" style="background:none; border:none; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.55); padding:0; margin-bottom:20px;">← MES COMMANDES</button>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:24px;">
+              <span style="font-size:20px; font-weight:600;">Commande #TNK-0148</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.08em; color:oklch(0.52 0.1 150);">● EXPÉDIÉE</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:12px; font-size:14px; margin-bottom:24px;">
+              <div style="display:flex; justify-content:space-between;"><span>Carte DON!! Dorée <span style="color:rgba(26,22,17,0.5);">× 1</span></span><span style="font-weight:500;">49,00 €</span></div>
+              <div style="display:flex; justify-content:space-between;"><span>DON!! Foil texturé <span style="color:rgba(26,22,17,0.5);">× 1</span></span><span style="font-weight:500;">19,00 €</span></div>
+              <div style="display:flex; justify-content:space-between;"><span style="color:rgba(26,22,17,0.6);">Livraison Colissimo</span><span>4,95 €</span></div>
+              <div style="display:flex; justify-content:space-between;"><span style="color:rgba(26,22,17,0.6);">Avoir client</span><span>−12,50 €</span></div>
+              <div style="height:1px; background:rgba(26,22,17,0.12);"></div>
+              <div style="display:flex; justify-content:space-between; font-weight:600;"><span>Total payé</span><span>60,45 €</span></div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
+              <div style="background:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.7); border-radius:4px; padding:20px;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.16em; color:rgba(26,22,17,0.5); display:block; margin-bottom:10px;">LIVRAISON</span>
+                <div style="font-size:13px; line-height:1.6;">Julien Martin<br>12 rue des Lilas, 69003 Lyon</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.7); border-radius:4px; padding:20px;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.16em; color:rgba(26,22,17,0.5); display:block; margin-bottom:10px;">SUIVI COLIS</span>
+                <div style="font-size:13px; line-height:1.6;"><span style="font-family:'JetBrains Mono',monospace;">6A12345678901</span><br><a href="#" style="color:rgba(26,22,17,0.6); font-size:12px;">Suivre sur laposte.fr →</a></div>
+              </div>
+            </div>
+            <button style="background:rgba(255,255,255,0.5); border:1px solid rgba(26,22,17,0.2); color:#1A1611; padding:13px 24px; font-size:13px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" style-hover="background:#1A1611; color:#E8E1D8;">Télécharger la facture PDF</button>
+          </section>
+        </sc-if>
+
+        <sc-if value="{{ showWishlist }}" hint-placeholder-val="{{ false }}">
+          <section style="background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:32px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:24px;">
+              <span style="font-size:16px; font-weight:600;">Ma wishlist</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.55);">{{ wishCount }} CARTES SUIVIES</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">
+              <sc-for list="{{ wishlist }}" as="w" hint-placeholder-count="3">
+                <div style="display:flex; flex-direction:column; gap:12px; background:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.7); border-radius:4px; padding:14px;">
+                  <sc-if value="{{ w.hasImg }}" hint-placeholder-val="{{ false }}">{{ w.imgEl }}</sc-if>
+                  <sc-if value="{{ w.noImg }}" hint-placeholder-val="{{ false }}">
+                    <div style="aspect-ratio:63/88; background:rgba(232,225,216,0.8); background-image:repeating-linear-gradient(45deg, rgba(26,22,17,0.05) 0 8px, transparent 8px 16px); border:1px solid rgba(26,22,17,0.12); border-radius:4px;"></div>
+                  </sc-if>
+                  <div style="display:flex; flex-direction:column; gap:3px;">
+                    <span style="font-size:14px; font-weight:600;">{{ w.name }}</span>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(26,22,17,0.55);">{{ w.ref }}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:4px;">
+                      <span style="font-size:15px; font-weight:600;">{{ w.price }}</span>
+                      <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:{{ w.dispoColor }};">{{ w.dispo }}</span>
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:8px;">
+                    <button style="flex:1; background:#1A1611; color:#E8E1D8; border:none; padding:10px; font-size:12px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" style-hover="background:#C8860A;">Ajouter au panier</button>
+                    <button onClick="{{ w.remove }}" style="background:none; border:1px solid rgba(26,22,17,0.2); color:rgba(26,22,17,0.6); padding:10px 12px; font-size:12px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" style-hover="border-color:#8A2F1D; color:#8A2F1D;">✕</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </sc-if>
+
+        <sc-if value="{{ showV2 }}" hint-placeholder-val="{{ false }}">
+          <section style="background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:96px 56px; display:flex; flex-direction:column; align-items:center; gap:16px; text-align:center; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.2em; color:rgba(26,22,17,0.5);">BIENTÔT DISPONIBLE</span>
+            <span style="font-weight:600; font-size:26px; letter-spacing:-0.02em;">{{ v2Title }}</span>
+            <p style="font-size:14px; line-height:1.6; color:rgba(26,22,17,0.65); max-width:46ch; margin:0;">{{ v2Text }}</p>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.5); margin-top:8px;">PRÉVU POUR LA V2 — VOUS SEREZ PRÉVENU PAR E-MAIL</span>
+          </section>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { tab: 'profil', wishlist: [
+    { id: 1, name: 'Carte DON!! Dorée', ref: 'OP-PROMO · NEAR MINT', price: '49 €', dispo: 'DISPONIBLE', img: 'assets/don-gold.webp' },
+    { id: 2, name: 'Monkey D. Luffy', ref: 'OP05-119 · MANGA RARE', price: '1 249 €', dispo: 'DISPONIBLE', img: null },
+    { id: 3, name: 'Shanks', ref: 'OP01-120 · SEC', price: '—', dispo: 'ÉPUISÉ', img: null },
+  ] };
+  renderVals() {
+    const t = this.state.tab;
+    const statusColor = { 'PAYÉE': '#C8860A', 'EXPÉDIÉE': 'oklch(0.52 0.1 150)', 'LIVRÉE': 'oklch(0.45 0.05 150)', 'REMBOURSÉE': '#8A2F1D' };
+    return {
+      tabs: [
+        { key: 'profil', label: 'Profil' },
+        { key: 'commandes', label: 'Commandes' },
+        { key: 'wishlist', label: 'Wishlist' },
+        { key: 'depot', label: 'Dépôt-vente', v2: true },
+        { key: 'rachat', label: 'Rachat', v2: true },
+      ].map(x => ({ ...x, v2: !!x.v2, bg: (t === x.key || (t === 'detail' && x.key === 'commandes')) ? 'rgba(26,22,17,0.08)' : 'transparent', w: (t === x.key || (t === 'detail' && x.key === 'commandes')) ? 600 : 400, go: () => this.setState({ tab: x.key }) })),
+      showProfil: t === 'profil', showCommandes: t === 'commandes', showDetail: t === 'detail',
+      showWishlist: t === 'wishlist', showV2: t === 'depot' || t === 'rachat',
+      v2Title: t === 'rachat' ? 'Rachat de cartes' : 'Dépôt-vente',
+      v2Text: t === 'rachat'
+        ? 'Vendez-nous vos cartes directement depuis votre compte : estimation en ligne, envoi sécurisé, paiement rapide ou store credit bonifié.'
+        : 'Confiez-nous vos cartes : nous les scannons, les cotons et les vendons pour vous. Suivi des ventes et versements depuis cette page.',
+      orders: [
+        { id: '#TNK-0148', date: '19 août 2026', statut: 'EXPÉDIÉE', total: '60,45 €' },
+        { id: '#TNK-0121', date: '2 août 2026', statut: 'LIVRÉE', total: '289,00 €' },
+        { id: '#TNK-0097', date: '11 juillet 2026', statut: 'LIVRÉE', total: '24,50 €' },
+        { id: '#TNK-0089', date: '28 juin 2026', statut: 'REMBOURSÉE', total: '119,00 €' },
+        { id: '#TNK-0075', date: '9 juin 2026', statut: 'PAYÉE', total: '74,50 €' },
+      ].map(o => ({ ...o, color: statusColor[o.statut], open: () => this.setState({ tab: 'detail' }) })),
+      backToOrders: () => this.setState({ tab: 'commandes' }),
+      wishCount: this.state.wishlist.length,
+      wishlist: this.state.wishlist.map(w => ({
+        ...w,
+        hasImg: !!w.img, noImg: !w.img,
+        imgEl: w.img ? React.createElement('img', { src: w.img, alt: w.name, style: { width: '100%', aspectRatio: '63/88', objectFit: 'cover', borderRadius: 4, display: 'block' } }) : null,
+        dispoColor: w.dispo === 'DISPONIBLE' ? 'oklch(0.52 0.1 150)' : 'rgba(26,22,17,0.45)',
+        remove: () => this.setState(s => ({ wishlist: s.wishlist.filter(x => x.id !== w.id) })),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

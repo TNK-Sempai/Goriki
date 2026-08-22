@@ -1,49 +1,48 @@
 import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
+import SetsBrowser, { type SetRow } from '@/components/admin/SetsBrowser'
 
+export const dynamic = 'force-dynamic'
+
+/**
+ * Listings — navigateur par set.
+ *
+ * L'écran précédent n'affichait que deux compteurs globaux et un bouton
+ * « Édition en masse » à l'aveugle : impossible de savoir quel set contenait du
+ * stock, ni où le travail restait à faire. On entre désormais par les sets.
+ *
+ * Les compteurs viennent de `admin_sets_overview()` (migration 0026), une
+ * fonction agrégée gardée par `is_admin()` : compter côté client aurait exigé de
+ * rapatrier les ~31 000 listings à chaque affichage.
+ */
 export default async function ListingsPage() {
   const supabase = await createClient()
+  const { data, error } = await supabase.rpc('admin_sets_overview')
 
-  const [{ count: pkmCount }, { count: opCount }] = await Promise.all([
-    supabase.from('pokemon_listings').select('*', { count: 'exact', head: true }).gt('quantity', 0),
-    supabase.from('onepiece_listings').select('*', { count: 'exact', head: true }).gt('quantity', 0),
-  ])
-
-  const [{ count: pkmPhoto }, { count: opPhoto }] = await Promise.all([
-    supabase.from('pokemon_listings').select('*', { count: 'exact', head: true }).eq('needs_photo', true),
-    supabase.from('onepiece_listings').select('*', { count: 'exact', head: true }).eq('needs_photo', true),
-  ])
-
-  const stats = [
-    { label: 'Pokémon en stock', value: pkmCount ?? 0, photo: pkmPhoto ?? 0 },
-    { label: 'One Piece en stock', value: opCount ?? 0, photo: opPhoto ?? 0 },
-  ]
+  const sets = ((data ?? []) as SetRow[]).map(s => ({
+    ...s,
+    total: Number(s.total),
+    avec_stock: Number(s.avec_stock),
+    sans_prix: Number(s.sans_prix),
+    sans_photo: Number(s.sans_photo),
+  }))
 
   return (
     <div>
       <div className="admin-header-row">
         <div>
           <div className="admin-title">Listings</div>
-          <div className="admin-sub">Gérer les prix, quantités et visibilité</div>
+          <div className="admin-sub">Choisir un set pour saisir prix et stock</div>
         </div>
-        <Link href="/admin/listings/masse" className="btn btn-primary btn-sm">
-          Édition en masse
-        </Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', maxWidth: '440px' }}>
-        {stats.map((stat) => (
-          <div key={stat.label} className="admin-kpi">
-            <span className="admin-kpi-label">{stat.label}</span>
-            <span className="admin-kpi-val">{stat.value}</span>
-            {stat.photo > 0 ? (
-              <span className="admin-kpi-sub" style={{ color: '#f87171' }}>{stat.photo} photos manquantes</span>
-            ) : (
-              <span className="admin-kpi-sub">listings actifs</span>
-            )}
-          </div>
-        ))}
-      </div>
+      {error && (
+        <div className="admin-alert">
+          <span className="admin-alert-dot" />
+          Lecture des compteurs impossible : {error.message}
+        </div>
+      )}
+
+      <SetsBrowser sets={sets} />
     </div>
   )
 }

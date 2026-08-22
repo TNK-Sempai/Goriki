@@ -3,13 +3,64 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
-  --font-display: "Playfair Display", Georgia, serif;
-  --font-body:    "DM Sans", system-ui, sans-serif;
+  /* Typographie FINALE (CLAUDE.md 2026-08-21) : Archivo Black pour les titres
+     (substitut libre de TT Hoves, payante), Inter pour le texte courant.
+     Playfair Display / DM Sans / Instrument Serif : abandonnees. */
+  --font-display: var(--font-archivo), "Archivo Black", "Arial Black", sans-serif;
+  --font-body:    var(--font-inter), Inter, system-ui, sans-serif;
+
+  /* ── Identité visuelle v3 (CLAUDE.md 2026-08-19) ───────────────────────
+     Couche ADDITIVE : les tokens ci-dessus restent en place tant que l'admin
+     et les écrans non encore portés s'en servent. Le nouveau visuel n'utilise
+     que les tokens `v3` qui suivent. */
+
+  --font-grotesk: var(--font-inter), Inter, system-ui, sans-serif;
+  --font-mono:    var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+
+  /* Couleurs v3 */
+  --color-ink:        #1A1611;
+  --color-ochre:      #C8860A;
+  --color-parchment:  #E8E1D8;
+
+  /* Radius à paliers — noms sémantiques volontairement distincts de l'échelle
+     Tailwind par défaut (rounded-sm/md/lg), pour ne pas la redéfinir sous les
+     pieds des composants existants. */
+  --radius-control:   12px;  /* boutons, inputs, badges, pills nav */
+  --radius-panel:     18px;  /* cartes produit, lignes de liste */
+  --radius-panel-lg:  20px;  /* panneaux */
+  --radius-block:     24px;  /* gros blocs, sidebar filtres */
+  --radius-hero:      28px;  /* hero, sections mises en avant */
+
+  /* Radius ADMIN — échelle resserrée, volontairement distincte du public.
+     L'admin est un espace de travail à forte densité (tableaux, formulaires),
+     pas une vitrine : la maquette `Tanuki Admin` dessine tout à 4 px.
+     Tokens séparés pour qu'aucun réglage public ne les emporte. */
+  --radius-admin-sm:  4px;  /* contrôles, badges, inputs, lignes, panneaux */
+  --radius-admin-md:  8px;  /* grandes surfaces : terminal d'import, modales */
 
   --animate-fade-in:    fadeIn 0.3s ease-out;
   --animate-slide-up:   slideUp 0.3s ease-out;
   --animate-pulse-soft: pulseSoft 2s ease-in-out infinite;
   --animate-shimmer:    shimmer 1.5s infinite;
+
+  /* Interactions signature v3 (handoff Fiche Carte) : entrée en cascade des
+     cartes, révélation du prix, apparition des marqueurs de défaut. */
+  --animate-card-rise:    cardRise 0.4s ease both;
+  --animate-reveal-value: revealValue 0.6s cubic-bezier(0.22,1,0.36,1) both;
+  --animate-marker-in:    markerIn 0.35s ease both;
+
+  @keyframes cardRise {
+    from { opacity: 0; transform: translateY(10px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes revealValue {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes markerIn {
+    from { opacity: 0; transform: scale(0.4); }
+    to   { opacity: 1; transform: scale(1); }
+  }
 
   @keyframes fadeIn {
     from { opacity: 0; }
@@ -54,67 +105,358 @@
   --border-dim:  rgba(255, 255, 255, 0.06);
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ── Base ─────────────────────────────────────────────────────────────────
+   ⚠️ TOUT ce bloc DOIT rester dans `@layer base`.
+   Hors layer, `* { margin:0; padding:0 }` bat la TOTALITÉ des utilitaires
+   Tailwind (le non-layered l'emporte sur le layered, quelle que soit la
+   spécificité) : `mx-auto`, `px-*`, `p-*`, `gap-*` deviennent silencieusement
+   sans effet sur tout le site. C'est ce qui a cassé le portage v3.
+   ───────────────────────────────────────────────────────────────────────── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--cream);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.6;
+    min-height: 100vh;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    /* Archivo Black n'existe qu'en 400 : demander 600/700 declencherait un
+       faux gras synthetique, baveux. On neutralise la synthese et on laisse
+       le poids natif. */
+    font-weight: 400;
+    font-synthesis-weight: none;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--cream);
+  }
+
+
+  h1 { font-size: clamp(2rem, 5vw, 3.5rem); }
+  h2 { font-size: clamp(1.5rem, 3vw, 2.5rem); }
+  h3 { font-size: clamp(1.25rem, 2vw, 1.75rem); }
+  h4 { font-size: 1.25rem; }
+  h5 { font-size: 1.1rem; }
+  h6 { font-size: 1rem; }
+
+  p { color: var(--cream); line-height: 1.7; }
+
+  a {
+    color: var(--amber);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  a:hover { color: var(--amber-light); }
+
+  /* Exception v3 : les maquettes posent `a { color:#1A1611 }` avec l'ocre
+     réservé au survol. Sans ça, chaque titre de carte et chaque libellé
+     cliquable ressort en ocre — écart systémique sur tous les écrans portés. */
+  .font-grotesk a { color: var(--color-ink); }
+  .font-grotesk a:hover { color: var(--color-ochre); }
+
+  :focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  ::-webkit-scrollbar       { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface-1); }
+  ::-webkit-scrollbar-thumb { background: var(--amber); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--amber-light); }
+
+  ::selection { background-color: var(--amber); color: var(--bg); }
+
+  /* ── Fond décoratif v3 ────────────────────────────────────────────────────
+     Gradient radial léger sur TOUT le site (pas seulement la home).
+     Exclu du thème sombre : l'admin est verrouillé en dark, ces halos ambrés
+     y seraient sales. */
+  :root:not([data-theme="dark"]) body {
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(900px 600px at 15%   0%, rgba(200,134,10,0.10), transparent 60%),
+      radial-gradient(800px 700px at 90%  20%, rgba(26,22,17,0.07),   transparent 60%),
+      radial-gradient(700px 500px at 50% 100%, rgba(200,134,10,0.07), transparent 60%);
+    background-attachment: fixed;
+  }
 }
 
-html {
-  scroll-behavior: smooth;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+
+@layer components {
+  /* ── Conteneur de page — SOURCE UNIQUE ──────────────────────────────────
+     Les 20 maquettes partagent exactement :
+         max-width:1360px; margin:0 auto; padding:… 56px; box-sizing:border-box
+     Toute page du parcours public passe par ici, soit via `.page-shell`,
+     soit via <PageContainer>. NE JAMAIS redéclarer `max-w-[1360px] mx-auto px-…`
+     à la main : c'est ainsi que le portage initial a dérivé.
+     56 px = valeur desktop de la maquette ; 32/20 px en dessous (les prototypes
+     n'ont pas de déclinaison mobile). */
+  .page-shell {
+    width: 100%;
+    max-width: 1360px;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+  @media (min-width: 40rem) { .page-shell { padding-inline: 2rem; } }
+  @media (min-width: 64rem) { .page-shell { padding-inline: 3.5rem; } }
+
+  /* Variante « bord à bord » : la boîte gère elle-même sa gouttière interne
+     et occupe les 1360 px pleins au desktop (header et footer de la maquette). */
+  .page-shell-edge { padding-inline: 0.75rem; }
+  @media (min-width: 40rem) { .page-shell-edge { padding-inline: 1rem; } }
+  @media (min-width: 64rem) { .page-shell-edge { padding-inline: 0; } }
+
+  /* Verre : la norme du site (glassmorphism modéré, cf. CLAUDE.md v3).
+     Trois intensités, du plus discret au plus affirmé. */
+  .glass {
+    background: rgba(248,244,236,0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.65);
+    box-shadow: 0 12px 36px -16px rgba(26,22,17,0.18);
+  }
+  .glass-light {
+    background: rgba(255,255,255,0.45);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.7);
+  }
+  .glass-header {
+    background: rgba(248,244,236,0.55);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.65);
+    box-shadow: 0 8px 32px -12px rgba(26,22,17,0.18);
+  }
+  .glass:hover.glass-hoverable,
+  .glass-light:hover.glass-hoverable { background: rgba(255,255,255,0.75); }
+
+  /* Eyebrow / donnée technique : mono, petite, très espacée. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(26,22,17,0.6);
+  }
+  .mono-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: rgba(26,22,17,0.55);
+  }
+
+  /* Bouton primaire ocre — style unique du parcours public. */
+  .btn-ochre {
+    background: var(--color-ochre);
+    color: #FDF9F2;
+    border-radius: var(--radius-control);
+    box-shadow: 0 12px 28px -10px rgba(200,134,10,0.55);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .btn-ochre:hover { background: var(--color-ink); color: var(--color-parchment); }
+
+  .btn-ghost {
+    background: rgba(255,255,255,0.45);
+    border: 1px solid rgba(255,255,255,0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: var(--radius-control);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.75); }
+
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     PLANCHE DE REFERENCE (reference-planche-globale-10-ecrans.png)
+     Primitives de composition communes aux 10 ecrans. Elles remplacent les
+     compositions generiques precedentes : ce ne sont pas des variantes de
+     l'ancien layout, mais le vocabulaire de la planche.
+     ───────────────────────────────────────────────────────────────────────── */
+
+  /* Barre de navigation : PLATE et pleine largeur, filet en pied.
+     La planche ne montre AUCUNE pilule flottante en verre — l'ancien
+     `.glass-header` arrondi etait une invention du portage. */
+  .site-bar {
+    background: rgba(232,225,216,0.82);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(26,22,17,0.10);
+  }
+
+  /* Lien de nav : souligne ocre sur l'element actif (planche, ecrans 1-6). */
+  .nav-link {
+    position: relative;
+    padding-block: 0.5rem;
+    font-size: 14px;
+    color: rgba(26,22,17,0.78);
+    transition: color 0.15s ease;
+  }
+  .nav-link:hover { color: var(--color-ink); }
+  .nav-link[data-active="true"] { color: var(--color-ink); font-weight: 500; }
+  .nav-link[data-active="true"]::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -2px;
+    height: 2px;
+    background: var(--color-ochre);
+  }
+
+  /* Champ de recherche de la planche : pilule claire, filet fin, pas de verre. */
+  .field {
+    width: 100%;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(26,22,17,0.12);
+    border-radius: 999px;
+    padding: 0.6rem 1rem;
+    font-size: 13px;
+    color: var(--color-ink);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .field::placeholder { color: rgba(26,22,17,0.42); }
+  .field:focus { outline: none; border-color: rgba(200,134,10,0.55); background: #fff; }
+
+  /* Pilules de filtre (ecrans 2, 5, 8) : actif = encre pleine, inactif = clair. */
+  .pill {
+    border-radius: 999px;
+    padding: 0.5rem 1.05rem;
+    font-size: 13px;
+    line-height: 1;
+    border: 1px solid rgba(26,22,17,0.12);
+    background: rgba(255,255,255,0.55);
+    color: rgba(26,22,17,0.72);
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .pill:hover { background: #fff; color: var(--color-ink); }
+  .pill[data-active="true"] {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+    color: var(--color-parchment);
+  }
+
+  /* Echelle de titres de la planche — TOUJOURS en capitales, tres serrees.
+     C'est la signature typographique : sans elle, la page retombe dans le
+     "titre sage en casse mixte" de l'ancien layout. */
+  .display-hero {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-synthesis-weight: none;
+    text-transform: uppercase;
+    font-size: clamp(2.2rem, 3.9vw, 3.4rem);
+    line-height: 0.95;
+    letter-spacing: -0.035em;
+    color: var(--color-ink);
+  }
+  .display-section {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-synthesis-weight: none;
+    text-transform: uppercase;
+    font-size: clamp(1.9rem, 3.2vw, 2.85rem);
+    line-height: 0.96;
+    letter-spacing: -0.03em;
+    color: var(--color-ink);
+  }
+  .display-sub {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-synthesis-weight: none;
+    text-transform: uppercase;
+    font-size: 15px;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+
+  /* Filet de section : la planche separe ses blocs par un trait, pas par une
+     carte en verre de plus. */
+  .hair { border-top: 1px solid rgba(26,22,17,0.12); }
+
+  /* Etiquette d'angle posee SUR le visuel produit (ecrans 3 et 6 : SCAN, DEPOT). */
+  .corner-tag {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border-radius: 4px;
+    padding: 3px 6px;
+    background: rgba(26,22,17,0.88);
+    color: var(--color-parchment);
+  }
+  .corner-tag[data-tone="ochre"] { background: var(--color-ochre); color: #1A1207; }
+
+  /* Puce d'etat (Livree / Expediee / Trouve / En attente) — ecrans 8 et 9. */
+  .status {
+    font-size: 11px;
+    line-height: 1;
+    border-radius: 999px;
+    padding: 6px 11px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .status[data-tone="done"]    { background: rgba(46,105,58,0.12);  color: #2E693A; border-color: rgba(46,105,58,0.28); }
+  .status[data-tone="transit"] { background: rgba(200,134,10,0.14); color: #8A5C05; border-color: rgba(200,134,10,0.34); }
+  .status[data-tone="wait"]    { background: rgba(26,22,17,0.07);   color: rgba(26,22,17,0.62); border-color: rgba(26,22,17,0.14); }
+
+  /* Variation de cote : vert en hausse, rouge en baisse (planche, ecrans 1/3/4). */
+  .trend-up   { color: #2E693A; }
+  .trend-down { color: #A33B2A; }
+
+  /* Emplacement d'image manquante — repris tel quel des maquettes
+     (« scan à venir »), pour ne pas inventer un second motif. */
+  .scan-pending {
+    background-color: rgba(232,225,216,0.8);
+    background-image: repeating-linear-gradient(45deg, rgba(26,22,17,0.05) 0 10px, transparent 10px 20px);
+    border: 1px solid rgba(26,22,17,0.12);
+  }
 }
-
-body {
-  background-color: var(--bg);
-  color: var(--cream);
-  font-family: var(--font-body);
-  font-size: 1rem;
-  line-height: 1.6;
-  min-height: 100vh;
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
-  line-height: 1.2;
-  color: var(--cream);
-}
-
-h1 { font-size: clamp(2rem, 5vw, 3.5rem);     font-weight: 700; }
-h2 { font-size: clamp(1.5rem, 3vw, 2.5rem);   font-weight: 600; }
-h3 { font-size: clamp(1.25rem, 2vw, 1.75rem); font-weight: 600; }
-h4 { font-size: 1.25rem; font-weight: 500; }
-h5 { font-size: 1.1rem;  font-weight: 500; }
-h6 { font-size: 1rem;    font-weight: 500; }
-
-p { color: var(--cream); line-height: 1.7; }
-
-a {
-  color: var(--amber);
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-a:hover { color: var(--amber-light); }
-
-:focus-visible {
-  outline: 2px solid var(--amber);
-  outline-offset: 3px;
-  border-radius: 2px;
-}
-
-::-webkit-scrollbar       { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--surface-1); }
-::-webkit-scrollbar-thumb { background: var(--amber); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--amber-light); }
-
-::selection { background-color: var(--amber); color: var(--bg); }
 
 @layer utilities {
+  /* Donnée technique : réf, état, cote, compteurs (handoff Fiche Carte).
+     Distincte de `.mono-meta` : celle-ci est en CAPITALES très espacées. */
+  .data {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(26,22,17,0.6);
+  }
+
+  /* Reflet spéculaire des surfaces de carte, orienté par le curseur. */
+  .surface-shine {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    mix-blend-mode: soft-light;
+    transition: opacity 0.25s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .surface-shine { display: none; }
+  }
+
+  .text-ink-70 { color: rgba(26,22,17,0.7); }
+  .text-ink-60 { color: rgba(26,22,17,0.6); }
+  .text-ink-55 { color: rgba(26,22,17,0.55); }
+
   .text-amber       { color: var(--amber); }
   .text-amber-light { color: var(--amber-light); }
   .text-cream       { color: var(--cream); }

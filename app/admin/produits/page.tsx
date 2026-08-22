@@ -9,7 +9,8 @@ interface SealedProduct {
   name: string
   type: string
   description: string | null
-  image_url: string | null
+  /** Visuels du produit, dans l'ordre d'affichage. Le premier sert de vignette. */
+  image_urls: string[]
   price: number
   quantity: number
   is_active: boolean
@@ -17,7 +18,7 @@ interface SealedProduct {
 
 const EMPTY: Omit<SealedProduct, 'id'> = {
   tcg_type: 'pokemon', name: '', type: 'booster',
-  description: null, image_url: null, price: 0, quantity: 0, is_active: true,
+  description: null, image_urls: [], price: 0, quantity: 0, is_active: true,
 }
 
 const TCG_TYPES = ['pokemon', 'onepiece', 'autre']
@@ -28,24 +29,44 @@ export default function ProduitsPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<SealedProduct | null>(null)
-  const [form, setForm] = useState(EMPTY)
+  const [formBrut, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
 
+  // Aucun `setState` avant le premier `await` : l'indicateur de chargement part
+  // de `true` à l'initialisation.
   async function load() {
     const res = await fetch('/api/produits')
-    const data = await res.json()
+    const data = await res.json().catch(() => null)
     setProducts(Array.isArray(data) ? data : [])
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    // Chargement de données au montage : les `setState` de `load` sont posés
+    // après un `await`, jamais dans le corps synchrone de l'effet.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load()
+  }, [])
 
   function openCreate() { setForm(EMPTY); setEditing(null); setShowForm(true) }
-  function openEdit(p: SealedProduct) { setForm(p); setEditing(p); setShowForm(true) }
+  function openEdit(p: SealedProduct) {
+    // On ne reprend QUE les champs écrivables : `image_url` arrive du GET mais
+    // elle est générée en base, la renvoyer ferait échouer la mise à jour.
+    setForm({
+      tcg_type: p.tcg_type, name: p.name, type: p.type, description: p.description,
+      image_urls: Array.isArray(p.image_urls) ? p.image_urls : [],
+      price: p.price, quantity: p.quantity, is_active: p.is_active,
+    })
+    setEditing(p)
+    setShowForm(true)
+  }
   function closeForm() { setShowForm(false); setEditing(null) }
 
   async function handleSave() {
     setSaving(true)
+    // Les champs laissés vides ne partent pas : une URL blanche donnerait une
+    // vignette cassée en boutique.
+    const form = { ...formBrut, image_urls: formBrut.image_urls.map(u => u.trim()).filter(Boolean) }
     if (editing) {
       await fetch('/api/produits', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editing.id, ...form }) })
     } else {
@@ -85,40 +106,81 @@ export default function ProduitsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={labelStyle}>TCG</label>
-                <select value={form.tcg_type} onChange={e => setForm(f => ({ ...f, tcg_type: e.target.value }))} className="admin-input">
+                <select value={formBrut.tcg_type} onChange={e => setForm(f => ({ ...f, tcg_type: e.target.value }))} className="admin-input">
                   {TCG_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
                 <label style={labelStyle}>Type</label>
-                <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="admin-input">
+                <select value={formBrut.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="admin-input">
                   {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
             </div>
             <div>
               <label style={labelStyle}>Nom</label>
-              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="admin-input" placeholder="Booster Écarlate et Violet..." />
+              <input value={formBrut.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="admin-input" placeholder="Booster Écarlate et Violet..." />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={labelStyle}>Prix €</label>
-                <input type="number" min="0" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))} className="admin-input" />
+                <input type="number" min="0" step="0.01" value={formBrut.price} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))} className="admin-input" />
               </div>
               <div>
                 <label style={labelStyle}>Quantité</label>
-                <input type="number" min="0" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: parseInt(e.target.value) || 0 }))} className="admin-input" />
+                <input type="number" min="0" value={formBrut.quantity} onChange={e => setForm(f => ({ ...f, quantity: parseInt(e.target.value) || 0 }))} className="admin-input" />
               </div>
             </div>
             <div>
-              <label style={labelStyle}>URL image</label>
-              <input value={form.image_url ?? ''} onChange={e => setForm(f => ({ ...f, image_url: e.target.value || null }))} className="admin-input" placeholder="https://..." />
+              <label style={labelStyle}>Visuels ({formBrut.image_urls.length})</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {formBrut.image_urls.map((url, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    {/* Aperçu : une URL fautive se voit tout de suite. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element -- aperçu admin, hôte arbitraire saisi à la main */}
+                    <img
+                      src={url}
+                      alt=""
+                      aria-hidden
+                      style={{ width: '30px', height: '40px', objectFit: 'cover', borderRadius: '2px', background: 'rgba(232,225,216,0.06)', flexShrink: 0 }}
+                    />
+                    <input
+                      value={url}
+                      onChange={e => setForm(f => ({
+                        ...f,
+                        image_urls: f.image_urls.map((u, k) => (k === i ? e.target.value : u)),
+                      }))}
+                      className="admin-input"
+                      placeholder="https://..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, image_urls: f.image_urls.filter((_, k) => k !== i) }))}
+                      title={i === 0 ? 'Retirer (le suivant deviendra la vignette)' : 'Retirer'}
+                      style={{ background: 'none', border: 'none', color: 'rgba(248,113,113,0.5)', cursor: 'pointer', fontSize: '12px', flexShrink: 0 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, image_urls: [...f.image_urls, ''] }))}
+                  className="ab ab-muted"
+                  style={{ padding: '5px 10px', cursor: 'pointer', fontSize: '9px', alignSelf: 'flex-start' }}
+                >
+                  + Ajouter un visuel
+                </button>
+                <span style={{ fontSize: '10px', color: 'rgba(238,228,204,0.3)' }}>
+                  Le premier visuel sert de vignette au catalogue.
+                </span>
+              </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input type="checkbox" id="active" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} style={{ width: '14px', height: '14px', accentColor: 'var(--amber)' }} />
+              <input type="checkbox" id="active" checked={formBrut.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} style={{ width: '14px', height: '14px', accentColor: 'var(--amber)' }} />
               <label htmlFor="active" style={{ fontSize: '11px', color: 'var(--muted)' }}>Produit actif</label>
             </div>
-            <button onClick={handleSave} disabled={saving || !form.name} className="btn btn-primary btn-sm">
+            <button onClick={handleSave} disabled={saving || !formBrut.name} className="btn btn-primary btn-sm">
               {saving ? 'Sauvegarde...' : 'Enregistrer'}
             </button>
           </div>
@@ -141,7 +203,7 @@ export default function ProduitsPage() {
           <div style={{ padding: '24px 14px', fontSize: '11px', color: 'var(--muted)' }}>
             Aucun produit. Cliquez sur Ajouter.
           </div>
-        ) : products.map((p: any) => (
+        ) : products.map(p => (
           <div
             key={p.id}
             className="admin-row"

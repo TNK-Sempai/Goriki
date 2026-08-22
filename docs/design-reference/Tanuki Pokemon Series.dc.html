@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#E8E1D8; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#1A1611; text-decoration:none; }
+a:hover { color:#C8860A; }
+input { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; }
+@keyframes universFade { from { opacity:0; } to { opacity:1; } }
+@keyframes universRise { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:none; } }
+</style>
+</helmet>
+<div data-screen-label="Séries Pokémon" style="min-height:100vh; color:#1A1611; position:relative;">
+  <div style="position:fixed; inset:0; pointer-events:none; z-index:0; background-image:radial-gradient(rgba(26,22,17,0.07) 1px, transparent 1px); background-size:24px 24px; animation:universFade 0.8s ease both;"></div>
+  <div style="position:fixed; bottom:-240px; left:-180px; width:640px; height:640px; pointer-events:none; z-index:0; border-top:1px solid rgba(26,22,17,0.07); border-radius:50%; box-shadow:inset 0 100px 0 -99px rgba(26,22,17,0.05), inset 0 220px 0 -219px rgba(26,22,17,0.04); animation:universRise 1s ease both;"></div>
+  <dc-import name="Tanuki Header" active="Pokémon" hint-size="100%,90px"></dc-import>
+
+  <div style="max-width:1360px; margin:0 auto; padding:32px 56px 0; box-sizing:border-box;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.55);">
+      <a href="Tanuki Accueil.dc.html" style="color:rgba(26,22,17,0.55);">ACCUEIL</a> / <a href="Tanuki Pokemon.dc.html" style="color:rgba(26,22,17,0.55);">POKÉMON</a> / <span style="color:#1A1611;">SÉRIES</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:20px; gap:32px; flex-wrap:wrap;">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <h1 style="font-weight:600; font-size:44px; letter-spacing:-0.03em; margin:0;">Séries Pokémon</h1>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.28em; text-transform:uppercase; color:rgba(26,22,17,0.5);">Index des extensions</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; color:rgba(26,22,17,0.55);">{{ setCount }} EXTENSIONS · FRANÇAIS · CLASSÉES PAR ÈRE</span>
+      </div>
+      <input onChange="{{ onSearch }}" value="{{ query }}" placeholder="Rechercher une extension…" style="width:320px; padding:12px 16px; font-size:13px; background:rgba(255,255,255,0.6); border:1px solid rgba(26,22,17,0.15); border-radius:4px; color:#1A1611; box-sizing:border-box;">
+    </div>
+  </div>
+
+  <div style="max-width:1360px; margin:28px auto 64px; padding:0 56px; box-sizing:border-box; display:flex; flex-direction:column; gap:16px;">
+    <sc-for list="{{ eras }}" as="era" hint-placeholder-count="4">
+      <section style="background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:28px 32px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px;">
+          <span style="font-size:20px; font-weight:600; letter-spacing:-0.02em;">{{ era.name }}</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.5);">{{ era.meta }}</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px;">
+          <sc-for list="{{ era.sets }}" as="s" hint-placeholder-count="6">
+            <a href="Tanuki Pokemon Set.dc.html" style="display:flex; flex-direction:column; background:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.7); border-radius:4px; overflow:hidden;" style-hover="border-color:rgba(26,22,17,0.4);">
+              <div style="height:74px; display:flex; align-items:center; justify-content:center; padding:12px; background:rgba(232,225,216,0.7); background-image:repeating-linear-gradient(45deg, rgba(26,22,17,0.04) 0 9px, transparent 9px 18px); border-bottom:1px solid rgba(255,255,255,0.6); box-sizing:border-box;">
+                <span style="font-size:13px; font-weight:600; text-align:center; line-height:1.25; letter-spacing:-0.01em;">{{ s.title }}</span>
+              </div>
+              <div style="padding:12px 14px; display:flex; flex-direction:column; gap:8px;">
+                <div style="height:3px; background:rgba(26,22,17,0.1); border-radius:2px;">
+                  <div style="height:100%; width:{{ s.pct }}%; background:{{ s.barColor }}; border-radius:2px;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.06em; color:rgba(26,22,17,0.55);">{{ s.code }} · {{ s.stock }}</span>
+                  <span style="font-size:14px; font-weight:600; color:#C8860A;">{{ s.from }}</span>
+                </div>
+              </div>
+            </a>
+          </sc-for>
+        </div>
+      </section>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { query: '' };
+  renderVals() {
+    const fmt = (v) => v.toFixed(2).replace('.', ',') + ' €';
+    const eras = [
+      { name: 'Mega-Évolution', sets: [
+        { code: 'M1', title: 'NUIT NOIRE', n: 118, t: 120, from: 0.05 },
+        { code: 'M2', title: 'CHAOS ASCENDANT', n: 96, t: 112, from: 0.05 },
+        { code: 'M3', title: 'ÉQUILIBRE PARFAIT', n: 74, t: 108, from: 0.08 },
+        { code: 'MEP', title: 'MEGA-ÉVOLUTION PROMO', n: 12, t: 24, from: 0.9 },
+      ] },
+      { name: 'Écarlate et Violet', sets: [
+        { code: 'SV1', title: 'ÉCARLATE ET VIOLET', n: 190, t: 198, from: 0.02 },
+        { code: 'SV2', title: 'ÉVOLUTIONS À PALDEA', n: 176, t: 193, from: 0.02 },
+        { code: 'SV3', title: 'FLAMMES OBSIDIENNES', n: 182, t: 197, from: 0.03 },
+        { code: 'SV3.5', title: '151', n: 158, t: 165, from: 0.1 },
+        { code: 'SV4', title: 'FABLE NÉBULEUSE', n: 141, t: 167, from: 0.05 },
+        { code: 'SV5', title: 'FORCES TEMPORELLES', n: 148, t: 162, from: 0.03 },
+        { code: 'SV6', title: 'MASCARADE CRÉPUSCULAIRE', n: 132, t: 155, from: 0.04 },
+        { code: 'SV7', title: 'COURONNE STELLAIRE', n: 118, t: 142, from: 0.05 },
+        { code: 'SV8', title: 'AVENTURES ENSEMBLE', n: 108, t: 140, from: 0.06 },
+        { code: 'SV8.5', title: 'ÉVOLUTIONS PRISMATIQUES', n: 122, t: 131, from: 0.15 },
+        { code: 'SV10', title: 'DESTINÉES RIVALES', n: 104, t: 182, from: 0.06 },
+        { code: 'SVE', title: 'ÉNERGIES', n: 18, t: 18, from: 0.3 },
+      ] },
+      { name: 'Épée et Bouclier', sets: [
+        { code: 'SWSH12', title: 'ZÉNITH SUPRÊME', n: 142, t: 159, from: 0.04 },
+        { code: 'SWSH11', title: 'TEMPÊTE ARGENTÉE', n: 128, t: 195, from: 0.05 },
+        { code: 'SWSH10', title: 'ORIGINE PERDUE', n: 121, t: 196, from: 0.05 },
+        { code: 'SWSH9', title: 'ASTRES RADIEUX', n: 96, t: 189, from: 0.06 },
+        { code: 'SWSH8', title: 'POING DE FUSION', n: 88, t: 264, from: 0.05 },
+        { code: 'SWSH7', title: 'ÉVOLUTION CÉLESTE', n: 74, t: 203, from: 0.06 },
+        { code: 'SWSH6', title: 'RÈGNE DE GLACE', n: 62, t: 198, from: 0.07 },
+        { code: 'SWSH5', title: 'STYLES DE COMBAT', n: 58, t: 163, from: 0.07 },
+      ] },
+      { name: 'Soleil et Lune', sets: [
+        { code: 'SM12', title: 'ÉCLIPSE COSMIQUE', n: 64, t: 236, from: 0.1 },
+        { code: 'SM11', title: 'DESTINÉES OCCULTES', n: 41, t: 68, from: 0.25 },
+        { code: 'SM10', title: 'ALLIANCE INÉBRANLABLE', n: 38, t: 214, from: 0.12 },
+        { code: 'SM9', title: 'DUO DE CHOC', n: 32, t: 181, from: 0.12 },
+        { code: 'SM8', title: 'TONNERRE PERDU', n: 28, t: 214, from: 0.14 },
+        { code: 'SM1', title: 'SOLEIL ET LUNE', n: 21, t: 149, from: 0.15 },
+      ] },
+    ];
+    const q = this.state.query.toLowerCase();
+    const out = eras.map(e => ({
+      ...e,
+      sets: e.sets.filter(s => q === '' || s.title.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)),
+    })).filter(e => e.sets.length > 0);
+    return {
+      query: this.state.query,
+      onSearch: (e) => this.setState({ query: e.target.value }),
+      setCount: eras.reduce((n, e) => n + e.sets.length, 0),
+      eras: out.map(e => ({
+        ...e,
+        meta: e.sets.length + ' EXTENSIONS',
+        sets: e.sets.map(s => {
+          const pct = Math.round(s.n / s.t * 100);
+          return { ...s, pct, stock: s.n + '/' + s.t, from: fmt(s.from), barColor: pct >= 95 ? '#C8860A' : 'rgba(26,22,17,0.7)' };
+        }),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

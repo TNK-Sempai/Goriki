@@ -1,4 +1,6 @@
 import CardTile from './CardTile'
+import Reveal from '@/components/motion/Reveal'
+import CardCursor from '@/components/motion/CardCursor'
 
 interface CardGridProps {
   listings: {
@@ -15,14 +17,21 @@ interface CardGridProps {
     onepiece_variant_types?: { code: string; label: string }
   }[]
   loading?: boolean
+  emptyLabel?: string
 }
 
-export default function CardGrid({ listings, loading = false }: CardGridProps) {
+/**
+ * Grille de cartes du catalogue — enfin branchée (dormante depuis l'origine).
+ * `index` est transmis à `CardTile` pour l'entrée en cascade de la card physics.
+ */
+export default function CardGrid({ listings, loading = false, emptyLabel }: CardGridProps) {
+  const grid = 'grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
+
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-        {[...Array(24)].map((_, i) => (
-          <div key={i} className="skeleton aspect-[2.5/3.5] rounded-md" />
+      <div className={grid}>
+        {[...Array(15)].map((_, i) => (
+          <div key={i} className="scan-pending aspect-[2.5/3.5] rounded-panel" />
         ))}
       </div>
     )
@@ -30,17 +39,22 @@ export default function CardGrid({ listings, loading = false }: CardGridProps) {
 
   if (listings.length === 0) {
     return (
-      <div className="text-center py-20">
-        <p className="text-muted">Aucune carte trouvée pour ces filtres.</p>
+      <div className="glass rounded-block px-8 py-16 text-center">
+        <p className="m-0 text-[14px] text-ink-70">
+          {emptyLabel ?? 'Aucune carte ne correspond à ces filtres.'}
+        </p>
       </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-      {listings.map((listing) => (
-        <CardTile key={listing.id} listing={listing} />
-      ))}
-    </div>
+    <>
+      <CardCursor />
+      <Reveal className={grid} stagger={0.035} y={14}>
+        {listings.map((listing, i) => (
+          <CardTile key={listing.id} listing={listing} index={i} />
+        ))}
+      </Reveal>
+    </>
   )
 }

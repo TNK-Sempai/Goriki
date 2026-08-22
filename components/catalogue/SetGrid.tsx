@@ -1,36 +1,82 @@
 import Link from 'next/link'
+import { formatPrice } from '@/lib/utils'
 
-interface SetGridProps {
-  sets: { id: string; code: string; name_fr: string; image_url: string | null; card_count: number | null }[]
-  basePath: string
+export interface SetCardData {
+  id: string
+  code: string
+  name_fr: string
+  /** Nombre de cartes du set réellement disponibles à la vente */
+  inStock: number
+  /** Nombre total de cartes du set */
+  total: number
+  /** Prix d'entrée du set, `null` si rien en vente */
+  priceFrom: number | null
+  /** Jusqu'à 3 visuels de cartes réellement en vente dans ce set */
+  preview?: string[]
 }
 
-export default function SetGrid({ sets, basePath }: SetGridProps) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {sets.map((set) => (
-        <Link
-          key={set.id}
-          href={`${basePath}/${set.id}`}
-          className="card hover:border-goriki transition-all group"
-        >
-          {set.image_url && (
-            <img
-              src={set.image_url}
-              alt={set.name_fr}
-              className="h-12 object-contain mb-3 opacity-80 group-hover:opacity-100 transition-opacity"
-              loading="lazy"
-            />
-          )}
-          <p className="text-cream text-sm font-medium">{set.name_fr}</p>
-          <p className="text-muted text-xs mt-1">{set.code} · {set.card_count ?? '?'} cartes</p>
-        </Link>
-      ))}
-      {sets.length === 0 && (
-        <p className="text-muted text-sm col-span-full text-center py-10">
-          Aucun set disponible — importez des cartes depuis l&apos;admin.
+/**
+ * Grille de sets — réécrite sur la maquette `Tanuki Pokemon Series`.
+ *
+ * L'ancienne version (logo + nom + nombre de cartes) ne correspondait PAS à la
+ * référence : celle-ci exige une barre de progression du stock et un prix
+ * « dès … ». Composant réécrit plutôt que dupliqué, comme demandé au brief.
+ */
+export default function SetGrid({
+  sets,
+  basePath,
+  emptyLabel,
+}: {
+  sets: SetCardData[]
+  basePath: string
+  emptyLabel?: string
+}) {
+  if (sets.length === 0) {
+    return (
+      <div className="glass rounded-block px-8 py-14 text-center">
+        <p className="m-0 text-[14px] text-ink-70">
+          {emptyLabel ?? 'Aucune extension pour le moment.'}
         </p>
-      )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {sets.map(set => {
+        const pct = set.total > 0 ? Math.round((set.inStock / set.total) * 100) : 0
+        return (
+          <Link
+            key={set.id}
+            href={`${basePath}/${set.id}`}
+            className="glass glass-hoverable flex flex-col gap-3 rounded-panel px-5 py-5 transition-colors"
+          >
+            <span className="text-[15px] font-semibold uppercase leading-tight tracking-[-0.01em]">
+              {set.name_fr}
+            </span>
+
+            {/* Progression du stock : part des cartes du set réellement en vente */}
+            <div className="h-[3px] rounded-[2px] bg-[rgba(26,22,17,0.1)]">
+              <div
+                className="h-full rounded-[2px]"
+                style={{
+                  width: `${pct}%`,
+                  background: pct > 0 ? 'var(--color-ochre)' : 'transparent',
+                }}
+              />
+            </div>
+
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-mono text-[9px] tracking-[0.06em] text-ink-55">
+                {set.code} · {set.inStock}/{set.total}
+              </span>
+              <span className="text-[14px] font-semibold text-ochre">
+                {set.priceFrom !== null ? `dès ${formatPrice(set.priceFrom)}` : '—'}
+              </span>
+            </div>
+          </Link>
+        )
+      })}
     </div>
   )
 }

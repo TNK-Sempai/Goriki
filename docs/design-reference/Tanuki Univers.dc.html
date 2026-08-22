@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#E8E1D8; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#1A1611; text-decoration:none; }
+a:hover { color:#C8860A; }
+</style>
+</helmet>
+<div data-screen-label="Bascule d'univers" style="position:relative; min-height:100vh; color:#1A1611; overflow:hidden;">
+  <div style="position:fixed; inset:0; z-index:0;">
+    <dc-import name="Tanuki Atmosphere" universe="{{ universe }}" hint-size="100%,100%"></dc-import>
+  </div>
+
+  <div style="position:relative; z-index:1;">
+    <header style="position:sticky; top:16px; z-index:50; max-width:1360px; margin:16px auto 0; display:flex; align-items:center; justify-content:space-between; padding:14px 28px; background:rgba(248,244,236,0.55); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; box-shadow:0 8px 32px -12px rgba(26,22,17,0.18);">
+      <a href="Tanuki Accueil.dc.html" style="font-size:18px; font-weight:600; letter-spacing:-0.01em;">Tanuki <span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:400; letter-spacing:0.2em; vertical-align:middle; margin-left:6px;">TCG</span></a>
+      <nav style="display:flex; gap:6px; font-size:13px;">
+        <button onClick="{{ goOnePiece }}" style="padding:8px 14px; border:none; border-radius:4px; cursor:pointer; background:{{ opBg }}; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:13px; font-weight:{{ opWeight }}; transition:background 0.4s ease;">One Piece</button>
+        <button onClick="{{ goPokemon }}" style="padding:8px 14px; border:none; border-radius:4px; cursor:pointer; background:{{ pkBg }}; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-size:13px; font-weight:{{ pkWeight }}; transition:background 0.4s ease;">Pokémon</button>
+        <a href="#" style="padding:8px 14px; border-radius:4px;" style-hover="background:rgba(26,22,17,0.06);">Dépôt-vente</a>
+        <a href="#" style="padding:8px 14px; border-radius:4px;" style-hover="background:rgba(26,22,17,0.06);">Rachat</a>
+        <a href="#" style="padding:8px 14px; border-radius:4px;" style-hover="background:rgba(26,22,17,0.06);">Want to Buy</a>
+      </nav>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <a href="#" style="font-size:13px; padding:8px 16px; background:rgba(255,255,255,0.5); border:1px solid rgba(255,255,255,0.7); border-radius:4px; color:rgba(26,22,17,0.6);">Rechercher…</a>
+        <a href="Tanuki Panier.dc.html" style="font-family:'JetBrains Mono',monospace; font-size:11px; padding:9px 14px; background:rgba(26,22,17,0.9); color:#E8E1D8; border-radius:4px;">PANIER · 2</a>
+      </div>
+    </header>
+
+    <div style="max-width:1360px; margin:0 auto; padding:72px 56px 40px; box-sizing:border-box;">
+      <div style="display:flex; flex-direction:column; gap:14px; max-width:60ch;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:{{ eyebrowSpacing }}; text-transform:uppercase; color:rgba(26,22,17,0.55); transition:letter-spacing 0.8s ease;">{{ eyebrow }}</span>
+        <h1 style="font-weight:600; font-size:66px; line-height:1.02; letter-spacing:-0.03em; margin:0;">{{ title }}</h1>
+        <span style="font-family:{{ secondaryFont }}; font-style:{{ secondaryStyle }}; font-size:{{ secondarySize }}; letter-spacing:{{ secondarySpacing }}; text-transform:{{ secondaryCase }}; color:rgba(26,22,17,0.62); transition:letter-spacing 0.8s ease;">{{ tagline }}</span>
+      </div>
+    </div>
+
+    <div style="max-width:1360px; margin:0 auto; padding:0 56px 24px; box-sizing:border-box;">
+      <a href="{{ singlesHref }}" style="display:grid; grid-template-columns:1.4fr 1fr; gap:48px; align-items:center; background:rgba(248,244,236,0.5); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:52px; box-shadow:0 16px 48px -20px rgba(26,22,17,0.2);" style-hover="background:rgba(255,255,255,0.7);">
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.2em; color:rgba(26,22,17,0.55);">LE CŒUR DU SHOP</span>
+          <span style="font-weight:600; font-size:38px; letter-spacing:-0.03em; line-height:1.05;">Singles</span>
+          <p style="font-size:15px; line-height:1.6; color:rgba(26,22,17,0.7); max-width:48ch; margin:0;">{{ singlesText }}</p>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; margin-top:4px;">{{ singlesCta }}</span>
+        </div>
+        <div style="display:flex; gap:14px; justify-content:flex-end;">
+          <img src="assets/don-foil.webp" alt="" style="width:126px; border-radius:4px; transform:rotate(-5deg); box-shadow:0 24px 48px -20px rgba(26,22,17,0.45);">
+          <img src="assets/don-gold.webp" alt="" style="width:146px; border-radius:4px; transform:rotate(4deg) translateY(-10px); box-shadow:0 30px 60px -24px rgba(26,22,17,0.5);">
+        </div>
+      </a>
+    </div>
+
+    <div style="max-width:1360px; margin:0 auto; padding:0 56px 72px; box-sizing:border-box;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px;">
+        <span style="font-size:22px; font-weight:600; letter-spacing:-0.02em;">Scellé</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.5);">{{ catCount }} CATÉGORIES</span>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:14px;">
+        <sc-for list="{{ cats }}" as="c" hint-placeholder-count="4">
+          <a href="{{ c.href }}" style="display:flex; justify-content:space-between; align-items:baseline; padding:22px 24px; background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; transition:border-color 0.3s ease;" style-hover="border-color:rgba(26,22,17,0.4);">
+            <span style="font-size:16px; font-weight:600; letter-spacing:-0.01em;">{{ c.name }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(26,22,17,0.55);">{{ c.n }} →</span>
+          </a>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { universe: 'onepiece' };
+  renderVals() {
+    const op = this.state.universe === 'onepiece';
+    return {
+      universe: this.state.universe,
+      goOnePiece: () => this.setState({ universe: 'onepiece' }),
+      goPokemon: () => this.setState({ universe: 'pokemon' }),
+      opBg: op ? 'rgba(26,22,17,0.08)' : 'transparent',
+      pkBg: op ? 'transparent' : 'rgba(26,22,17,0.08)',
+      opWeight: op ? 600 : 400,
+      pkWeight: op ? 400 : 600,
+      eyebrow: op ? 'Route · Grand Line · archives Tanuki' : 'Index · classification · archives Tanuki',
+      eyebrowSpacing: op ? '0.2em' : '0.34em',
+      title: op ? 'One Piece' : 'Pokémon',
+      tagline: op
+        ? 'Le journal de bord d\'une collection — série par série.'
+        : 'Chaque extension, chaque numéro, chaque état — répertorié.',
+      secondaryFont: op ? "'Instrument Serif',serif" : "'JetBrains Mono',monospace",
+      secondaryStyle: op ? 'italic' : 'normal',
+      secondarySize: op ? '21px' : '13px',
+      secondarySpacing: op ? '0' : '0.22em',
+      secondaryCase: op ? 'none' : 'uppercase',
+      singlesHref: op ? 'Tanuki Series.dc.html' : 'Tanuki Pokemon Series.dc.html',
+      singlesText: op
+        ? 'Chaque carte au-dessus d\'un euro est une pièce individuelle : scannée recto-verso, authentifiée, état précis, inspectable en 3D.'
+        : 'Toutes les extensions, de Mega-Évolution à Soleil et Lune. Chaque single au-dessus d\'un euro est scanné et authentifié.',
+      singlesCta: op ? 'PARCOURIR LES SÉRIES →' : 'PARCOURIR L\'INDEX →',
+      catCount: op ? 4 : 6,
+      cats: (op
+        ? [{ name: 'Displays', n: 7 }, { name: 'Boosters', n: 18 }, { name: 'Starter Decks', n: 14 }, { name: 'Coffrets', n: 5 }]
+        : [{ name: 'Displays', n: 12 }, { name: 'Boosters', n: 24 }, { name: 'Blisters', n: 15 }, { name: 'ETB', n: 8 }, { name: 'UPC', n: 3 }, { name: 'Coffrets', n: 9 }]
+      ).map(c => ({ ...c, href: op ? 'Tanuki One Piece.dc.html' : 'Tanuki Pokemon Displays.dc.html' })),
+    };
+  }
+}
+</script>
+</body>
+</html>

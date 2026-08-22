@@ -87,31 +87,26 @@ export default function AddToCartButton({
   else if (loading) label = 'Ajout…'
 
   return (
-    <div style={{ flex: 1 }}>
+    <div className="w-full">
+      {/* CTA principal de la fiche : ocre pleine largeur, comme la planche.
+          Les styles inline d'origine (fond `--cream`, rayon 2 px) dataient de
+          la DA sombre et juraient sur le parcours clair. */}
       <button
         onClick={handleAdd}
         disabled={isDisabled}
-        style={{
-          width: '100%',
-          fontSize: '11px',
-          letterSpacing: '1px',
-          textTransform: 'uppercase',
-          color: 'var(--bg)',
-          background: 'var(--cream)',
-          border: 'none',
-          padding: '12px 24px',
-          borderRadius: '2px',
-          cursor: 'pointer',
-          fontFamily: 'var(--font-body)',
-          fontWeight: 500,
-        }}
+        className={`w-full px-6 py-3.5 font-mono text-[11px] uppercase tracking-[0.14em] disabled:cursor-not-allowed ${
+          // Épuisé : le bouton doit se lire comme INERTE. En ocre plein, même
+          // à opacité réduite, il continuait de passer pour le CTA principal —
+          // alors que l'action réelle, juste en dessous, est « Je la cherche ».
+          isSoldOut
+            ? 'rounded-control border border-[rgba(26,22,17,0.14)] bg-[rgba(26,22,17,0.05)] text-ink-55'
+            : 'btn-ochre disabled:opacity-45'
+        }`}
       >
         {label}
       </button>
       {error && (
-        <span style={{ fontSize: '11px', color: 'var(--danger, #b91c1c)', display: 'block', marginTop: '6px' }}>
-          {error}
-        </span>
+        <span className="mt-2 block text-[12px] text-[#A33B2A]">{error}</span>
       )}
     </div>
   )

@@ -1,58 +1,40 @@
+import SiteHeader from '@/components/layout/SiteHeader'
+import SiteFooter from '@/components/layout/SiteFooter'
+import PageContainer from '@/components/layout/PageContainer'
+import SetsIndex from '@/components/catalogue/SetsIndex'
+import CardCursor from '@/components/motion/CardCursor'
 import { createClient } from '@/lib/supabase/server'
-import Navbar from '@/components/blocks/Navbar'
-import Footer from '@/components/blocks/Footer'
-import Link from 'next/link'
-import PokemonCatalogueClient from '@/components/catalogue/PokemonCatalogueClient'
+import { getSeriesByEra } from '@/lib/catalogue/series'
 
-export default async function CataloguePokemonPage() {
+export const metadata = { title: 'Pokémon' }
+export const dynamic = 'force-dynamic'
+
+/**
+ * Pokémon — même composition que la case 2 de la planche (liste des sets).
+ *
+ * La planche ne dessine que la version One Piece de cet écran ; l'univers
+ * Pokémon reprend la MÊME structure, comme le veut la règle de responsive et
+ * de cohérence : c'est un seul système de composition, pas deux gabarits.
+ */
+export default async function PokemonSetsPage() {
   const supabase = await createClient()
-  const { data: sets } = await supabase
-    .from('pokemon_sets')
-    .select('id, code, name_fr, image_url, symbol_url, card_count, release_date, serie_id, serie_name')
-    .eq('is_active', true)
-    .order('release_date', { ascending: false })
+  const eras = await getSeriesByEra(supabase, 'pokemon')
 
   return (
     <>
-      <Navbar />
-      <main style={{ background: 'var(--bg)', minHeight: '100vh' }}>
-
-        {/* TCG Switch */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
-          {[
-            { href: '/catalogue/pokemon', label: 'Pokémon', active: true },
-            { href: '/catalogue/onepiece', label: 'One Piece', active: false },
-            { href: '/catalogue/scelles', label: 'Scellés', active: false },
-          ].map(tab => (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={`tcg-tab${tab.active ? ' active' : ''}`}
-            >
-              {tab.label}
-            </Link>
-          ))}
-        </div>
-
-        <div style={{ padding: '28px 40px 0' }}>
-          <div style={{ fontSize: '10px', color: 'var(--muted)', marginBottom: '6px' }}>Catalogue</div>
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '22px',
-              color: 'var(--cream)',
-              fontWeight: 600,
-              marginBottom: '2px',
-            }}
-          >
-            Pokémon TCG
-          </h1>
-          <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{(sets ?? []).length} sets disponibles</div>
-        </div>
-
-        <PokemonCatalogueClient sets={sets ?? []} />
+      <SiteHeader />
+      <CardCursor />
+      <main className="font-grotesk text-ink">
+        <PageContainer as="section" className="pb-16 pt-10 lg:pb-20 lg:pt-14">
+          <SetsIndex
+            title="Pokémon"
+            eras={eras}
+            basePath="/catalogue/pokemon"
+            emptyLabel="Le catalogue Pokémon n'est pas encore en ligne."
+          />
+        </PageContainer>
       </main>
-      <Footer />
+      <SiteFooter />
     </>
   )
 }

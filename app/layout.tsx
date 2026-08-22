@@ -1,19 +1,35 @@
 import type { Metadata } from 'next'
-import { Playfair_Display, DM_Sans } from 'next/font/google'
+import { Archivo_Black, Inter, JetBrains_Mono } from 'next/font/google'
 import { ThemeProvider } from 'next-themes'
+import LenisProvider from '@/components/providers/LenisProvider'
+import { UniverseProvider } from '@/components/universe/UniverseProvider'
+import AtmosphereLayer from '@/components/atmosphere/AtmosphereLayer'
 import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 import '@/styles/globals.css'
 import '@/styles/components.css'
 
-const playfair = Playfair_Display({
+// Typographie FINALE (CLAUDE.md — identité 2026-08-21).
+// TT Hoves de la planche de référence est une police payante : Archivo Black
+// est son substitut libre pour les titres. Playfair Display, DM Sans et
+// Instrument Serif sont abandonnées — plus jamais chargées.
+const archivo = Archivo_Black({
   subsets: ['latin'],
-  variable: '--font-display',
+  weight: '400', // Archivo Black n'a QUE ce poids : il est déjà « black ».
+  variable: '--font-archivo',
   display: 'swap',
 })
 
-const dmSans = DM_Sans({
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-body',
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+// Donnée technique : réf, prix, coordonnées, eyebrows.
+const jetbrains = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-jetbrains',
   display: 'swap',
 })
 
@@ -50,7 +66,7 @@ export default function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`${playfair.variable} ${dmSans.variable}`}
+      className={`${archivo.variable} ${inter.variable} ${jetbrains.variable}`}
     >
       <body>
         <ThemeProvider
@@ -59,7 +75,12 @@ export default function RootLayout({
           enableSystem={false}
           themes={['dark', 'light']}
         >
-          {children}
+          <LenisProvider>
+            <UniverseProvider>
+              <AtmosphereLayer />
+              {children}
+            </UniverseProvider>
+          </LenisProvider>
         </ThemeProvider>
       </body>
     </html>

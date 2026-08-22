@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { fetchOPESets, fetchOPESet, OPECardsUnavailableError, type OPESet } from '@/lib/opecards'
 
-// Cohérence avec le bulk Pokémon — OPECards peut être lent / multi-sets
+// Cohérence avec le bulk Pokémon — Poneglyphe peut être lent / multi-sets
 export const maxDuration = 300 // 5 min — Vercel Pro
 
 // ─────────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ export async function GET() {
     if (err instanceof OPECardsUnavailableError) {
       return NextResponse.json({ ok: false, error: err.message }, { status: 503 })
     }
-    const message = err instanceof Error ? err.message : 'Erreur OPECards'
+    const message = err instanceof Error ? err.message : 'Erreur Poneglyphe'
     return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }
@@ -137,6 +137,8 @@ async function handleSingleImport(request: NextRequest) {
         release_date: setData.releaseDate ?? null,
         image_url: setData.image ?? null,
         card_count: setData.cardCount ?? setData.cards?.length ?? null,
+        serie_id: setData.serieId ?? null,
+        serie_name: setData.serieName ?? null,
       }, { onConflict: 'code' })
       .select('id')
       .single()
@@ -179,6 +181,16 @@ async function handleSingleImport(request: NextRequest) {
           power: card.power ?? null,
           life_points: card.life ?? null,
           opecards_id: card.id,
+          colors: card.colors ?? null,
+          attribute: card.attribute ?? null,
+          cost: card.cost ?? null,
+          counter: card.counter ?? null,
+          effect: card.effect ?? null,
+          trigger_effect: card.triggerEffect ?? null,
+          character_name: card.characterName ?? null,
+          affiliations: card.affiliations ?? null,
+          abilities: card.abilities ?? null,
+          version: card.version ?? null,
         }, { onConflict: 'set_id,number' })
         .select('id')
         .single()
@@ -199,7 +211,7 @@ async function handleSingleImport(request: NextRequest) {
             quantity: 0,
             price: 0.00,
             image_api: card.image ?? null,
-          }, { onConflict: 'card_id,variant_type_id,condition', ignoreDuplicates: true })
+          }, { onConflict: 'card_id,variant_type_id,condition,copy_index', ignoreDuplicates: true })
           .select('id')
           .maybeSingle()
 
@@ -239,7 +251,7 @@ async function handleSingleImport(request: NextRequest) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Import bulk — tous les sets OPECards en une passe
+// Import bulk — tous les sets Poneglyphe en une passe
 // ─────────────────────────────────────────────────────────────
 async function handleBulkImport() {
   const auth = await requireAdmin()
@@ -253,7 +265,7 @@ async function handleBulkImport() {
   let listingsCreated = 0
   let setsProcessed = 0
 
-  logs.push('[START] Récupération de tous les sets OPECards...')
+  logs.push('[START] Récupération de tous les sets Poneglyphe...')
 
   let allSets: OPESet[]
   try {
@@ -261,7 +273,7 @@ async function handleBulkImport() {
   } catch (err) {
     const unavailable = err instanceof OPECardsUnavailableError
     const message = err instanceof Error ? err.message : 'API injoignable'
-    logs.push(`[ERR] OPECards indisponible — ${message}`)
+    logs.push(`[ERR] Poneglyphe indisponible — ${message}`)
     // Indisponibilité = échec explicite, pas un ok:true avec 0 traité
     return NextResponse.json(
       {
@@ -288,6 +300,8 @@ async function handleBulkImport() {
           release_date: setData.releaseDate ?? null,
           image_url: setData.image ?? null,
           card_count: setData.cardCount ?? setData.cards?.length ?? null,
+          serie_id: setData.serieId ?? null,
+          serie_name: setData.serieName ?? null,
         }, { onConflict: 'code' })
         .select('id')
         .single()
@@ -320,6 +334,16 @@ async function handleBulkImport() {
             power: card.power ?? null,
             life_points: card.life ?? null,
             opecards_id: card.id,
+            colors: card.colors ?? null,
+            attribute: card.attribute ?? null,
+            cost: card.cost ?? null,
+            counter: card.counter ?? null,
+            effect: card.effect ?? null,
+            trigger_effect: card.triggerEffect ?? null,
+            character_name: card.characterName ?? null,
+            affiliations: card.affiliations ?? null,
+            abilities: card.abilities ?? null,
+            version: card.version ?? null,
           }, { onConflict: 'set_id,number' })
           .select('id')
           .single()
@@ -339,7 +363,7 @@ async function handleBulkImport() {
               quantity: 0,
               price: 0.00,
               image_api: card.image ?? null,
-            }, { onConflict: 'card_id,variant_type_id,condition', ignoreDuplicates: true })
+            }, { onConflict: 'card_id,variant_type_id,condition,copy_index', ignoreDuplicates: true })
             .select('id')
             .maybeSingle()
 
@@ -356,7 +380,7 @@ async function handleBulkImport() {
       setsProcessed++
       logs.push(`[OK] ${setMeta.name} — ${setImported} cartes`)
 
-      // Pause pour éviter rate limit OPECards
+      // Pause pour éviter rate limit Poneglyphe
       await new Promise(r => setTimeout(r, 200))
 
     } catch (err) {
@@ -367,13 +391,13 @@ async function handleBulkImport() {
       if (err instanceof OPECardsUnavailableError) {
         // Le domaine est devenu injoignable en cours de passe — inutile de continuer
         // à échouer sur chaque set restant : on arrête et on remonte l'indisponibilité.
-        logs.push('[ERR] OPECards injoignable — arrêt de la passe bulk')
+        logs.push('[ERR] Poneglyphe injoignable — arrêt de la passe bulk')
         return NextResponse.json(
           {
             ok: false,
             logs,
             stats: buildStats({ setsProcessed, cardsImported, listingsCreated, errors, start }),
-            error: 'API OPECards injoignable (domaine mort — DNS ne résout plus). Import interrompu.',
+            error: 'Source Poneglyphe injoignable. Import interrompu.',
           },
           { status: 503 }
         )
@@ -404,7 +428,7 @@ async function handleSync() {
   let listingsCreated = 0
   let setsProcessed = 0
 
-  logs.push('[SYNC] Vérification des sets OPECards...')
+  logs.push('[SYNC] Vérification des sets Poneglyphe...')
 
   // Sets déjà en BDD
   const { data: existingSets } = await supabase
@@ -413,14 +437,14 @@ async function handleSync() {
 
   const existingCodes = new Set((existingSets ?? []).map(s => s.code))
 
-  // Tous les sets OPECards
+  // Tous les sets Poneglyphe
   let allSets: OPESet[]
   try {
     allSets = await fetchOPESets()
   } catch (err) {
     const unavailable = err instanceof OPECardsUnavailableError
     const message = err instanceof Error ? err.message : 'API injoignable'
-    logs.push(`[ERR] OPECards indisponible — ${message}`)
+    logs.push(`[ERR] Poneglyphe indisponible — ${message}`)
     return NextResponse.json(
       {
         ok: false,
@@ -433,7 +457,7 @@ async function handleSync() {
   }
   logs.push(`[OK] ${allSets.length} sets disponibles · ${existingCodes.size} déjà en BDD`)
 
-  // OPECards : l'id API ≠ le code stocké → on résout l'id via la liste fetchée
+  // Poneglyphe : l'id API ≠ le code stocké → on résout l'id via la liste fetchée
   const idByCode = new Map(allSets.map(s => [(s.code ?? s.id).toUpperCase(), s.id]))
 
   // Nouveaux sets
@@ -451,6 +475,8 @@ async function handleSync() {
           release_date: setData.releaseDate ?? null,
           image_url: setData.image ?? null,
           card_count: setData.cardCount ?? setData.cards?.length ?? null,
+          serie_id: setData.serieId ?? null,
+          serie_name: setData.serieName ?? null,
         }, { onConflict: 'code' })
         .select('id')
         .single()
@@ -479,6 +505,16 @@ async function handleSync() {
             power: card.power ?? null,
             life_points: card.life ?? null,
             opecards_id: card.id,
+            colors: card.colors ?? null,
+            attribute: card.attribute ?? null,
+            cost: card.cost ?? null,
+            counter: card.counter ?? null,
+            effect: card.effect ?? null,
+            trigger_effect: card.triggerEffect ?? null,
+            character_name: card.characterName ?? null,
+            affiliations: card.affiliations ?? null,
+            abilities: card.abilities ?? null,
+            version: card.version ?? null,
           }, { onConflict: 'set_id,number' })
           .select('id').single()
 
@@ -491,7 +527,7 @@ async function handleSync() {
         if (standardVariant) {
           const { data: listingRow, error: listingError } = await supabase
             .from('onepiece_listings')
-            .upsert({ card_id: cardRow.id, variant_type_id: standardVariant.id, quantity: 0, price: 0 }, { onConflict: 'card_id,variant_type_id,condition', ignoreDuplicates: true })
+            .upsert({ card_id: cardRow.id, variant_type_id: standardVariant.id, quantity: 0, price: 0 }, { onConflict: 'card_id,variant_type_id,condition,copy_index', ignoreDuplicates: true })
             .select('id')
             .maybeSingle()
 
@@ -514,13 +550,13 @@ async function handleSync() {
       errors.push({ item: setMeta.name, message })
 
       if (err instanceof OPECardsUnavailableError) {
-        logs.push('[ERR] OPECards injoignable — arrêt de la synchro')
+        logs.push('[ERR] Poneglyphe injoignable — arrêt de la synchro')
         return NextResponse.json(
           {
             ok: false,
             logs,
             stats: buildStats({ setsProcessed, cardsImported, listingsCreated, errors, start }),
-            error: 'API OPECards injoignable (domaine mort — DNS ne résout plus). Synchro interrompue.',
+            error: 'Source Poneglyphe injoignable. Synchro interrompue.',
           },
           { status: 503 }
         )
@@ -532,7 +568,7 @@ async function handleSync() {
   logs.push('[SYNC] Vérification cartes manquantes dans sets existants...')
   for (const existingSet of (existingSets ?? [])) {
     const apiId = idByCode.get(existingSet.code)
-    if (!apiId) continue // set absent de la liste OPECards courante — ignorer
+    if (!apiId) continue // set absent de la liste Poneglyphe courante — ignorer
     try {
       const setData = await fetchOPESet(apiId)
       const { data: existingCards } = await supabase
@@ -574,7 +610,7 @@ async function handleSync() {
           if (standardVariant) {
             const { data: listingRow, error: listingError } = await supabase
               .from('onepiece_listings')
-              .upsert({ card_id: cardRow.id, variant_type_id: standardVariant.id, quantity: 0, price: 0 }, { onConflict: 'card_id,variant_type_id,condition', ignoreDuplicates: true })
+              .upsert({ card_id: cardRow.id, variant_type_id: standardVariant.id, quantity: 0, price: 0 }, { onConflict: 'card_id,variant_type_id,condition,copy_index', ignoreDuplicates: true })
               .select('id')
               .maybeSingle()
 
@@ -595,13 +631,13 @@ async function handleSync() {
       errors.push({ item: existingSet.code, message })
 
       if (err instanceof OPECardsUnavailableError) {
-        logs.push('[ERR] OPECards injoignable — arrêt de la synchro')
+        logs.push('[ERR] Poneglyphe injoignable — arrêt de la synchro')
         return NextResponse.json(
           {
             ok: false,
             logs,
             stats: buildStats({ setsProcessed, cardsImported, listingsCreated, errors, start }),
-            error: 'API OPECards injoignable (domaine mort — DNS ne résout plus). Synchro interrompue.',
+            error: 'Source Poneglyphe injoignable. Synchro interrompue.',
           },
           { status: 503 }
         )

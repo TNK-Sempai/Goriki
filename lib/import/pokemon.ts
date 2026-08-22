@@ -236,7 +236,7 @@ async function insertListings(
   for (const batch of chunk(rows, 500)) {
     const { data, error } = await supabase
       .from('pokemon_listings')
-      .upsert(batch, { onConflict: 'card_id,variant_type_id,condition', ignoreDuplicates: true })
+      .upsert(batch, { onConflict: 'card_id,variant_type_id,condition,copy_index', ignoreDuplicates: true })
       .select('id')
 
     if (error) {

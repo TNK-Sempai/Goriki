@@ -1,22 +1,23 @@
-import type { Metadata } from 'next'
-import LoginForm from '@/components/auth/LoginForm'
+import { Suspense } from 'react'
+import SiteHeader from '@/components/layout/SiteHeader'
+import SiteFooter from '@/components/layout/SiteFooter'
+import PageContainer from '@/components/layout/PageContainer'
+import AuthPanel from '@/components/auth/AuthPanel'
 
-export const metadata: Metadata = { title: 'Connexion' }
+export const metadata = { title: 'Connexion' }
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-base flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="font-display text-3xl text-cream mb-1">GORIKI</h1>
-          <p className="text-muted text-sm">Connexion à votre compte</p>
-        </div>
-        <LoginForm />
-        <p className="text-center text-muted text-sm mt-6">
-          Pas encore de compte ?{' '}
-          <a href="/register" className="text-amber hover:text-amber-light">S&apos;inscrire</a>
-        </p>
-      </div>
-    </main>
+    <>
+      <SiteHeader />
+      <main className="font-grotesk text-ink">
+        <PageContainer className="flex items-center justify-center py-16 lg:py-24">
+          <Suspense fallback={<div className="glass h-[520px] w-full max-w-[440px] rounded-hero" />}>
+            <AuthPanel initialMode="login" />
+          </Suspense>
+        </PageContainer>
+      </main>
+      <SiteFooter />
+    </>
   )
 }

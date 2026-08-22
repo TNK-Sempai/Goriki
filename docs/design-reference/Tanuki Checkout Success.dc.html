@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#E8E1D8; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#1A1611; text-decoration:none; }
+a:hover { color:#C8860A; }
+</style>
+</helmet>
+<div data-screen-label="Confirmation commande" style="min-height:100vh; color:#1A1611;">
+  <dc-import name="Tanuki Header" hint-size="100%,90px"></dc-import>
+
+  <div style="max-width:760px; margin:0 auto; padding:64px 56px; box-sizing:border-box;">
+    <div style="background:rgba(248,244,236,0.55); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:56px; box-shadow:0 16px 48px -20px rgba(26,22,17,0.2); display:flex; flex-direction:column; gap:0;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.2em; color:rgba(26,22,17,0.55);">PAIEMENT CONFIRMÉ</span>
+      <h1 style="font-weight:600; font-size:36px; letter-spacing:-0.03em; margin:16px 0 8px;">Merci, la commande est à nous.</h1>
+      <p style="font-size:15px; line-height:1.6; color:rgba(26,22,17,0.7); margin:0 0 28px;">Vos cartes sont préparées avec soin et expédiées sous 24 h. Un e-mail de confirmation vient de partir.</p>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.5); border:1px solid rgba(255,255,255,0.7); border-radius:4px; padding:18px 24px; margin-bottom:24px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; color:rgba(26,22,17,0.6);">N° DE COMMANDE</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:500;">#TNK-0148</span>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; font-size:14px;">
+          <span>Carte DON!! Dorée <span style="color:rgba(26,22,17,0.5);">× 1</span></span><span style="font-weight:500;">49,00 €</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:14px;">
+          <span>DON!! Foil texturé <span style="color:rgba(26,22,17,0.5);">× 1</span></span><span style="font-weight:500;">19,00 €</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:14px;">
+          <span style="color:rgba(26,22,17,0.65);">Livraison — Colissimo suivi</span><span style="font-weight:500;">4,95 €</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:14px;">
+          <span style="color:rgba(26,22,17,0.65);">Avoir client</span><span style="font-weight:500;">−12,50 €</span>
+        </div>
+      </div>
+      <div style="height:1px; background:rgba(26,22,17,0.12); margin:16px 0;"></div>
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:32px;">
+        <span style="font-size:15px; font-weight:600;">Total payé</span>
+        <span style="font-size:26px; font-weight:600; color:#C8860A;">60,45 €</span>
+      </div>
+
+      <div style="display:flex; gap:12px;">
+        <a href="Tanuki Compte.dc.html" style="flex:1; background:#1A1611; color:#E8E1D8; padding:15px; font-size:14px; text-align:center; border-radius:4px;" style-hover="background:#C8860A;">Suivre mes commandes</a>
+        <a href="Tanuki Accueil.dc.html" style="flex:1; padding:15px; font-size:14px; text-align:center; background:rgba(255,255,255,0.5); border:1px solid rgba(255,255,255,0.7); border-radius:4px;">Retour à la boutique</a>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

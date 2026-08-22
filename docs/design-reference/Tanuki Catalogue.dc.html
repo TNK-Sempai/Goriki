@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#E8E1D8; background-image:radial-gradient(900px 600px at 15% 0%, rgba(200,134,10,0.10), transparent 60%), radial-gradient(800px 700px at 90% 20%, rgba(26,22,17,0.07), transparent 60%), radial-gradient(700px 500px at 50% 100%, rgba(200,134,10,0.07), transparent 60%); background-attachment:fixed; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#1A1611; text-decoration:none; }
+a:hover { color:#C8860A; }
+</style>
+</helmet>
+<div data-screen-label="Catalogue singles" style="min-height:100vh; color:#1A1611;">
+  <header style="position:sticky; top:16px; z-index:50; max-width:1360px; margin:16px auto 0; display:flex; align-items:center; justify-content:space-between; padding:14px 28px; background:rgba(248,244,236,0.55); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.65); border-radius:20px; box-shadow:0 8px 32px -12px rgba(26,22,17,0.18);">
+    <a href="Tanuki Accueil.dc.html" style="font-size:18px; font-weight:600; letter-spacing:-0.01em;">Tanuki <span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:400; letter-spacing:0.2em; vertical-align:middle; margin-left:6px;">TCG</span></a>
+    <nav style="display:flex; gap:6px; font-size:13px;">
+      <a href="Tanuki One Piece.dc.html" style="padding:8px 14px; border-radius:12px; background:rgba(26,22,17,0.08);">One Piece</a>
+      <a href="Tanuki Pokemon.dc.html" style="padding:8px 14px; border-radius:12px;" style-hover="background:rgba(26,22,17,0.06);">Pokémon</a>
+      <a href="#" style="padding:8px 14px; border-radius:12px;" style-hover="background:rgba(26,22,17,0.06);">Dépôt-vente</a>
+      <a href="#" style="padding:8px 14px; border-radius:12px;" style-hover="background:rgba(26,22,17,0.06);">Rachat</a>
+      <a href="#" style="padding:8px 14px; border-radius:12px;" style-hover="background:rgba(26,22,17,0.06);">Want to Buy</a>
+    </nav>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <a href="#" style="font-size:13px; padding:8px 16px; background:rgba(255,255,255,0.5); border:1px solid rgba(255,255,255,0.7); border-radius:12px; color:rgba(26,22,17,0.6);">Rechercher une carte…</a>
+      <a href="#" style="font-family:'JetBrains Mono',monospace; font-size:11px; padding:9px 14px; background:rgba(26,22,17,0.9); color:#E8E1D8; border-radius:12px;">PANIER · 0</a>
+    </div>
+  </header>
+
+  <div style="max-width:1360px; margin:0 auto; padding:32px 56px 12px; box-sizing:border-box;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.55); margin-bottom:20px;">
+      <a href="Tanuki Accueil.dc.html" style="color:rgba(26,22,17,0.55);">ACCUEIL</a> / <a href="Tanuki One Piece.dc.html" style="color:rgba(26,22,17,0.55);">ONE PIECE</a> / <span style="color:#1A1611;">SINGLES</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <h1 style="font-weight:600; font-size:40px; letter-spacing:-0.03em; margin:0;">One Piece — Singles</h1>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:rgba(26,22,17,0.55);">{{ count }} CARTES · TOUTES VÉRIFIÉES</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <sc-for list="{{ sorts }}" as="s" hint-placeholder-count="3">
+          <button onClick="{{ s.onPick }}" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; background:{{ s.bg }}; color:{{ s.fg }}; border:1px solid rgba(255,255,255,0.7); padding:10px 18px; border-radius:12px; cursor:pointer; backdrop-filter:blur(12px);">{{ s.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:250px 1fr; gap:24px; padding:24px 56px 80px; max-width:1360px; margin:0 auto; box-sizing:border-box; align-items:start;">
+    <aside style="display:flex; flex-direction:column; gap:32px; background:rgba(248,244,236,0.5); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.65); border-radius:24px; padding:28px; box-shadow:0 12px 36px -16px rgba(26,22,17,0.18); position:sticky; top:96px;">
+      <sc-for list="{{ filters }}" as="grp" hint-placeholder-count="3">
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.18em; color:rgba(26,22,17,0.55);">{{ grp.title }}</span>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <sc-for list="{{ grp.items }}" as="it" hint-placeholder-count="4">
+              <label style="display:flex; justify-content:space-between; font-size:13px; cursor:pointer;" style-hover="color:#C8860A;">
+                <span>{{ it.label }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(26,22,17,0.45);">{{ it.n }}</span>
+              </label>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </aside>
+
+    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:16px;">
+      <sc-for list="{{ cards }}" as="card" hint-placeholder-count="8">
+        <a href="Tanuki Fiche Carte.dc.html" style="display:flex; flex-direction:column; gap:12px; background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:18px; padding:14px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.2);" style-hover="background:rgba(255,255,255,0.75);">
+          <div style="position:relative;">
+{{ card.imgEl }}
+            <sc-if value="{{ card.noImg }}" hint-placeholder-val="{{ false }}">
+              <div style="aspect-ratio:63/88; background:rgba(232,225,216,0.8); background-image:repeating-linear-gradient(45deg, rgba(26,22,17,0.05) 0 10px, transparent 10px 20px); border:1px solid rgba(26,22,17,0.12); border-radius:12px; display:flex; align-items:center; justify-content:center;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.45);">scan à venir</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{ card.viewer }}" hint-placeholder-val="{{ false }}">
+              <span style="position:absolute; top:10px; left:10px; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; background:rgba(26,22,17,0.85); color:#E8E1D8; padding:4px 9px; border-radius:8px; backdrop-filter:blur(8px);">3D</span>
+            </sc-if>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:3px;">
+            <span style="font-size:14px; font-weight:600;">{{ card.name }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(26,22,17,0.55);">{{ card.ref }} · {{ card.grade }}</span>
+            <span style="font-size:15px; font-weight:600; color:#C8860A; margin-top:4px;">{{ card.price }}</span>
+          </div>
+        </a>
+      </sc-for>
+    </div>
+  </div>
+
+  <footer style="max-width:1360px; margin:0 auto 32px; padding:20px 32px; background:rgba(248,244,236,0.45); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.6); border-radius:18px; display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.55); box-sizing:border-box;">
+    <span>© 2026 TANUKI TCG — TOUS DROITS RÉSERVÉS</span>
+    <span>AUTHENTIFIÉ · SCANNÉ · GARANTI</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { sort: 'PRIX ↓' };
+  renderVals() {
+    const base = [
+      { name: 'DON!! Dorée', ref: 'OP-PROMO', grade: 'Near Mint', p: 49, img: 'assets/don-gold.webp', viewer: true },
+      { name: 'DON!! Foil texturé', ref: 'OP-PROMO', grade: 'Near Mint', p: 19, img: 'assets/don-foil.webp', viewer: true },
+      { name: 'DON!! Standard', ref: 'OP05', grade: 'Excellent', p: 4.9, img: 'assets/don-standard.webp', viewer: true },
+      { name: 'Monkey D. Luffy', ref: 'OP05-119', grade: 'Near Mint', p: 1249, img: null, viewer: true },
+      { name: 'Trafalgar Law', ref: 'OP01-002', grade: 'Near Mint', p: 599, img: null, viewer: true },
+      { name: 'Nami', ref: 'OP01-016', grade: 'Excellent', p: 199, img: null, viewer: true },
+      { name: 'Zoro', ref: 'OP01-025', grade: 'Near Mint', p: 179, img: null, viewer: true },
+      { name: 'Boa Hancock', ref: 'OP07-051', grade: 'Mint', p: 129, img: null, viewer: true },
+      { name: 'Portgas D. Ace', ref: 'OP02-013', grade: 'Excellent', p: 89, img: null, viewer: true },
+      { name: 'Shanks', ref: 'OP01-120', grade: 'Near Mint', p: 549, img: null, viewer: true },
+      { name: 'Yamato', ref: 'OP06-121', grade: 'Near Mint', p: 249, img: null, viewer: true },
+      { name: 'Sabo', ref: 'OP04-083', grade: 'Good', p: 0.8, img: null, viewer: false },
+    ];
+    const fmt = (p) => (p % 1 ? p.toFixed(2).replace('.', ',') : p.toLocaleString('fr-FR')) + ' €';
+    const sorted = [...base].sort((a, b) => {
+      if (this.state.sort === 'PRIX ↓') return b.p - a.p;
+      if (this.state.sort === 'PRIX ↑') return a.p - b.p;
+      return a.name.localeCompare(b.name);
+    });
+    return {
+      count: base.length,
+      cards: sorted.map(c => ({ ...c, price: fmt(c.p), noImg: !c.img, imgEl: c.img ? React.createElement('img', { src: c.img, alt: c.name, style: { width: '100%', aspectRatio: '63/88', objectFit: 'cover', borderRadius: 12, display: 'block', boxShadow: '0 12px 26px -12px rgba(26,22,17,0.35)' } }) : null })),
+      sorts: ['PRIX ↓', 'PRIX ↑', 'A–Z'].map(label => ({
+        label,
+        bg: this.state.sort === label ? 'rgba(26,22,17,0.9)' : 'rgba(255,255,255,0.45)',
+        fg: this.state.sort === label ? '#E8E1D8' : '#1A1611',
+        onPick: () => this.setState({ sort: label }),
+      })),
+      filters: [
+        { title: 'EXTENSION', items: [{ label: 'OP01', n: 3 }, { label: 'OP02', n: 1 }, { label: 'OP04', n: 1 }, { label: 'OP05', n: 3 }, { label: 'OP06', n: 1 }, { label: 'OP07', n: 1 }, { label: 'Promo', n: 2 }] },
+        { title: 'ÉTAT', items: [{ label: 'Mint', n: 1 }, { label: 'Near Mint', n: 7 }, { label: 'Excellent', n: 3 }, { label: 'Good', n: 1 }] },
+        { title: 'PRIX', items: [{ label: 'Moins de 1 €', n: 1 }, { label: '1 – 50 €', n: 3 }, { label: '50 – 500 €', n: 5 }, { label: 'Plus de 500 €', n: 3 }] },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

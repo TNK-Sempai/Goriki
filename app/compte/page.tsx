@@ -1,85 +1,115 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import Navbar from '@/components/blocks/Navbar'
-import Footer from '@/components/blocks/Footer'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
 import { formatPrice } from '@/lib/utils'
-import { ShoppingBag, Heart, User, RefreshCw, Archive } from 'lucide-react'
+import ProfilForm from '@/components/compte/ProfilForm'
+
+export const metadata = { title: 'Mon compte' }
+
+/**
+ * Profil — case 10 de la planche de référence.
+ *
+ * Composition de la planche : grand titre « MON COMPTE », colonne de
+ * navigation à gauche (fournie par le layout), panneau « INFORMATIONS
+ * PERSONNELLES » à droite avec avatar et bouton « Enregistrer », puis les
+ * indicateurs du compte en pied.
+ */
+
+const STATUS_LABEL: Record<string, string> = {
+  none: 'Non soumise',
+  pending: 'En cours de vérification',
+  verified: 'Vérifiée',
+  rejected: 'Refusée',
+}
 
 export default async function ComptePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login?redirect=/compte')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, email, store_credit, created_at')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, orders, wishlist, { data: depots }, { data: lastAddress }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('full_name, email, store_credit, created_at, identity_status')
+      .eq('id', user!.id)
+      .single(),
+    supabase.from('orders').select('id', { count: 'exact', head: true }).eq('user_id', user!.id),
+    supabase.from('wishlist_items').select('id', { count: 'exact', head: true }).eq('user_id', user!.id),
+    supabase.rpc('mes_depots'),
+    // Aucune table d'adresses : la dernière adresse de livraison connue vient
+    // de la commande la plus récente.
+    supabase
+      .from('orders')
+      .select('shipping_address')
+      .eq('user_id', user!.id)
+      .not('shipping_address', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
 
-  const { count: orderCount } = await supabase
-    .from('orders')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
+  const address = (lastAddress?.shipping_address ?? null) as Record<string, string> | null
+  const identity = profile?.identity_status ?? 'none'
 
-  const { count: wishlistCount } = await supabase
-    .from('wishlist_items')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-
-  const MENU = [
-    { href: '/compte/commandes', label: 'Mes commandes', icon: ShoppingBag, value: `${orderCount ?? 0} commande${(orderCount ?? 0) > 1 ? 's' : ''}`, v2: false },
-    { href: '/compte/wishlist',  label: 'Wishlist',       icon: Heart,       value: `${wishlistCount ?? 0} carte${(wishlistCount ?? 0) > 1 ? 's' : ''}`, v2: false },
-    { href: '/compte/rachat',    label: 'Rachat',         icon: RefreshCw,   value: 'Bientôt disponible', v2: true },
-    { href: '/compte/depot-vente', label: 'Dépôt-vente', icon: Archive,     value: 'Bientôt disponible', v2: true },
+  const CHIFFRES = [
+    { k: 'Avoir boutique', v: formatPrice(profile?.store_credit ?? 0) },
+    { k: 'Commandes', v: String(orders.count ?? 0) },
+    { k: 'Wishlist', v: String(wishlist.count ?? 0) },
+    { k: 'Dépôts', v: String((depots as unknown[] | null)?.length ?? 0) },
   ]
 
   return (
     <>
-      <Navbar />
-      <main className="min-h-screen bg-base">
-        <div className="container-goriki py-12 max-w-3xl">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-10">
-            <div>
-              <h1 className="font-display text-2xl text-cream mb-1">
-                {profile?.full_name ?? profile?.email}
-              </h1>
-              <p className="text-muted text-sm">{profile?.email}</p>
-              <p className="text-muted text-xs mt-1">
-                Membre depuis {new Date(profile?.created_at ?? '').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
-              </p>
-            </div>
-            {(profile?.store_credit ?? 0) > 0 && (
-              <div className="card text-right">
-                <p className="text-muted text-xs mb-1">Crédit boutique</p>
-                <p className="font-display text-xl text-amber">{formatPrice(profile?.store_credit ?? 0)}</p>
-              </div>
-            )}
-          </div>
+      <h1 className="display-section m-0 mb-7 lg:mb-9">Mon compte</h1>
 
-          {/* Menu */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {MENU.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`card flex items-center gap-4 transition-all ${item.v2 ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:border-goriki'}`}
-              >
-                <div className={`p-2.5 rounded-lg ${item.v2 ? 'bg-surface-2' : 'bg-amber/10'}`}>
-                  <item.icon size={18} className={item.v2 ? 'text-muted' : 'text-amber'} />
-                </div>
-                <div>
-                  <p className="text-cream text-sm font-medium">{item.label}</p>
-                  <p className="text-muted text-xs mt-0.5">{item.value}</p>
-                </div>
-                {item.v2 && <span className="ml-auto badge badge-muted text-[9px]">V2</span>}
-              </Link>
-            ))}
-          </div>
+      <div className="flex flex-col gap-4">
+        <ProfilForm
+          initialName={profile?.full_name ?? ''}
+          email={profile?.email ?? ''}
+          identityLabel={STATUS_LABEL[identity]}
+        />
+
+        {/* Indicateurs du compte — rangée fine, pas quatre gros panneaux. */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {CHIFFRES.map(c => (
+            <div key={c.k} className="glass-light flex flex-col rounded-panel px-4 py-4">
+              <span className="data text-[9px]">{c.k}</span>
+              <span className="mt-2 text-[22px] font-semibold leading-none tracking-[-0.02em] text-ink">
+                {c.v}
+              </span>
+            </div>
+          ))}
         </div>
-      </main>
-      <Footer />
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <section className="glass flex flex-col rounded-panel-lg p-5 lg:p-6">
+            <h2 className="display-sub m-0">Adresse de livraison</h2>
+            {address ? (
+              <div className="mt-4 flex flex-col gap-0.5 text-[14px] leading-[1.6] text-ink">
+                <span>{address.line1}</span>
+                {address.line2 && <span>{address.line2}</span>}
+                <span>{address.postal_code} {address.city}</span>
+                <span>{address.country}</span>
+              </div>
+            ) : (
+              <p className="m-0 mt-4 text-[14px] leading-[1.6] text-ink-70">
+                Aucune adresse enregistrée. Elle sera reprise de votre prochaine commande.
+              </p>
+            )}
+            <span className="data mt-auto pt-5 text-[9px]">Reprise de la dernière commande</span>
+          </section>
+
+          <section className="glass flex flex-col rounded-panel-lg p-5 lg:p-6">
+            <h2 className="display-sub m-0">Vérification d&apos;identité</h2>
+            <p className="m-0 mt-4 max-w-[44ch] text-[14px] leading-[1.6] text-ink-70">
+              Obligatoire avant tout rachat ou dépôt-vente. Votre document reste privé et
+              n&apos;est lisible que par vous et l&apos;équipe Goriki.
+            </p>
+            <span className="mt-4 text-[14px] text-ink">{STATUS_LABEL[identity]}</span>
+            <Link href="/compte/verification" className="data mt-auto pt-5 text-[9px] hover:text-ochre">
+              {identity === 'verified' ? 'Voir ma vérification →' : 'Vérifier mon identité →'}
+            </Link>
+          </section>
+        </div>
+      </div>
     </>
   )
 }

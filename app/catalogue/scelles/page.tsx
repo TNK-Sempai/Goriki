@@ -1,49 +1,148 @@
-import { createClient } from '@/lib/supabase/server'
-import Navbar from '@/components/blocks/Navbar'
-import Footer from '@/components/blocks/Footer'
 import Link from 'next/link'
-import { formatPrice } from '@/lib/utils'
+import SiteHeader from '@/components/layout/SiteHeader'
+import SiteFooter from '@/components/layout/SiteFooter'
+import PageContainer from '@/components/layout/PageContainer'
+import SealedTile, { type SealedProduct } from '@/components/catalogue/SealedTile'
+import CardCursor from '@/components/motion/CardCursor'
+import Reveal from '@/components/motion/Reveal'
+import { createClient } from '@/lib/supabase/server'
 
-export default async function CatalogueScelles() {
+export const metadata = { title: 'Scellés' }
+export const dynamic = 'force-dynamic'
+
+/**
+ * Scellés — case 5 de la planche de référence.
+ *
+ * Composition de la planche : grand titre à gauche, rangée de pilules de
+ * filtre, puis GRILLE 3 colonnes de tuiles produit. La liste de lignes pleine
+ * largeur de la version précédente est remplacée.
+ *
+ * Les libellés de filtre suivent l'énumération RÉELLE de `sealed_products.type`
+ * (booster · display · etb · tin · coffret · accessoire) — la planche dessine
+ * un onglet « Decks » qui n'existe pas dans la contrainte de la table.
+ * Seuls les types effectivement présents en base sont proposés.
+ */
+
+const LABELS: Record<string, string> = {
+  display: 'Displays',
+  booster: 'Boosters',
+  etb: 'ETB',
+  tin: 'Tins',
+  coffret: 'Coffrets',
+  accessoire: 'Accessoires',
+}
+
+const SORTS = [
+  { value: 'price-desc', label: 'Prix ↓' },
+  { value: 'price-asc', label: 'Prix ↑' },
+  { value: 'name', label: 'A → Z' },
+]
+
+interface Props {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+export default async function ScellesPage({ searchParams }: Props) {
+  const sp = await searchParams
+  const type = typeof sp.type === 'string' ? sp.type : ''
+  const sort = typeof sp.sort === 'string' ? sp.sort : 'price-desc'
+
   const supabase = await createClient()
-  const { data: products } = await supabase
-    .from('sealed_products')
-    .select('*')
-    .eq('is_active', true)
-    .gt('quantity', 0)
-    .order('tcg_type')
+
+  const [{ data: all }, listing] = await Promise.all([
+    // Sert uniquement à savoir quelles pilules ont lieu d'être affichées.
+    supabase.from('sealed_products').select('type').eq('is_active', true),
+    (async () => {
+      let q = supabase
+        .from('sealed_products')
+        .select('id, name, type, tcg_type, description, image_url, price, quantity')
+        .eq('is_active', true)
+      if (type) q = q.eq('type', type)
+      if (sort === 'price-asc') q = q.order('price', { ascending: true })
+      else if (sort === 'name') q = q.order('name')
+      else q = q.order('price', { ascending: false })
+      return q.limit(120)
+    })(),
+  ])
+
+  const present = [...new Set((all ?? []).map(r => r.type))].filter(t => t in LABELS)
+
+  const products: SealedProduct[] = (listing.data ?? []).map(p => ({
+    id: p.id,
+    name: p.name,
+    meta: [LABELS[p.type] ?? p.type, p.tcg_type === 'autre' ? null : p.tcg_type]
+      .filter(Boolean)
+      .join(' · '),
+    price: p.price,
+    quantity: p.quantity,
+    imageUrl: p.image_url,
+  }))
+
+  const qs = (patch: Record<string, string>) => {
+    const next = new URLSearchParams()
+    if (type) next.set('type', type)
+    if (sort) next.set('sort', sort)
+    for (const [k, v] of Object.entries(patch)) {
+      if (v) next.set(k, v)
+      else next.delete(k)
+    }
+    const s = next.toString()
+    return s ? `/catalogue/scelles?${s}` : '/catalogue/scelles'
+  }
 
   return (
     <>
-      <Navbar />
-      <main className="min-h-screen bg-base">
-        <div className="container-goriki py-12">
-          <h1 className="font-display text-3xl text-cream mb-2">Scellés & Accessoires</h1>
-          <p className="text-muted mb-10">{products?.length ?? 0} produits disponibles</p>
+      <SiteHeader />
+      <CardCursor />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {(products ?? []).map(p => (
-              <Link key={p.id} href={`/${p.id}`} className="card hover:border-goriki transition-all group">
-                {p.image_url && (
-                  <img src={p.image_url} alt={p.name} className="h-32 object-contain mx-auto mb-3" loading="lazy" />
-                )}
-                <span className="badge badge-muted text-[9px] mb-2">{p.type} · {p.tcg_type}</span>
-                <p className="text-cream text-sm font-medium">{p.name}</p>
-                <div className="flex items-center justify-between mt-3">
-                  <p className="text-amber font-display text-lg">{formatPrice(p.price)}</p>
-                  <p className="text-muted text-xs">×{p.quantity}</p>
-                </div>
-              </Link>
-            ))}
-            {(!products || products.length === 0) && (
-              <p className="text-muted text-sm col-span-full text-center py-10">
-                Aucun produit disponible pour l&apos;instant.
+      <main className="font-grotesk text-ink">
+        <PageContainer as="section" className="pb-16 pt-10 lg:pb-20 lg:pt-14">
+          <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between lg:mb-9">
+            <div>
+              <h1 className="display-section m-0">Scellés</h1>
+              <p className="m-0 mt-3 max-w-[46ch] text-[14px] leading-[1.55] text-ink-70">
+                Displays, boosters et coffrets d&apos;origine, jamais ouverts.
               </p>
-            )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {SORTS.map(s => (
+                <Link key={s.value} href={qs({ sort: s.value })} className="pill" data-active={sort === s.value}>
+                  {s.label}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+
+          {present.length > 1 && (
+            <div className="mb-7 flex flex-wrap gap-2 lg:mb-9">
+              <Link href={qs({ type: '' })} className="pill" data-active={type === ''}>
+                Tous
+              </Link>
+              {present.map(t => (
+                <Link key={t} href={qs({ type: t })} className="pill" data-active={type === t}>
+                  {LABELS[t]}
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {products.length === 0 ? (
+            <div className="glass rounded-block px-8 py-16 text-center">
+              <p className="m-0 text-[14px] text-ink-70">
+                Aucun produit scellé en ligne pour le moment. Le stock est en cours de saisie.
+              </p>
+            </div>
+          ) : (
+            <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" stagger={0.06} y={16}>
+              {products.map(p => (
+                <SealedTile key={p.id} product={p} />
+              ))}
+            </Reveal>
+          )}
+        </PageContainer>
       </main>
-      <Footer />
+
+      <SiteFooter />
     </>
   )
 }

@@ -189,25 +189,28 @@
   }
 
   /* ── Admin shell ── */
-  .admin-page { padding: 20px 24px; }
+  .admin-page { padding: 24px 36px 48px; }
 
   .admin-header-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
   }
 
   .admin-title {
-    font-size: 13px;
+    font-size: 24px;
     color: var(--cream);
-    font-weight: 500;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 
   .admin-sub {
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: rgba(232,225,216,0.45);
+    margin-top: 3px;
   }
 
   /* ── Section label ── */
@@ -215,12 +218,13 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 8px;
-    letter-spacing: 2px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: rgba(238,228,204,0.2);
+    color: rgba(232,225,216,0.45);
     margin-bottom: 12px;
-    margin-top: 20px;
+    margin-top: 24px;
   }
   .admin-sep:first-child { margin-top: 0; }
   .admin-sep-line {
@@ -233,42 +237,43 @@
   .admin-kpi-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 16px;
+    gap: 12px;
+    margin-bottom: 12px;
   }
   .admin-kpi {
-    background: var(--surface-1);
-    border: 1px solid rgba(212,144,12,0.08);
-    border-radius: 3px;
-    padding: 14px;
+    background: rgba(232,225,216,0.04);
+    border: 1px solid rgba(232,225,216,0.1);
+    border-radius: var(--radius-admin-sm);
+    padding: 20px 22px;
   }
   .admin-kpi-label {
-    font-size: 8px;
-    letter-spacing: 2px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: rgba(238,228,204,0.25);
-    margin-bottom: 8px;
+    color: rgba(232,225,216,0.45);
+    margin-bottom: 7px;
     display: block;
   }
   .admin-kpi-val {
-    font-size: 20px;
+    font-size: 26px;
     color: var(--cream);
-    font-weight: 500;
+    font-weight: 600;
     display: block;
     line-height: 1;
     margin-bottom: 3px;
   }
   .admin-kpi-val.amber { color: var(--amber); }
   .admin-kpi-sub {
-    font-size: 10px;
-    color: var(--muted);
+    font-size: 12px;
+    color: rgba(232,225,216,0.5);
   }
 
   /* ── Table ── */
   .admin-table {
-    background: var(--surface-1);
-    border: 1px solid rgba(212,144,12,0.06);
-    border-radius: 3px;
+    background: rgba(232,225,216,0.04);
+    border: 1px solid rgba(232,225,216,0.1);
+    border-radius: var(--radius-admin-sm);
     overflow: hidden;
   }
   .admin-table-header {
@@ -312,15 +317,15 @@
   .admin-row:hover { background: rgba(212,144,12,0.03); }
   .admin-row:last-child { border-bottom: none; }
   .admin-cell {
-    font-size: 11px;
-    color: rgba(238,228,204,0.7);
+    font-size: 13px;
+    color: rgba(232,225,216,0.85);
   }
   .admin-cell.amber { color: var(--amber); }
-  .admin-cell.muted { font-size: 10px; color: var(--muted); }
-  .admin-cell.mono { font-family: monospace; font-size: 9px; color: rgba(238,228,204,0.3); }
+  .admin-cell.muted { font-size: 12px; color: rgba(232,225,216,0.5); }
+  .admin-cell.mono { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.08em; color: rgba(232,225,216,0.45); }
 
   /* ── Badges ── */
-  .ab { font-size: 7px; letter-spacing: 1px; text-transform: uppercase; padding: 2px 6px; border-radius: 2px; display: inline-block; }
+  .ab { font-size: 7px; letter-spacing: 1px; text-transform: uppercase; padding: 2px 6px; border-radius: var(--radius-admin-sm); display: inline-block; }
   .ab-amber { background: rgba(212,144,12,0.12); color: var(--amber); border: 1px solid rgba(212,144,12,0.2); }
   .ab-green { background: rgba(74,222,128,0.08); color: #4ade80; border: 1px solid rgba(74,222,128,0.15); }
   .ab-muted { background: rgba(122,110,92,0.12); color: #7A6E5C; border: 1px solid rgba(122,110,92,0.15); }
@@ -334,7 +339,7 @@
     padding: 9px 12px;
     background: rgba(248,113,113,0.06);
     border: 1px solid rgba(248,113,113,0.15);
-    border-radius: 3px;
+    border-radius: var(--radius-admin-sm);
     margin-bottom: 16px;
     font-size: 11px;
     color: rgba(248,113,113,0.8);
@@ -351,7 +356,7 @@
   .admin-log {
     background: var(--bg);
     border: 1px solid rgba(212,144,12,0.08);
-    border-radius: 3px;
+    border-radius: var(--radius-admin-sm);
     padding: 10px 12px;
     font-family: monospace;
     font-size: 9px;
@@ -368,7 +373,7 @@
   .admin-input {
     background: var(--bg);
     border: 1px solid rgba(212,144,12,0.12);
-    border-radius: 2px;
+    border-radius: var(--radius-admin-sm);
     color: var(--cream);
     font-family: var(--font-body);
     font-size: 11px;
@@ -383,7 +388,7 @@
   .admin-mini-input {
     background: var(--bg);
     border: 1px solid rgba(212,144,12,0.1);
-    border-radius: 2px;
+    border-radius: var(--radius-admin-sm);
     color: var(--cream);
     font-size: 10px;
     padding: 3px 6px;

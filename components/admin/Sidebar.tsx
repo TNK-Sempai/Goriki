@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, BarChart2, Download, List,
-  Package, ShoppingBag, Users, RefreshCw, Archive,
+  Package, ShoppingBag, Users, RefreshCw, Archive, ShieldCheck,
 } from 'lucide-react'
 
 interface NavItem {
@@ -41,12 +41,13 @@ const NAV: NavSection[] = [
     items: [
       { href: '/admin/commandes', label: 'Commandes', icon: ShoppingBag },
       { href: '/admin/clients', label: 'Clients', icon: Users },
+      { href: '/admin/verifications', label: 'Vérifications', icon: ShieldCheck },
+      { href: '/admin/rachat', label: 'Rachat', icon: RefreshCw },
     ],
   },
   {
     label: 'V2',
     items: [
-      { href: '/admin/rachat', label: 'Rachat', icon: RefreshCw, disabled: true },
       { href: '/admin/depot-vente', label: 'Dépôt-vente', icon: Archive, disabled: true },
     ],
   },
@@ -138,15 +139,34 @@ export default function Sidebar() {
 
       {/* Bottom */}
       <div style={{ padding: '10px 8px', borderTop: '1px solid rgba(212,144,12,0.08)' }}>
+        {/* Pont retour vers la boutique — déjà prévu par la maquette
+            `Tanuki Admin.dc.html`, qui le pose en mono capitales très espacées
+            en pied de colonne. La casse et la police avaient dérivé. */}
         <Link href="/" style={{
+          fontFamily: 'var(--font-mono)',
           fontSize: '9px',
-          color: 'rgba(212,144,12,0.3)',
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'rgba(238,228,204,0.5)',
           textDecoration: 'none',
           padding: '4px 8px',
           display: 'block',
           marginBottom: '6px',
         }}>
           ← Voir la boutique
+        </Link>
+        <Link href="/compte" style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: '9px',
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'rgba(238,228,204,0.3)',
+          textDecoration: 'none',
+          padding: '4px 8px',
+          display: 'block',
+          marginBottom: '6px',
+        }}>
+          ← Mon compte
         </Link>
       </div>
     </aside>

@@ -17,6 +17,19 @@ async function getClient() {
   )
 }
 
+/**
+ * `image_url` est une colonne GÉNÉRÉE depuis `image_urls[1]` (migration 0030).
+ * Toute tentative d'écriture la ferait échouer. Le client la reçoit pourtant au
+ * GET (`select('*')`) et pourrait la renvoyer telle quelle : on l'écarte ici,
+ * au seul endroit qui écrit, plutôt que de compter sur la discipline de chaque
+ * appelant.
+ */
+function sansChampsDerives<T extends Record<string, unknown>>(corps: T): Omit<T, 'image_url'> {
+  const reste = { ...corps }
+  delete reste.image_url
+  return reste
+}
+
 export async function GET() {
   const supabase = await getClient()
   const { data, error } = await supabase
@@ -35,7 +48,11 @@ export async function POST(request: NextRequest) {
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
 
   const body = await request.json()
-  const { data, error } = await supabase.from('sealed_products').insert(body).select().single()
+  const { data, error } = await supabase
+    .from('sealed_products')
+    .insert(sansChampsDerives(body))
+    .select()
+    .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
@@ -48,7 +65,12 @@ export async function PATCH(request: NextRequest) {
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
 
   const { id, ...fields } = await request.json()
-  const { data, error } = await supabase.from('sealed_products').update(fields).eq('id', id).select().single()
+  const { data, error } = await supabase
+    .from('sealed_products')
+    .update(sansChampsDerives(fields))
+    .eq('id', id)
+    .select()
+    .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }

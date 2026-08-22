@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#E8E1D8; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#1A1611; text-decoration:none; }
+a:hover { color:#C8860A; }
+input, select { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; }
+@keyframes universFade { from { opacity:0; } to { opacity:1; } }
+@keyframes universDrift { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:none; } }
+</style>
+</helmet>
+<div data-screen-label="Liste des séries" style="min-height:100vh; color:#1A1611; position:relative;">
+  <div style="position:fixed; inset:0; pointer-events:none; z-index:0; background-image:repeating-linear-gradient(0deg, rgba(26,22,17,0.04) 0 1px, transparent 1px 27px); animation:universFade 0.8s ease both;"></div>
+  <div style="position:fixed; top:20%; right:-200px; width:520px; height:520px; pointer-events:none; z-index:0; border:1px solid rgba(26,22,17,0.07); border-radius:50%; box-shadow:inset 0 0 0 66px rgba(26,22,17,0.015), inset 0 0 0 67px rgba(26,22,17,0.05), inset 0 0 0 155px rgba(26,22,17,0.04); animation:universDrift 1s ease both;"></div>
+  <dc-import name="Tanuki Header" active="One Piece" hint-size="100%,90px"></dc-import>
+
+  <div style="max-width:1360px; margin:0 auto; padding:32px 56px 0; box-sizing:border-box;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.55);">
+      <a href="Tanuki Accueil.dc.html" style="color:rgba(26,22,17,0.55);">ACCUEIL</a> / <a href="Tanuki One Piece.dc.html" style="color:rgba(26,22,17,0.55);">ONE PIECE</a> / <span style="color:#1A1611;">SÉRIES</span>
+    </div>
+    <h1 style="font-weight:600; font-size:44px; letter-spacing:-0.03em; margin:20px 0 10px;">Liste des séries</h1>
+    <p style="font-family:'Instrument Serif',serif; font-style:italic; font-size:20px; line-height:1.5; color:rgba(26,22,17,0.62); margin:0 0 12px;">Chaque série est un chapitre. Voici ceux que nous avons en stock.</p>
+    <p style="font-size:15px; line-height:1.6; color:rgba(26,22,17,0.7); max-width:78ch; margin:0;">Toutes les extensions One Piece Card Game disponibles chez Tanuki, en français. Chaque série indique le nombre de cartes que nous avons en stock et le prix de la carte la moins chère.</p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:250px 1fr; gap:24px; max-width:1360px; margin:28px auto 64px; padding:0 56px; box-sizing:border-box; align-items:start;">
+
+    <aside style="background:rgba(248,244,236,0.55); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:26px; display:flex; flex-direction:column; gap:26px; position:sticky; top:96px; box-shadow:0 12px 36px -16px rgba(26,22,17,0.18);">
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(26,22,17,0.55);">TRIER PAR</span>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <sc-for list="{{ sorts }}" as="s" hint-placeholder-count="3">
+            <button onClick="{{ s.pick }}" style="text-align:left; font-size:13px; padding:9px 12px; border:1px solid {{ s.border }}; background:{{ s.bg }}; color:#1A1611; border-radius:4px; cursor:pointer; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight:{{ s.w }};">{{ s.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(26,22,17,0.55);">NOM DE LA SÉRIE</span>
+        <input onChange="{{ onSearch }}" value="{{ query }}" placeholder="Rechercher une série…" style="padding:11px 14px; font-size:13px; background:rgba(255,255,255,0.6); border:1px solid rgba(26,22,17,0.15); border-radius:4px; color:#1A1611; box-sizing:border-box; width:100%;">
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(26,22,17,0.55);">TYPE DE SÉRIE</span>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          <sc-for list="{{ types }}" as="t" hint-placeholder-count="4">
+            <button onClick="{{ t.pick }}" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.08em; padding:8px 12px; border:1px solid {{ t.border }}; background:{{ t.bg }}; color:#1A1611; border-radius:4px; cursor:pointer;">{{ t.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(26,22,17,0.55);">LANGUE</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:11px 14px; background:rgba(255,255,255,0.6); border:1px solid rgba(26,22,17,0.15); border-radius:4px;">
+          <span>Français</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:rgba(26,22,17,0.5);">UNIQUEMENT</span>
+        </div>
+      </div>
+    </aside>
+
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.55);">{{ count }} SÉRIES · {{ activeLabel }}</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.55);">STOCK TANUKI</span>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:16px;">
+        <sc-for list="{{ series }}" as="s" hint-placeholder-count="8">
+          <a href="Tanuki Set.dc.html" style="display:flex; flex-direction:column; background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; overflow:hidden; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);" style-hover="border-color:rgba(26,22,17,0.4);">
+            <div style="height:104px; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(232,225,216,0.75); background-image:repeating-linear-gradient(45deg, rgba(26,22,17,0.04) 0 9px, transparent 9px 18px); border-bottom:1px solid rgba(255,255,255,0.6); box-sizing:border-box;">
+              <span style="font-size:15px; font-weight:600; letter-spacing:-0.01em; text-align:center; line-height:1.25;">{{ s.title }}</span>
+            </div>
+            <div style="padding:14px 16px; display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; flex-direction:column; gap:5px;">
+                <div style="height:4px; background:rgba(26,22,17,0.1); border-radius:2px;">
+                  <div style="height:100%; width:{{ s.pct }}%; background:{{ s.barColor }}; border-radius:2px;"></div>
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.06em; color:rgba(26,22,17,0.6);">{{ s.stock }} EN STOCK · {{ s.pct }} %</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:2px;">
+                <span style="font-size:13px; font-weight:600; line-height:1.3;">{{ s.name }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(26,22,17,0.5);">{{ s.code }} · {{ s.date }}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:rgba(26,22,17,0.5);">DÈS</span>
+                <span style="font-size:16px; font-weight:600; color:#C8860A;">{{ s.from }}</span>
+              </div>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; text-align:center; padding:10px; background:rgba(26,22,17,0.9); color:#E8E1D8; border-radius:4px;">VOIR LES CARTES</span>
+            </div>
+          </a>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { sort: 'Date (plus récente)', type: 'TOUS', query: '' };
+  renderVals() {
+    const base = [
+      { code: 'OP11', name: 'A Fist of Divine Speed', title: 'A FIST OF DIVINE SPEED', date: 'MAI 2026', type: 'BOOSTER', stockN: 96, total: 128, from: 0.1 },
+      { code: 'OP10', name: 'Royal Blood', title: 'ROYAL BLOOD', date: 'JANV. 2026', type: 'BOOSTER', stockN: 118, total: 128, from: 0.1 },
+      { code: 'OP09', name: 'Emperors in the New World', title: 'EMPERORS IN THE NEW WORLD', date: 'SEPT. 2025', type: 'BOOSTER', stockN: 124, total: 128, from: 0.15 },
+      { code: 'PRB02', name: 'One Piece Card — The Best Vol.2', title: 'THE BEST VOL. 2', date: 'JUIN 2026', type: 'PREMIUM', stockN: 88, total: 102, from: 0.04 },
+      { code: 'OP05', name: 'Awakening of the New Era', title: 'AWAKENING OF THE NEW ERA', date: 'MARS 2024', type: 'BOOSTER', stockN: 119, total: 128, from: 0.1 },
+      { code: 'ST21', name: 'Deck de démarrage — EX Gear 5th', title: 'ST-21 · EX GEAR 5TH', date: 'AVRIL 2026', type: 'STARTER', stockN: 17, total: 17, from: 0.9 },
+      { code: 'ST13', name: 'Ultra Deck — Les Trois Capitaines', title: 'ST-13 · LES TROIS CAPITAINES', date: 'NOV. 2023', type: 'STARTER', stockN: 15, total: 17, from: 1.29 },
+      { code: 'EB02', name: 'Anime 25th Collection', title: 'ANIME 25TH COLLECTION', date: 'FÉVR. 2026', type: 'EXTRA', stockN: 41, total: 105, from: 0.35 },
+      { code: 'OP01', name: 'Romance Dawn', title: 'ROMANCE DAWN', date: 'DÉC. 2022', type: 'BOOSTER', stockN: 110, total: 121, from: 0.1 },
+      { code: 'OP07', name: '500 Years in the Future', title: '500 YEARS IN THE FUTURE', date: 'SEPT. 2024', type: 'BOOSTER', stockN: 103, total: 128, from: 0.12 },
+      { code: 'P', name: 'Cartes promotionnelles', title: 'PROMOTION CARDS', date: 'EN COURS', type: 'EXTRA', stockN: 34, total: 61, from: 0.5 },
+      { code: 'ST01', name: 'Deck de débutant — Monkey D. Luffy', title: 'ST-01 · MONKEY D. LUFFY', date: 'DÉC. 2022', type: 'STARTER', stockN: 15, total: 15, from: 0.9 },
+    ];
+    const q = this.state.query.toLowerCase();
+    let out = base.filter(s => (this.state.type === 'TOUS' || s.type === this.state.type)
+      && (q === '' || s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)));
+    if (this.state.sort === 'Nom (A–Z)') out = [...out].sort((a, b) => a.name.localeCompare(b.name));
+    if (this.state.sort === 'Plus complètes') out = [...out].sort((a, b) => b.stockN / b.total - a.stockN / a.total);
+    const fmt = (v) => v.toFixed(2).replace('.', ',') + ' €';
+    return {
+      count: out.length,
+      activeLabel: this.state.type === 'TOUS' ? 'TOUTES CATÉGORIES' : this.state.type,
+      query: this.state.query,
+      onSearch: (e) => this.setState({ query: e.target.value }),
+      sorts: ['Date (plus récente)', 'Nom (A–Z)', 'Plus complètes'].map(label => ({
+        label,
+        bg: this.state.sort === label ? 'rgba(26,22,17,0.08)' : 'rgba(255,255,255,0.5)',
+        border: this.state.sort === label ? 'rgba(26,22,17,0.4)' : 'rgba(255,255,255,0.7)',
+        w: this.state.sort === label ? 600 : 400,
+        pick: () => this.setState({ sort: label }),
+      })),
+      types: ['TOUS', 'BOOSTER', 'STARTER', 'PREMIUM', 'EXTRA'].map(label => ({
+        label,
+        bg: this.state.type === label ? 'rgba(26,22,17,0.08)' : 'rgba(255,255,255,0.5)',
+        border: this.state.type === label ? 'rgba(26,22,17,0.4)' : 'rgba(255,255,255,0.7)',
+        pick: () => this.setState({ type: label }),
+      })),
+      series: out.map(s => {
+        const pct = Math.round(s.stockN / s.total * 100);
+        return { ...s, pct, stock: s.stockN + '/' + s.total, from: fmt(s.from), barColor: pct === 100 ? '#C8860A' : 'rgba(26,22,17,0.7)' };
+      }),
+    };
+  }
+}
+</script>
+</body>
+</html>

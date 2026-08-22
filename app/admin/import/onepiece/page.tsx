@@ -81,7 +81,7 @@ export default function ImportOnePiecePage() {
           const body = await r.json().catch(() => ({}))
           if (r.status === 503) {
             setApiUnavailable(true)
-            setFetchError(body.error ?? 'API OPECards indisponible (domaine mort) — import One Piece désactivé, alternatives à valider')
+            setFetchError(body.error ?? 'Source Poneglyphe injoignable — réessayer dans un instant')
           } else {
             setFetchError(body.error ?? `Impossible de récupérer les sets (HTTP ${r.status})`)
           }
@@ -95,12 +95,12 @@ export default function ImportOnePiecePage() {
           )
           setSets(sorted)
         } else {
-          setFetchError('Impossible de récupérer les sets OPECards')
+          setFetchError('Impossible de récupérer les sets Poneglyphe')
         }
         setLoadingSets(false)
       })
       .catch(() => {
-        setFetchError('Erreur réseau OPECards')
+        setFetchError('Erreur réseau Poneglyphe')
         setLoadingSets(false)
       })
   }, [])
@@ -202,9 +202,9 @@ export default function ImportOnePiecePage() {
           allErrors.push({ item: set.name, message: data.error ?? 'Échec import' })
           cumulativeLogs = [...cumulativeLogs, `[ERR] [${label}] ${data.error ?? 'Échec import'}`]
 
-          // OPECards devenu injoignable en cours de passe — inutile de continuer
+          // Poneglyphe devenu injoignable en cours de passe — inutile de continuer
           if (res.status === 503) {
-            cumulativeLogs = [...cumulativeLogs, '[ERR] OPECards injoignable — arrêt de la passe']
+            cumulativeLogs = [...cumulativeLogs, '[ERR] Poneglyphe injoignable — arrêt de la passe']
             setLogs(cumulativeLogs)
             pushStats()
             setLoading(null)
@@ -243,14 +243,14 @@ export default function ImportOnePiecePage() {
       <div className="admin-header-row">
         <div>
           <div className="admin-title">Import One Piece</div>
-          <div className="admin-sub">Sélectionne un set et importe les cartes depuis OPECards</div>
+          <div className="admin-sub">Sélectionne un set et importe les cartes depuis Poneglyphe</div>
         </div>
       </div>
 
       {apiUnavailable && (
         <div className="admin-alert" style={{ marginBottom: '16px' }}>
           <div className="admin-alert-dot" />
-          API OPECards indisponible (domaine mort) — import One Piece désactivé, alternatives à valider
+          Source Poneglyphe injoignable — réessayer dans un instant
         </div>
       )}
 
@@ -274,7 +274,7 @@ export default function ImportOnePiecePage() {
               fontWeight: 500,
             }}
           >
-            {loading === 'bulk' ? 'Import en cours...' : '↓ Tout importer (OPECards)'}
+            {loading === 'bulk' ? 'Import en cours...' : '↓ Tout importer (Poneglyphe)'}
           </button>
           {loading === 'bulk' && (
             <button

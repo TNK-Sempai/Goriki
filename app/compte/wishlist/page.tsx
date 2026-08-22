@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Navbar from '@/components/blocks/Navbar'
-import Footer from '@/components/blocks/Footer'
 import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
 import { Heart } from 'lucide-react'
@@ -48,7 +46,6 @@ export default async function WishlistPage() {
 
   return (
     <>
-      <Navbar />
       <main className="min-h-screen bg-base">
         <div className="container-goriki py-12 max-w-3xl">
           <div className="flex items-center gap-3 mb-8">
@@ -96,7 +93,6 @@ export default async function WishlistPage() {
           )}
         </div>
       </main>
-      <Footer />
     </>
   )
 }

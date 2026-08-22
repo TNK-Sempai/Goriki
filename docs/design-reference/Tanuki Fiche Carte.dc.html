@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#E8E1D8; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#1A1611; text-decoration:none; }
+a:hover { color:#C8860A; }
+@keyframes revealValue { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+@keyframes stageIn { from { opacity:0; } to { opacity:1; } }
+@keyframes markerIn { from { opacity:0; transform:scale(0.4); } to { opacity:1; transform:scale(1); } }
+</style>
+</helmet>
+<div data-screen-label="Fiche carte" style="min-height:100vh; color:#1A1611;">
+  <dc-import name="Tanuki Header" active="One Piece" hint-size="100%,90px"></dc-import>
+
+  <div style="max-width:1360px; margin:0 auto; padding:28px 56px 8px; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.55); box-sizing:border-box;">
+    <a href="Tanuki Accueil.dc.html" style="color:rgba(26,22,17,0.55);">ACCUEIL</a> / <a href="Tanuki One Piece.dc.html" style="color:rgba(26,22,17,0.55);">ONE PIECE</a> / <a href="Tanuki Series.dc.html" style="color:rgba(26,22,17,0.55);">SÉRIES</a> / <a href="Tanuki Set.dc.html" style="color:rgba(26,22,17,0.55);">PRB02</a> / <span style="color:#1A1611;">MONKEY D. LUFFY</span>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 420px; gap:16px; max-width:1360px; margin:0 auto; padding:16px 56px 64px; box-sizing:border-box; align-items:start;">
+
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="position:relative; background:#16120D; border:1px solid rgba(232,225,216,0.12); border-radius:4px; overflow:hidden; animation:stageIn 0.6s ease both;">
+        <div style="position:absolute; inset:0; background-image:repeating-linear-gradient(0deg, rgba(232,225,216,0.025) 0 1px, transparent 1px 34px); pointer-events:none;"></div>
+        <div style="position:absolute; top:20px; left:24px; right:24px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.18em; color:rgba(232,225,216,0.5);">PRB02-003 · SCAN HD RECTO / VERSO</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:#C8860A;">{{ faceLabel }}</span>
+        </div>
+
+        <div domRef="{{ stageRef }}" onPointerDown="{{ onDown }}" onPointerMove="{{ onMove }}" onPointerUp="{{ onUp }}" onPointerLeave="{{ onUp }}" onDoubleClick="{{ onReset }}" style="height:600px; display:flex; align-items:center; justify-content:center; cursor:{{ cursor }}; touch-action:none; user-select:none; perspective:1500px;">
+          <div style="position:relative; width:330px; aspect-ratio:63/88; transform-style:preserve-3d; transform:rotateX({{ rx }}deg) rotateY({{ ry }}deg) scale({{ zoom }}); transition:{{ cardTransition }}; will-change:transform;">
+            <div style="position:absolute; inset:0; backface-visibility:hidden; border-radius:6px; overflow:hidden; box-shadow:0 60px 110px -40px rgba(0,0,0,0.75), 0 0 0 1px rgba(232,225,216,0.15);">
+              <img src="assets/don-gold.webp" alt="Scan recto haute résolution" draggable="false" style="width:100%; height:100%; object-fit:cover; display:block;">
+              <div style="position:absolute; inset:0; pointer-events:none; mix-blend-mode:soft-light; opacity:{{ shineOpacity }}; background:{{ shine }}; transition:opacity 0.3s ease;"></div>
+              <sc-if value="{{ showDefects }}" hint-placeholder-val="{{ false }}">
+                <sc-for list="{{ defects }}" as="d" hint-placeholder-count="2">
+                  <span style="position:absolute; left:{{ d.x }}%; top:{{ d.y }}%; width:14px; height:14px; margin:-7px 0 0 -7px; border:1px solid #C8860A; border-radius:50%; box-shadow:0 0 0 4px rgba(200,134,10,0.18); animation:markerIn 0.35s ease both;"></span>
+                </sc-for>
+              </sc-if>
+            </div>
+            <div style="position:absolute; inset:0; backface-visibility:hidden; transform:rotateY(180deg); border-radius:6px; background:#241E17; background-image:repeating-linear-gradient(-45deg, rgba(232,225,216,0.05) 0 10px, transparent 10px 20px); border:1px solid rgba(232,225,216,0.15); display:flex; align-items:center; justify-content:center;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; color:rgba(232,225,216,0.45);">SCAN VERSO — HD</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; gap:16px; padding:0 24px 26px;">
+          <div style="display:flex; align-items:center; gap:12px; width:100%; max-width:420px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; color:rgba(232,225,216,0.4);">ZOOM</span>
+            <div style="flex:1; height:2px; background:rgba(232,225,216,0.14); position:relative;">
+              <div style="position:absolute; left:0; top:0; bottom:0; width:{{ zoomPct }}%; background:rgba(232,225,216,0.5);"></div>
+              <span style="position:absolute; left:{{ zoomPct }}%; top:50%; width:9px; height:9px; margin:-4.5px 0 0 -4.5px; border-radius:50%; background:#C8860A;"></span>
+            </div>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:rgba(232,225,216,0.45);">{{ zoomLabel }}</span>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.16em; color:rgba(232,225,216,0.35);">GLISSEZ POUR INSPECTER · MOLETTE POUR ZOOMER · DOUBLE-CLIC POUR RÉINITIALISER</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+            <sc-for list="{{ controls }}" as="b" hint-placeholder-count="4">
+              <button onClick="{{ b.act }}" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; background:{{ b.bg }}; border:1px solid {{ b.border }}; color:{{ b.fg }}; padding:11px 20px; border-radius:4px; cursor:pointer; transition:background 0.25s, color 0.25s, border-color 0.25s;">{{ b.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:28px 32px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px;">
+          <span style="font-size:16px; font-weight:600;">Inspection</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.5);">RELEVÉ TANUKI · 19/08/2026</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:14px;">
+          <sc-for list="{{ checks }}" as="k" hint-placeholder-count="5">
+            <div style="display:flex; flex-direction:column; gap:6px; padding:14px 16px; background:rgba(255,255,255,0.45); border:1px solid rgba(255,255,255,0.7); border-radius:4px;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; color:rgba(26,22,17,0.5);">{{ k.label }}</span>
+              <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                <span style="font-size:14px; font-weight:600;">{{ k.value }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:{{ k.color }};">{{ k.mark }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-top:18px; flex-wrap:wrap;">
+          <span style="font-size:13px; color:rgba(26,22,17,0.65); max-width:56ch;">{{ defectText }}</span>
+          <button onClick="{{ toggleDefects }}" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; padding:11px 18px; background:{{ defectBg }}; border:1px solid {{ defectBorder }}; color:#1A1611; border-radius:4px; cursor:pointer; transition:background 0.25s, border-color 0.25s;">{{ defectLabel }}</button>
+        </div>
+      </div>
+    </div>
+
+    <aside style="background:rgba(248,244,236,0.55); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:34px; box-shadow:0 16px 48px -20px rgba(26,22,17,0.2); position:sticky; top:96px; display:flex; flex-direction:column; box-sizing:border-box;">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; background:rgba(200,134,10,0.92); color:#14110D; padding:5px 10px; border-radius:4px;">SEC</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; color:rgba(26,22,17,0.55);">PRB02 · THE BEST VOL. 2</span>
+      </div>
+      <h1 style="font-weight:600; font-size:34px; line-height:1.05; letter-spacing:-0.03em; margin:16px 0 6px;">Monkey D. Luffy</h1>
+      <span style="font-family:'Instrument Serif',serif; font-style:italic; font-size:17px; color:rgba(26,22,17,0.6);">Pièce individuelle, scannée et vérifiée.</span>
+
+      <div style="height:1px; background:rgba(26,22,17,0.12); margin:26px 0;"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <div style="display:flex; flex-direction:column; gap:5px;">
+          <span style="font-size:36px; font-weight:600; color:#C8860A; animation:revealValue 0.7s cubic-bezier(0.22,1,0.36,1) both; animation-delay:0.15s;">1 249 €</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(26,22,17,0.55); animation:revealValue 0.7s ease both; animation-delay:0.35s;">MARCHÉ 1 180 € · ↗ +12,4 % SUR 30 J</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
+          <span style="font-size:14px; font-weight:600;">Near Mint</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(26,22,17,0.55);">1 EXEMPLAIRE</span>
+        </div>
+      </div>
+
+      <button onClick="{{ onAdd }}" style="margin-top:26px; background:{{ addBg }}; color:#E8E1D8; border:none; padding:17px; font-size:15px; letter-spacing:0.02em; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; box-shadow:0 12px 28px -12px rgba(26,22,17,0.5); transition:background 0.3s ease;">{{ addLabel }}</button>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button onClick="{{ onWant }}" style="flex:1; background:{{ wantBg }}; border:1px solid {{ wantBorder }}; color:#1A1611; padding:12px; font-size:13px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; transition:background 0.3s, border-color 0.3s;">{{ wantLabel }}</button>
+        <button style="flex:1; background:rgba(255,255,255,0.5); border:1px solid rgba(255,255,255,0.7); color:#1A1611; padding:12px; font-size:13px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" style-hover="background:rgba(255,255,255,0.8);">Faire une offre</button>
+      </div>
+      <sc-if value="{{ feedback }}" hint-placeholder-val="{{ false }}">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; color:rgba(26,22,17,0.6); margin-top:12px; animation:revealValue 0.3s ease both;">{{ feedback }}</span>
+      </sc-if>
+
+      <div style="height:1px; background:rgba(26,22,17,0.12); margin:26px 0;"></div>
+
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <sc-for list="{{ facts }}" as="f" hint-placeholder-count="5">
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span style="color:rgba(26,22,17,0.6);">{{ f.k }}</span>
+            <span style="font-weight:500;">{{ f.v }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="height:1px; background:rgba(26,22,17,0.12); margin:26px 0;"></div>
+
+      <p style="font-size:13px; line-height:1.6; color:rgba(26,22,17,0.65); margin:0;">C'est l'exemplaire exact que vous recevrez. Le scan haute résolution montre la carte telle qu'elle est — vous inspectez avant d'acheter. Envoi sous 24 h, satisfait ou remboursé 14 jours.</p>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1440, &quot;height&quot;: 1100}, &quot;autorotate&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Viewer&quot;}}">
+class Component extends DCLogic {
+  state = { rx: -5, ry: 16, zoom: 1, flipped: false, dragging: false, auto: this.props.autorotate ?? false,
+    showDefects: false, mx: 0.5, my: 0.5, hovering: false, added: false, wanted: false, feedback: '' };
+  stageRef = React.createRef();
+
+  componentDidMount() {
+    const el = this.stageRef.current;
+    if (el) {
+      this._wheel = (e) => {
+        e.preventDefault();
+        this.setState(s => ({ zoom: Math.min(2.6, Math.max(0.6, s.zoom - e.deltaY * 0.0013)) }));
+      };
+      el.addEventListener('wheel', this._wheel, { passive: false });
+    }
+    const tick = () => {
+      if (this.state.auto && !this.state.dragging) this.setState(s => ({ ry: s.ry + 0.35 }));
+      this._raf = requestAnimationFrame(tick);
+    };
+    this._raf = requestAnimationFrame(tick);
+  }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this._raf);
+    clearTimeout(this._fb);
+    if (this.stageRef.current) this.stageRef.current.removeEventListener('wheel', this._wheel);
+  }
+
+  flash(msg) {
+    this.setState({ feedback: msg });
+    clearTimeout(this._fb);
+    this._fb = setTimeout(() => this.setState({ feedback: '' }), 2600);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const flip = s.flipped ? 180 : 0;
+    const shineAngle = Math.round(s.mx * 170 + 40);
+    return {
+      stageRef: this.stageRef,
+      rx: Math.round(s.rx * 10) / 10,
+      ry: Math.round((s.ry + flip) * 10) / 10,
+      zoom: Math.round(s.zoom * 100) / 100,
+      zoomPct: Math.round((s.zoom - 0.6) / 2 * 100),
+      zoomLabel: '×' + s.zoom.toFixed(2).replace('.', ','),
+      cursor: s.dragging ? 'grabbing' : 'grab',
+      cardTransition: s.dragging ? 'none' : 'transform 0.65s cubic-bezier(0.22,1,0.36,1)',
+      faceLabel: s.flipped ? 'VERSO' : 'RECTO',
+      shine: 'linear-gradient(' + shineAngle + 'deg, rgba(200,134,10,0.5) 0%, rgba(255,255,255,0.8) 34%, rgba(150,190,215,0.45) 54%, rgba(200,134,10,0.4) 74%, transparent 100%)',
+      shineOpacity: s.dragging ? 0.5 : 0.22,
+      controls: [
+        { label: s.flipped ? 'VOIR LE RECTO' : 'VOIR LE VERSO', on: false, act: () => this.setState(p => ({ flipped: !p.flipped })) },
+        { label: s.auto ? 'ROTATION ON' : 'ROTATION OFF', on: s.auto, act: () => this.setState(p => ({ auto: !p.auto })) },
+        { label: 'ZOOM DÉTAIL', on: s.zoom > 1.6, act: () => this.setState(p => ({ zoom: p.zoom > 1.6 ? 1 : 2.1 })) },
+        { label: 'RÉINITIALISER', on: false, act: () => this.setState({ rx: -5, ry: 16, zoom: 1, flipped: false }) },
+      ].map(b => ({
+        ...b,
+        bg: b.on ? 'rgba(200,134,10,0.9)' : 'rgba(232,225,216,0.07)',
+        fg: b.on ? '#14110D' : '#E8E1D8',
+        border: b.on ? 'rgba(200,134,10,0.9)' : 'rgba(232,225,216,0.22)',
+      })),
+      checks: [
+        { label: 'SURFACE', value: 'Nette', ok: true },
+        { label: 'COINS', value: '4 nets', ok: true },
+        { label: 'BORDS', value: 'Micro-usure', ok: false },
+        { label: 'CENTRAGE', value: '55 / 45', ok: true },
+        { label: 'DOS', value: 'Impeccable', ok: true },
+      ].map(k => ({ ...k, mark: k.ok ? '✓' : '·', color: k.ok ? 'oklch(0.52 0.1 150)' : '#C8860A' })),
+      defects: [{ x: 8, y: 62 }, { x: 91, y: 24 }],
+      showDefects: s.showDefects,
+      toggleDefects: () => this.setState(p => ({ showDefects: !p.showDefects })),
+      defectLabel: s.showDefects ? 'MASQUER LES DÉFAUTS' : 'LOCALISER LES DÉFAUTS',
+      defectBg: s.showDefects ? 'rgba(200,134,10,0.14)' : 'rgba(255,255,255,0.5)',
+      defectBorder: s.showDefects ? 'rgba(200,134,10,0.5)' : 'rgba(255,255,255,0.7)',
+      defectText: s.showDefects
+        ? '2 points relevés : micro-usure sur le bord gauche, légère marque de coupe en haut à droite. Rien de visible en sleeve.'
+        : '2 défauts mineurs enregistrés sur cet exemplaire — affichez-les directement sur le scan.',
+      facts: [
+        { k: 'Jeu', v: 'One Piece Card Game' },
+        { k: 'Extension', v: 'PRB02 — The Best Vol. 2' },
+        { k: 'Rareté', v: 'Secret Rare (parallèle)' },
+        { k: 'Langue', v: 'Français' },
+        { k: 'Authenticité', v: 'Vérifiée par Tanuki' },
+      ],
+      onDown: (e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        this._last = { x: e.clientX, y: e.clientY };
+        this.setState({ dragging: true });
+      },
+      onMove: (e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        const mx = (e.clientX - r.left) / r.width, my = (e.clientY - r.top) / r.height;
+        if (!this.state.dragging || !this._last) { this.setState({ mx, my }); return; }
+        const dx = e.clientX - this._last.x, dy = e.clientY - this._last.y;
+        this._last = { x: e.clientX, y: e.clientY };
+        this.setState(p => ({ mx, my, ry: p.ry + dx * 0.4, rx: Math.min(42, Math.max(-42, p.rx - dy * 0.3)) }));
+      },
+      onUp: () => { this._last = null; this.setState({ dragging: false }); },
+      onReset: () => this.setState({ rx: -5, ry: 16, zoom: 1, flipped: false }),
+      onAdd: () => { this.setState({ added: true }); this.flash('Ajoutée au panier — expédition sous 24 h'); },
+      addLabel: s.added ? 'Dans votre panier ✓' : 'Ajouter au panier',
+      addBg: s.added ? '#C8860A' : '#1A1611',
+      onWant: () => {
+        const next = !s.wanted;
+        this.setState({ wanted: next });
+        this.flash(next ? '♥ Ajoutée à votre Want List' : 'Retirée de votre Want List');
+      },
+      wantLabel: s.wanted ? '♥ Dans votre Want List' : '♡ Want to buy',
+      wantBg: s.wanted ? 'rgba(200,134,10,0.14)' : 'rgba(255,255,255,0.5)',
+      wantBorder: s.wanted ? 'rgba(200,134,10,0.5)' : 'rgba(255,255,255,0.7)',
+      feedback: s.feedback,
+    };
+  }
+}
+</script>
+</body>
+</html>

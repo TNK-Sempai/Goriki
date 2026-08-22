@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="position:absolute; inset:0; overflow:hidden; pointer-events:none;">{{ canvas }}</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 900, &quot;height&quot;: 520}, &quot;universe&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;onepiece&quot;, &quot;pokemon&quot;], &quot;default&quot;: &quot;onepiece&quot;, &quot;tsType&quot;: &quot;string&quot;}}">
+class Component extends DCLogic {
+  ref = React.createRef();
+  state = { t: 0 };
+
+  componentDidMount() {
+    this.target = this.props.universe === 'pokemon' ? 1 : 0;
+    this.t = this.target;
+    this.mx = 0.5; this.my = 0.5;
+    this.nodes = this.build();
+    this._move = (e) => {
+      const r = this.ref.current && this.ref.current.getBoundingClientRect();
+      if (!r) return;
+      this.mx = (e.clientX - r.left) / r.width;
+      this.my = (e.clientY - r.top) / r.height;
+    };
+    window.addEventListener('pointermove', this._move);
+    this.loop();
+  }
+
+  componentDidUpdate() {
+    this.target = this.props.universe === 'pokemon' ? 1 : 0;
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('pointermove', this._move);
+    cancelAnimationFrame(this._raf);
+  }
+
+  build() {
+    const n = [];
+    const cols = 9, rows = 7;
+    for (let i = 0; i < cols * rows; i++) {
+      const cx = i % cols, cy = Math.floor(i / cols);
+      // Pokémon: grille modulaire régulière
+      const gx = (cx + 0.5) / cols, gy = (cy + 0.5) / rows;
+      // One Piece: îles dispersées le long de routes sinueuses
+      const drift = Math.sin(cx * 1.7 + cy * 0.9) * 0.055;
+      const rx = gx + drift + Math.cos(cy * 2.1) * 0.03;
+      const ry = gy + Math.sin(cx * 0.8 + cy * 1.3) * 0.06;
+      n.push({ gx, gy, rx, ry, r: 1 + ((cx * 3 + cy * 5) % 3) * 0.5, depth: 0.4 + ((cx + cy) % 3) * 0.3 });
+    }
+    return n;
+  }
+
+  loop = () => {
+    const c = this.ref.current;
+    if (c) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = c.clientWidth, h = c.clientHeight;
+      if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+        c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+      }
+      const g = c.getContext('2d');
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.clearRect(0, 0, w, h);
+      this.t += (this.target - this.t) * 0.045;
+      const t = this.t;
+      const ease = t * t * (3 - 2 * t);
+      const px = (this.mx - 0.5), py = (this.my - 0.5);
+      const pts = this.nodes.map(nd => ({
+        x: (nd.rx + (nd.gx - nd.rx) * ease) * w + px * 16 * nd.depth,
+        y: (nd.ry + (nd.gy - nd.ry) * ease) * h + py * 12 * nd.depth,
+        r: nd.r,
+      }));
+
+      // Routes cartographiques (One Piece) → lignes de connexion (Pokémon)
+      const cols = 9;
+      g.lineWidth = 1;
+      for (let row = 0; row < pts.length / cols; row++) {
+        g.beginPath();
+        for (let col = 0; col < cols; col++) {
+          const p = pts[row * cols + col];
+          if (col === 0) { g.moveTo(p.x, p.y); continue; }
+          const prev = pts[row * cols + col - 1];
+          const mxp = (prev.x + p.x) / 2;
+          const curve = (1 - ease) * 26 * Math.sin(row * 1.3 + col);
+          g.quadraticCurveTo(mxp, (prev.y + p.y) / 2 + curve, p.x, p.y);
+        }
+        g.strokeStyle = 'rgba(26,22,17,' + (0.05 + (1 - ease) * 0.02) + ')';
+        g.stroke();
+      }
+      if (ease > 0.15) {
+        g.strokeStyle = 'rgba(26,22,17,' + (ease * 0.05) + ')';
+        for (let col = 0; col < cols; col++) {
+          g.beginPath();
+          for (let row = 0; row < pts.length / cols; row++) {
+            const p = pts[row * cols + col];
+            if (row === 0) g.moveTo(p.x, p.y); else g.lineTo(p.x, p.y);
+          }
+          g.stroke();
+        }
+      }
+
+      // Nœuds : îles → marqueurs
+      pts.forEach((p, i) => {
+        g.beginPath();
+        g.arc(p.x, p.y, p.r * (1 + ease * 0.25), 0, Math.PI * 2);
+        g.fillStyle = 'rgba(26,22,17,' + (0.16 + ease * 0.06) + ')';
+        g.fill();
+        if (ease > 0.4 && i % 11 === 0) {
+          g.beginPath();
+          g.arc(p.x, p.y, 7 + ease * 5, 0, Math.PI * 2);
+          g.strokeStyle = 'rgba(26,22,17,' + ((ease - 0.4) * 0.12) + ')';
+          g.stroke();
+        }
+      });
+
+      // Boussole (One Piece) → anneaux de scan (Pokémon)
+      const cxp = w * (0.82 - ease * 0.66) + px * 26;
+      const cyp = h * (0.28 + ease * 0.52) + py * 20;
+      const rings = [1, 2.4, 3.9];
+      rings.forEach((k, idx) => {
+        const rad = Math.min(w, h) * (0.1 + ease * 0.02) * k;
+        g.beginPath();
+        if (ease < 0.5) {
+          g.arc(cxp, cyp, rad, 0, Math.PI * 2);
+        } else {
+          const span = Math.PI * (1.25 + idx * 0.2);
+          g.arc(cxp, cyp, rad, -Math.PI / 2 - span / 2, -Math.PI / 2 + span / 2);
+        }
+        g.strokeStyle = 'rgba(26,22,17,' + (0.05 - idx * 0.008) + ')';
+        g.stroke();
+      });
+      if (ease < 0.6) {
+        const a = (1 - ease) * 0.07;
+        g.strokeStyle = 'rgba(26,22,17,' + a + ')';
+        [0, Math.PI / 4, Math.PI / 2, (3 * Math.PI) / 4].forEach(ang => {
+          const rad = Math.min(w, h) * 0.4;
+          g.beginPath();
+          g.moveTo(cxp - Math.cos(ang) * rad, cyp - Math.sin(ang) * rad);
+          g.lineTo(cxp + Math.cos(ang) * rad, cyp + Math.sin(ang) * rad);
+          g.stroke();
+        });
+      }
+    }
+    this._raf = requestAnimationFrame(this.loop);
+  };
+
+  renderVals() {
+    return {
+      canvas: React.createElement('canvas', { ref: this.ref, style: { width: '100%', height: '100%', display: 'block' } }),
+    };
+  }
+}
+</script>
+</body>
+</html>

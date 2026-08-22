@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#E8E1D8; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#1A1611; text-decoration:none; }
+a:hover { color:#C8860A; }
+input { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; }
+</style>
+</helmet>
+<div data-screen-label="Checkout" style="min-height:100vh; color:#1A1611;">
+  <dc-import name="Tanuki Header" hint-size="100%,90px"></dc-import>
+
+  <div style="max-width:1180px; margin:0 auto; padding:32px 56px 64px; box-sizing:border-box;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.55); margin-bottom:20px;">
+      <a href="Tanuki Panier.dc.html" style="color:rgba(26,22,17,0.55);">PANIER</a> / <span style="color:#1A1611;">CHECKOUT</span> / <span>PAIEMENT (STRIPE)</span>
+    </div>
+    <h1 style="font-weight:600; font-size:44px; letter-spacing:-0.03em; margin:0 0 32px;">Commande</h1>
+
+    <div style="display:grid; grid-template-columns:1fr 400px; gap:24px; align-items:start;">
+      <div style="display:flex; flex-direction:column; gap:16px;">
+
+        <section style="background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:32px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px;">
+            <span style="font-size:16px; font-weight:600;">Adresse de livraison</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.16em; color:rgba(26,22,17,0.5);">01 / 03</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <input value="Julien Martin" style="padding:13px 16px; font-size:14px; background:rgba(255,255,255,0.55); border:1px solid rgba(26,22,17,0.15); border-radius:4px; color:#1A1611; box-sizing:border-box; width:100%;">
+            <input value="06 12 34 56 78" style="padding:13px 16px; font-size:14px; background:rgba(255,255,255,0.55); border:1px solid rgba(26,22,17,0.15); border-radius:4px; color:#1A1611; box-sizing:border-box; width:100%;">
+            <input value="12 rue des Lilas" style="grid-column:span 2; padding:13px 16px; font-size:14px; background:rgba(255,255,255,0.55); border:1px solid rgba(26,22,17,0.15); border-radius:4px; color:#1A1611; box-sizing:border-box; width:100%;">
+            <input value="69003" style="padding:13px 16px; font-size:14px; background:rgba(255,255,255,0.55); border:1px solid rgba(26,22,17,0.15); border-radius:4px; color:#1A1611; box-sizing:border-box; width:100%;">
+            <input value="Lyon" style="padding:13px 16px; font-size:14px; background:rgba(255,255,255,0.55); border:1px solid rgba(26,22,17,0.15); border-radius:4px; color:#1A1611; box-sizing:border-box; width:100%;">
+          </div>
+        </section>
+
+        <section style="background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:32px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px;">
+            <span style="font-size:16px; font-weight:600;">Mode de livraison</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.16em; color:rgba(26,22,17,0.5);">02 / 03</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <sc-for list="{{ shipOptions }}" as="o" hint-placeholder-count="3">
+              <button onClick="{{ o.pick }}" style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:{{ o.bg }}; border:1px solid {{ o.border }}; border-radius:4px; cursor:pointer; text-align:left; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#1A1611;">
+                <span style="display:flex; flex-direction:column; gap:3px;">
+                  <span style="font-size:14px; font-weight:600;">{{ o.name }}</span>
+                  <span style="font-size:12px; color:rgba(26,22,17,0.6);">{{ o.delay }}</span>
+                </span>
+                <span style="font-size:14px; font-weight:600;">{{ o.price }}</span>
+              </button>
+            </sc-for>
+          </div>
+          <div style="font-size:12px; color:rgba(26,22,17,0.55); margin-top:12px;">{{ freeNote }}</div>
+        </section>
+
+        <section style="background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:32px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);">
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px;">
+            <span style="font-size:16px; font-weight:600;">Store credit</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.16em; color:rgba(26,22,17,0.5);">03 / 03</span>
+          </div>
+          <button onClick="{{ toggleCredit }}" style="display:flex; justify-content:space-between; align-items:center; width:100%; padding:16px 20px; background:{{ creditBg }}; border:1px solid {{ creditBorder }}; border-radius:4px; cursor:pointer; text-align:left; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#1A1611; box-sizing:border-box;">
+            <span style="display:flex; flex-direction:column; gap:3px;">
+              <span style="font-size:14px; font-weight:600;">Utiliser mon avoir — 12,50 €</span>
+              <span style="font-size:12px; color:rgba(26,22,17,0.6);">Issu de votre dernier rachat de cartes</span>
+            </span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em;">{{ creditLabel }}</span>
+          </button>
+        </section>
+      </div>
+
+      <aside style="background:rgba(248,244,236,0.55); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:32px; box-shadow:0 12px 36px -16px rgba(26,22,17,0.2); position:sticky; top:96px; display:flex; flex-direction:column;">
+        <span style="font-size:17px; font-weight:600; margin-bottom:20px;">Votre commande</span>
+        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span>Carte DON!! Dorée <span style="color:rgba(26,22,17,0.5);">× 1</span></span><span style="font-weight:500;">49,00 €</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span>DON!! Foil texturé <span style="color:rgba(26,22,17,0.5);">× 1</span></span><span style="font-weight:500;">19,00 €</span>
+          </div>
+        </div>
+        <div style="height:1px; background:rgba(26,22,17,0.12); margin:14px 0;"></div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; padding:5px 0;">
+          <span style="color:rgba(26,22,17,0.65);">Sous-total</span><span>68,00 €</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; padding:5px 0;">
+          <span style="color:rgba(26,22,17,0.65);">Livraison</span><span>{{ shipPrice }}</span>
+        </div>
+        <sc-if value="{{ useCredit }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; justify-content:space-between; font-size:13px; padding:5px 0;">
+            <span style="color:rgba(26,22,17,0.65);">Avoir client</span><span>−12,50 €</span>
+          </div>
+        </sc-if>
+        <div style="height:1px; background:rgba(26,22,17,0.12); margin:14px 0;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px;">
+          <span style="font-size:15px; font-weight:600;">Total</span>
+          <span style="font-size:26px; font-weight:600;">{{ total }}</span>
+        </div>
+        <sc-if value="{{ belowMin }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:12px; color:#1A1611; background:rgba(200,134,10,0.12); border:1px solid rgba(200,134,10,0.3); border-radius:4px; padding:12px 14px; margin-bottom:14px;">Minimum de commande : 10 €. Ajoutez {{ minGap }} pour valider.</div>
+        </sc-if>
+        <button style="background:#C8860A; color:#FDF9F2; border:none; padding:17px; font-size:15px; cursor:pointer; border-radius:4px; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" style-hover="background:#1A1611; color:#E8E1D8;">Payer {{ total }}</button>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.12em; color:rgba(26,22,17,0.5); text-align:center; margin-top:12px;">PAIEMENT SÉCURISÉ — REDIRECTION VERS STRIPE</span>
+      </aside>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { ship: 'Colissimo suivi', useCredit: true };
+  renderVals() {
+    const fmt = (v) => v.toFixed(2).replace('.', ',') + ' €';
+    const sub = 68;
+    const opts = [
+      { name: 'Mondial Relay — point relais', delay: '3 à 5 jours ouvrés', p: 3.5 },
+      { name: 'Colissimo suivi', delay: '2 à 3 jours ouvrés', p: 4.95 },
+      { name: 'Chronopost express', delay: 'Le lendemain avant 13 h', p: 12.9 },
+    ];
+    const picked = opts.find(o => o.name === this.state.ship) || opts[1];
+    const free = sub >= 150;
+    const ship = free ? 0 : picked.p;
+    const credit = this.state.useCredit ? 12.5 : 0;
+    const total = Math.max(0, sub + ship - credit);
+    return {
+      shipOptions: opts.map(o => ({
+        ...o,
+        price: free ? 'Offert' : fmt(o.p),
+        bg: o.name === this.state.ship ? 'rgba(26,22,17,0.07)' : 'rgba(255,255,255,0.45)',
+        border: o.name === this.state.ship ? 'rgba(26,22,17,0.5)' : 'rgba(255,255,255,0.7)',
+        pick: () => this.setState({ ship: o.name }),
+      })),
+      freeNote: free ? 'Livraison offerte dès 150 € — appliquée.' : 'Livraison offerte dès 150 € d\'achat.',
+      toggleCredit: () => this.setState(s => ({ useCredit: !s.useCredit })),
+      useCredit: this.state.useCredit,
+      creditLabel: this.state.useCredit ? 'APPLIQUÉ ✓' : 'APPLIQUER',
+      creditBg: this.state.useCredit ? 'rgba(26,22,17,0.07)' : 'rgba(255,255,255,0.45)',
+      creditBorder: this.state.useCredit ? 'rgba(26,22,17,0.5)' : 'rgba(255,255,255,0.7)',
+      shipPrice: free ? 'Offerte' : fmt(picked.p),
+      total: fmt(total),
+      belowMin: total < 10,
+      minGap: fmt(Math.max(0, 10 - total)),
+    };
+  }
+}
+</script>
+</body>
+</html>

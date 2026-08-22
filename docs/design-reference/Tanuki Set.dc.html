@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin:0; background:#E8E1D8; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#1A1611; text-decoration:none; }
+a:hover { color:#C8860A; }
+input { font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; }
+@keyframes cardInA { from { opacity:0; } to { opacity:1; } }
+@keyframes cardInB { from { opacity:0; } to { opacity:1; } }
+@keyframes cardRiseA { from { transform:translateY(10px) scale(0.985); } to { transform:none; } }
+@keyframes cardRiseB { from { transform:translateY(10px) scale(0.985); } to { transform:none; } }
+@keyframes revealPrice { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@keyframes cartPulse { 0% { transform:scale(1); } 40% { transform:scale(1.12); } 100% { transform:scale(1); } }
+@keyframes universFade { from { opacity:0; } to { opacity:1; } }
+@keyframes universDrift { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:none; } }
+</style>
+</helmet>
+<div data-screen-label="Cartes d'une série" style="min-height:100vh; color:#1A1611; position:relative;">
+  <div style="position:fixed; inset:0; pointer-events:none; z-index:0; background-image:repeating-linear-gradient(0deg, rgba(26,22,17,0.04) 0 1px, transparent 1px 27px); animation:universFade 0.8s ease both;"></div>
+  <div style="position:fixed; bottom:-160px; right:-160px; width:480px; height:480px; pointer-events:none; z-index:0; border:1px solid rgba(26,22,17,0.07); border-radius:50%; box-shadow:inset 0 0 0 60px rgba(26,22,17,0.015), inset 0 0 0 61px rgba(26,22,17,0.05); animation:universDrift 1s ease both;"></div>
+  <dc-import name="Tanuki Header" active="One Piece" hint-size="100%,90px"></dc-import>
+
+  {{ flyer }}
+
+  <div style="max-width:1360px; margin:0 auto; padding:32px 56px 0; box-sizing:border-box;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.55);">
+      <a href="Tanuki Accueil.dc.html" style="color:rgba(26,22,17,0.55);">ACCUEIL</a> / <a href="Tanuki One Piece.dc.html" style="color:rgba(26,22,17,0.55);">ONE PIECE</a> / <a href="Tanuki Series.dc.html" style="color:rgba(26,22,17,0.55);">SÉRIES</a> / <span style="color:#1A1611;">PRB02 — THE BEST VOL. 2</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:20px; gap:24px; flex-wrap:wrap;">
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <h1 style="font-weight:600; font-size:40px; letter-spacing:-0.03em; margin:0;">PRB02 — The Best Vol. 2</h1>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; color:rgba(26,22,17,0.55);">{{ stockCount }} CARTES EN STOCK SUR 102 · FRANÇAIS · JUIN 2026</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <sc-for list="{{ sorts }}" as="s" hint-placeholder-count="3">
+          <button onClick="{{ s.pick }}" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.08em; padding:10px 16px; background:{{ s.bg }}; color:{{ s.fg }}; border:1px solid rgba(255,255,255,0.7); border-radius:4px; cursor:pointer; transition:background 0.2s, color 0.2s;">{{ s.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:250px 1fr; gap:24px; max-width:1360px; margin:28px auto 64px; padding:0 56px; box-sizing:border-box; align-items:start;">
+
+    <aside style="background:rgba(248,244,236,0.55); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:26px; display:flex; flex-direction:column; gap:26px; position:sticky; top:96px; box-shadow:0 12px 36px -16px rgba(26,22,17,0.18);">
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(26,22,17,0.55);">NOM OU NUMÉRO</span>
+        <input onChange="{{ onSearch }}" value="{{ query }}" placeholder="Luffy, PRB02-001…" style="padding:11px 14px; font-size:13px; background:rgba(255,255,255,0.6); border:1px solid rgba(26,22,17,0.15); border-radius:4px; color:#1A1611; box-sizing:border-box; width:100%;">
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(26,22,17,0.55);">VERSION</span>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          <sc-for list="{{ versions }}" as="v" hint-placeholder-count="3">
+            <button onClick="{{ v.pick }}" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.06em; padding:8px 12px; border:1px solid {{ v.border }}; background:{{ v.bg }}; color:#1A1611; border-radius:4px; cursor:pointer; transition:background 0.2s, border-color 0.2s;">{{ v.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(26,22,17,0.55);">RARETÉ</span>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          <sc-for list="{{ raretes }}" as="r" hint-placeholder-count="5">
+            <button onClick="{{ r.pick }}" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.06em; padding:8px 11px; border:1px solid {{ r.border }}; background:{{ r.bg }}; color:#1A1611; border-radius:4px; cursor:pointer; transition:background 0.2s, border-color 0.2s;">{{ r.label }}</button>
+          </sc-for>
+        </div>
+        <span style="font-size:11px; line-height:1.5; color:rgba(26,22,17,0.5);">Les cartes rares réagissent différemment au survol — reflet, profondeur, parallaxe.</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(26,22,17,0.55);">ÉTAT</span>
+        <div style="display:flex; flex-direction:column; gap:9px;">
+          <sc-for list="{{ etats }}" as="e" hint-placeholder-count="4">
+            <label style="display:flex; justify-content:space-between; font-size:13px; cursor:pointer;" style-hover="color:#C8860A;">
+              <span>{{ e.label }}</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(26,22,17,0.45);">{{ e.n }}</span>
+            </label>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.18em; color:rgba(26,22,17,0.55);">DISPONIBILITÉ</span>
+        <button onClick="{{ toggleStock }}" style="display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:11px 14px; background:{{ stockBg }}; border:1px solid {{ stockBorder }}; border-radius:4px; cursor:pointer; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; transition:background 0.2s, border-color 0.2s;">
+          <span>En stock uniquement</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em;">{{ stockLabel }}</span>
+        </button>
+      </div>
+    </aside>
+
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.55);">{{ count }} CARTES AFFICHÉES</span>
+        <sc-if value="{{ hasCart }}" hint-placeholder-val="{{ false }}">
+          <a href="Tanuki Panier.dc.html" style="display:flex; gap:14px; align-items:center; background:rgba(200,134,10,0.1); border:1px solid rgba(200,134,10,0.35); border-radius:4px; padding:10px 18px;">
+            <span style="font-size:13px;">{{ cartCount }} carte(s) — {{ cartTotal }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.12em; color:rgba(26,22,17,0.6);">VOIR LE PANIER →</span>
+          </a>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.6); background:rgba(255,255,255,0.5); border:1px solid rgba(255,255,255,0.7); border-radius:4px; padding:12px 18px; animation:revealPrice 0.3s ease both;">{{ toast }}</div>
+      </sc-if>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:14px; perspective:1200px;">
+        <sc-for list="{{ cards }}" as="c" hint-placeholder-count="10">
+          <div style="display:flex; animation:{{ c.riseAnim }} 0.4s ease both; animation-delay:{{ c.delay }}s;">
+          <div onMouseMove="{{ c.onMove }}" onMouseLeave="{{ c.onLeave }}" style="flex:1; min-width:0; display:flex; flex-direction:column; background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border:1px solid {{ c.borderColor }}; border-radius:4px; overflow:hidden; box-shadow:{{ c.shadow }}; transform:{{ c.tilt }}; transform-style:preserve-3d; transition:{{ c.transition }}; opacity:1; animation:{{ c.anim }} 0.4s ease both; animation-delay:{{ c.delay }}s;">
+            <a href="Tanuki Fiche Carte.dc.html" style="display:block; position:relative; overflow:hidden;">
+              <sc-if value="{{ c.hasImg }}" hint-placeholder-val="{{ false }}">{{ c.imgEl }}</sc-if>
+              <sc-if value="{{ c.noImg }}" hint-placeholder-val="{{ false }}">
+                <div style="aspect-ratio:63/88; background:rgba(232,225,216,0.8); background-image:repeating-linear-gradient(45deg, rgba(26,22,17,0.05) 0 9px, transparent 9px 18px); display:flex; align-items:flex-end; padding:12px; box-sizing:border-box; transform:{{ c.parallax }}; transition:{{ c.transition }};">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:rgba(26,22,17,0.45);">SCAN {{ c.ref }}</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ c.showShine }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute; inset:0; pointer-events:none; mix-blend-mode:soft-light; opacity:{{ c.shineOpacity }}; background:{{ c.shine }}; transition:opacity 0.25s ease;"></div>
+              </sc-if>
+              <div style="position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between; align-items:flex-start; gap:6px; pointer-events:none;">
+                <sc-if value="{{ c.isParallele }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:8px; letter-spacing:0.14em; background:rgba(26,22,17,0.88); color:#E8E1D8; padding:4px 8px; border-radius:4px;">PARALLÈLE</span>
+                </sc-if>
+                <span style="margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:8px; letter-spacing:0.12em; background:{{ c.rareteBg }}; color:{{ c.rareteFg }}; padding:4px 7px; border-radius:4px;">{{ c.rarete }}</span>
+              </div>
+              <sc-if value="{{ c.isChase }}" hint-placeholder-val="{{ false }}">
+                <span style="position:absolute; bottom:8px; right:8px; font-family:'JetBrains Mono',monospace; font-size:8px; letter-spacing:0.14em; color:#C8860A; pointer-events:none;">✦ PIÈCE RARE</span>
+              </sc-if>
+            </a>
+            <div style="padding:12px; display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; flex-direction:column; gap:2px;">
+                <span style="font-size:13px; font-weight:600; line-height:1.25;">{{ c.name }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:rgba(26,22,17,0.5);">{{ c.ref }} · {{ c.etat }}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                <span style="font-size:16px; font-weight:600; color:#C8860A; animation:revealPrice 0.5s ease both; animation-delay:{{ c.priceDelay }}s;">{{ c.price }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.06em; color:{{ c.stockColor }};">{{ c.stockLabel }}</span>
+              </div>
+              <sc-if value="{{ c.available }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                  <div style="display:flex; align-items:center; border:1px solid rgba(26,22,17,0.2); border-radius:4px; background:rgba(255,255,255,0.55);">
+                    <button onClick="{{ c.dec }}" style="width:28px; height:32px; background:none; border:none; cursor:pointer; font-size:14px; color:#1A1611;">−</button>
+                    <span style="width:22px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:11px;">{{ c.qty }}</span>
+                    <button onClick="{{ c.inc }}" style="width:28px; height:32px; background:none; border:none; cursor:pointer; font-size:14px; color:#1A1611;">+</button>
+                  </div>
+                  <button onClick="{{ c.add }}" style="flex:1 1 72px; min-width:72px; height:32px; background:#1A1611; color:#E8E1D8; border:none; border-radius:4px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; transition:background 0.2s;" style-hover="background:#C8860A;">AJOUTER</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ c.soldOut }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ c.want }}" style="height:32px; background:{{ c.wantBg }}; color:{{ c.wantFg }}; border:1px solid {{ c.wantBorder }}; border-radius:4px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; transition:background 0.25s, color 0.25s, border-color 0.25s;">{{ c.wantLabel }}</button>
+              </sc-if>
+            </div>
+          </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { sort: 'N° CROISSANT', query: '', version: 'TOUTES', rarete: 'TOUTES', inStockOnly: false,
+    qty: {}, cart: {}, want: {}, hover: null, gen: 0, toast: '', flyer: null };
+
+  tier(r) {
+    if (r === 'SEC') return 3;
+    if (r === 'SR') return 2;
+    if (r === 'L' || r === 'UC') return 1;
+    return 0;
+  }
+
+  bump(patch) { this.setState(s => ({ ...patch, gen: s.gen + 1 })); }
+
+  flash(msg) {
+    this.setState({ toast: msg });
+    clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toast: '' }), 2200);
+  }
+
+  fly(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    this.setState({ flyer: { x: r.left + r.width / 2, y: r.top, phase: 0, k: Date.now() } });
+    requestAnimationFrame(() => this.setState(s => (s.flyer ? { flyer: { ...s.flyer, phase: 1 } } : {})));
+    clearTimeout(this._f);
+    this._f = setTimeout(() => this.setState({ flyer: null }), 800);
+  }
+
+  componentWillUnmount() { clearTimeout(this._t); clearTimeout(this._f); }
+
+  renderVals() {
+    const base = [
+      { id: 1, name: 'Kobby', ref: 'PRB02-001', rarete: 'L', etat: 'NM', p: 3.0, stock: 4, par: false, img: 'assets/don-standard.webp' },
+      { id: 2, name: 'Kobby', ref: 'PRB02-001-P', rarete: 'SR', etat: 'NM', p: 8.99, stock: 2, par: true, img: 'assets/don-foil.webp' },
+      { id: 3, name: 'Trafalgar Law', ref: 'PRB02-007', rarete: 'C', etat: 'NM', p: 0.04, stock: 18, par: false, img: null },
+      { id: 4, name: 'Trafalgar Law', ref: 'PRB02-007-P', rarete: 'SR', etat: 'NM', p: 9.99, stock: 1, par: true, img: null },
+      { id: 5, name: 'Lucky Roo', ref: 'PRB02-016', rarete: 'UC', etat: 'NM', p: 1.59, stock: 7, par: false, img: null },
+      { id: 6, name: 'Lucky Roo', ref: 'PRB02-016-P', rarete: 'SR', etat: 'EX', p: 6.0, stock: 2, par: true, img: null },
+      { id: 7, name: 'Jewelry Bonney', ref: 'PRB02-004', rarete: 'C', etat: 'NM', p: 0.05, stock: 22, par: false, img: null },
+      { id: 8, name: 'Jewelry Bonney', ref: 'PRB02-004-P', rarete: 'SR', etat: 'NM', p: 4.99, stock: 3, par: true, img: null },
+      { id: 9, name: 'Monkey D. Luffy', ref: 'PRB02-003', rarete: 'L', etat: 'NM', p: 0.1, stock: 12, par: false, img: 'assets/don-gold.webp' },
+      { id: 10, name: 'Monkey D. Luffy', ref: 'PRB02-003-P', rarete: 'SEC', etat: 'NM', p: 6.5, stock: 1, par: true, img: null },
+      { id: 11, name: 'Roronoa Zoro', ref: 'PRB02-006', rarete: 'UC', etat: 'NM', p: 2.0, stock: 9, par: false, img: null },
+      { id: 12, name: 'Roronoa Zoro', ref: 'PRB02-006-P', rarete: 'SR', etat: 'NM', p: 11.0, stock: 0, par: true, img: null },
+      { id: 13, name: 'Jinbe', ref: 'PRB02-010', rarete: 'C', etat: 'GD', p: 0.02, stock: 31, par: false, img: null },
+      { id: 14, name: 'Marco', ref: 'PRB02-008', rarete: 'UC', etat: 'NM', p: 0.5, stock: 14, par: false, img: null },
+      { id: 15, name: 'Marco', ref: 'PRB02-008-P', rarete: 'SEC', etat: 'NM', p: 31.5, stock: 1, par: true, img: null },
+      { id: 16, name: 'Mr 3 (Galdino)', ref: 'PRB02-021', rarete: 'C', etat: 'NM', p: 0.02, stock: 26, par: false, img: null },
+      { id: 17, name: 'Charlotte Pudding', ref: 'PRB02-030', rarete: 'UC', etat: 'NM', p: 0.2, stock: 11, par: false, img: null },
+      { id: 18, name: 'Charlotte Pudding', ref: 'PRB02-030-P', rarete: 'SR', etat: 'NM', p: 8.99, stock: 2, par: true, img: null },
+      { id: 19, name: 'Portgas D. Ace', ref: 'PRB02-041', rarete: 'SR', etat: 'NM', p: 14.9, stock: 0, par: false, img: null },
+      { id: 20, name: 'Nico Robin', ref: 'PRB02-044', rarete: 'C', etat: 'NM', p: 0.03, stock: 19, par: false, img: null },
+    ];
+    const fmt = (v) => v.toFixed(2).replace('.', ',') + ' €';
+    const q = this.state.query.toLowerCase();
+    let out = base.filter(c =>
+      (q === '' || c.name.toLowerCase().includes(q) || c.ref.toLowerCase().includes(q)) &&
+      (this.state.version === 'TOUTES' || (this.state.version === 'PARALLÈLE' ? c.par : !c.par)) &&
+      (this.state.rarete === 'TOUTES' || c.rarete === this.state.rarete) &&
+      (!this.state.inStockOnly || c.stock > 0));
+    if (this.state.sort === 'PRIX ↑') out = [...out].sort((a, b) => a.p - b.p);
+    if (this.state.sort === 'PRIX ↓') out = [...out].sort((a, b) => b.p - a.p);
+
+    const entries = Object.entries(this.state.cart);
+    const cartCount = entries.reduce((s, [, n]) => s + n, 0);
+    const cartTotal = entries.reduce((s, [id, n]) => s + n * (base.find(c => String(c.id) === id)?.p || 0), 0);
+    const setQty = (id, d) => this.setState(s => ({ qty: { ...s.qty, [id]: Math.max(1, (s.qty[id] || 1) + d) } }));
+    const animName = this.state.gen % 2 === 0 ? 'cardInA' : 'cardInB';
+    const h = this.state.hover;
+
+    const f = this.state.flyer;
+    const flyer = f ? React.createElement('div', {
+      key: f.k,
+      style: {
+        position: 'fixed', left: f.x, top: f.y, width: 46, height: 64, borderRadius: 4, zIndex: 200,
+        background: 'linear-gradient(135deg, #1A1611, #3A3128)', border: '1px solid rgba(200,134,10,0.6)',
+        boxShadow: '0 12px 28px -10px rgba(26,22,17,0.5)', pointerEvents: 'none',
+        transform: f.phase === 0 ? 'translate(-50%,0) scale(1)' : 'translate(-50%,0) scale(0.35)',
+        transition: 'left 0.62s cubic-bezier(0.5,0,0.3,1), top 0.62s cubic-bezier(0.5,0,0.3,1), transform 0.62s ease, opacity 0.62s ease',
+        opacity: f.phase === 0 ? 0.95 : 0.1,
+        ...(f.phase === 1 ? { left: window.innerWidth - 140, top: 46 } : null),
+      },
+    }) : null;
+
+    return {
+      flyer,
+      stockCount: base.filter(c => c.stock > 0).length,
+      count: out.length,
+      query: this.state.query,
+      toast: this.state.toast,
+      onSearch: (e) => { const v = e.target.value; this.bump({ query: v }); },
+      sorts: ['N° CROISSANT', 'PRIX ↑', 'PRIX ↓'].map(label => ({
+        label,
+        bg: this.state.sort === label ? 'rgba(26,22,17,0.9)' : 'rgba(255,255,255,0.45)',
+        fg: this.state.sort === label ? '#E8E1D8' : '#1A1611',
+        pick: () => this.bump({ sort: label }),
+      })),
+      versions: ['TOUTES', 'STANDARD', 'PARALLÈLE'].map(label => ({
+        label,
+        bg: this.state.version === label ? 'rgba(26,22,17,0.08)' : 'rgba(255,255,255,0.5)',
+        border: this.state.version === label ? 'rgba(26,22,17,0.4)' : 'rgba(255,255,255,0.7)',
+        pick: () => this.bump({ version: label }),
+      })),
+      raretes: ['TOUTES', 'C', 'UC', 'L', 'SR', 'SEC'].map(label => ({
+        label,
+        bg: this.state.rarete === label ? 'rgba(26,22,17,0.08)' : 'rgba(255,255,255,0.5)',
+        border: this.state.rarete === label ? 'rgba(26,22,17,0.4)' : 'rgba(255,255,255,0.7)',
+        pick: () => this.bump({ rarete: label }),
+      })),
+      etats: [{ label: 'Near Mint', n: 15 }, { label: 'Excellent', n: 3 }, { label: 'Good', n: 1 }, { label: 'Played', n: 1 }],
+      toggleStock: () => this.bump({ inStockOnly: !this.state.inStockOnly }),
+      stockLabel: this.state.inStockOnly ? 'ACTIVÉ ✓' : 'DÉSACTIVÉ',
+      stockBg: this.state.inStockOnly ? 'rgba(26,22,17,0.08)' : 'rgba(255,255,255,0.6)',
+      stockBorder: this.state.inStockOnly ? 'rgba(26,22,17,0.4)' : 'rgba(26,22,17,0.15)',
+      hasCart: cartCount > 0,
+      cartCount,
+      cartTotal: fmt(cartTotal),
+      cards: out.map((c, i) => {
+        const tier = this.tier(c.rarete);
+        const hov = h && h.id === c.id;
+        const mx = hov ? h.mx : 0.5, my = hov ? h.my : 0.5;
+        const amp = [0, 3, 6, 9][tier];
+        const lift = [0, 2, 4, 6][tier];
+        const tilt = hov && tier > 0
+          ? 'perspective(900px) rotateY(' + ((mx - 0.5) * amp).toFixed(2) + 'deg) rotateX(' + ((0.5 - my) * amp).toFixed(2) + 'deg) translateY(-' + lift + 'px)'
+          : (hov ? 'translateY(-2px)' : 'none');
+        const parallax = hov && tier >= 2
+          ? 'scale(1.04) translate(' + ((0.5 - mx) * 6).toFixed(1) + 'px, ' + ((0.5 - my) * 6).toFixed(1) + 'px)'
+          : 'none';
+        const shineAngle = Math.round(mx * 180 + 40);
+        const shine = tier === 3
+          ? 'linear-gradient(' + shineAngle + 'deg, rgba(200,134,10,0.55) 0%, rgba(255,255,255,0.85) 32%, rgba(140,190,220,0.5) 52%, rgba(200,134,10,0.45) 72%, transparent 100%)'
+          : 'linear-gradient(' + shineAngle + 'deg, transparent 20%, rgba(255,255,255,0.75) 48%, transparent 78%)';
+        const wanted = !!this.state.want[c.id];
+        return {
+          ...c,
+          price: fmt(c.p),
+          qty: this.state.qty[c.id] || 1,
+          isParallele: c.par,
+          isChase: tier === 3,
+          available: c.stock > 0,
+          soldOut: c.stock === 0,
+          stockLabel: c.stock === 0 ? 'ÉPUISÉ' : c.stock + ' DISPO',
+          stockColor: c.stock === 0 ? 'rgba(26,22,17,0.4)' : (c.stock <= 2 ? '#C8860A' : 'rgba(26,22,17,0.55)'),
+          hasImg: !!c.img, noImg: !c.img,
+          imgEl: c.img ? React.createElement('img', { src: c.img, alt: c.name, draggable: false,
+            style: { width: '100%', aspectRatio: '63/88', objectFit: 'cover', display: 'block',
+              transform: parallax, transition: hov ? 'transform 0.12s linear' : 'transform 0.45s cubic-bezier(0.22,1,0.36,1)' } }) : null,
+          tilt, parallax,
+          transition: hov ? 'transform 0.1s linear, box-shadow 0.25s ease, border-color 0.25s ease' : 'transform 0.5s cubic-bezier(0.22,1,0.36,1), box-shadow 0.4s ease, border-color 0.3s ease',
+          shadow: hov && tier > 0
+            ? '0 ' + (18 + tier * 8) + 'px ' + (36 + tier * 14) + 'px -' + (14 + tier * 2) + 'px rgba(26,22,17,' + (0.24 + tier * 0.06) + ')'
+            : '0 10px 26px -14px rgba(26,22,17,0.18)',
+          borderColor: hov && tier === 3 ? 'rgba(200,134,10,0.55)' : 'rgba(255,255,255,0.65)',
+          showShine: tier >= 2,
+          shineOpacity: hov ? (tier === 3 ? 0.6 : 0.34) : 0,
+          shine,
+          rareteBg: tier === 3 ? 'rgba(200,134,10,0.92)' : 'rgba(248,244,236,0.85)',
+          rareteFg: tier === 3 ? '#14110D' : '#1A1611',
+          anim: animName,
+          riseAnim: this.state.gen % 2 === 0 ? 'cardRiseA' : 'cardRiseB',
+          delay: Math.min(i * 0.018, 0.35),
+          priceDelay: Math.min(i * 0.018 + 0.08, 0.45),
+          onMove: (e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            this.setState({ hover: { id: c.id, mx: (e.clientX - r.left) / r.width, my: (e.clientY - r.top) / r.height } });
+          },
+          onLeave: () => this.setState(s => (s.hover && s.hover.id === c.id ? { hover: null } : {})),
+          inc: () => setQty(c.id, 1),
+          dec: () => setQty(c.id, -1),
+          add: (e) => {
+            this.fly(e);
+            const n = this.state.qty[c.id] || 1;
+            this.setState(s => ({ cart: { ...s.cart, [c.id]: (s.cart[c.id] || 0) + n } }));
+            this.flash(c.name + ' × ' + n + ' ajoutée au panier');
+          },
+          want: () => {
+            this.setState(s => ({ want: { ...s.want, [c.id]: !s.want[c.id] } }));
+            this.flash(wanted ? c.name + ' retirée de votre Want List' : '♥ ' + c.name + ' ajoutée à votre Want List — vous serez prévenu à son arrivée');
+          },
+          wantLabel: wanted ? '♥ DANS VOTRE WANT LIST' : '♡ ME PRÉVENIR',
+          wantBg: wanted ? 'rgba(200,134,10,0.14)' : 'rgba(255,255,255,0.4)',
+          wantFg: wanted ? '#1A1611' : 'rgba(26,22,17,0.5)',
+          wantBorder: wanted ? 'rgba(200,134,10,0.5)' : 'rgba(26,22,17,0.15)',
+        };
+      }),
+    };
+  }
+}
+</script>
+</body>
+</html>

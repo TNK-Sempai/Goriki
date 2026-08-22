@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+body { margin:0; background:#E8E1D8; color:#1A1611; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+a { color:#1A1611; text-decoration:none; }
+a:hover { color:#C8860A; }
+</style>
+</helmet>
+<div data-screen-label="Pokémon — Displays" style="min-height:100vh; color:#1A1611;">
+  <header style="position:sticky; top:16px; z-index:50; max-width:1360px; margin:16px auto 0; display:flex; align-items:center; justify-content:space-between; padding:14px 28px; background:rgba(248,244,236,0.55); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; box-shadow:0 8px 32px -12px rgba(26,22,17,0.18);">
+    <a href="Tanuki Accueil.dc.html" style="font-size:18px; font-weight:600; letter-spacing:-0.01em;">Tanuki <span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:400; letter-spacing:0.2em; vertical-align:middle; margin-left:6px;">TCG</span></a>
+    <nav style="display:flex; gap:6px; font-size:13px;">
+      <a href="Tanuki One Piece.dc.html" style="padding:8px 14px; border-radius:4px;" style-hover="background:rgba(26,22,17,0.06);">One Piece</a>
+      <a href="Tanuki Pokemon.dc.html" style="padding:8px 14px; border-radius:4px; background:rgba(26,22,17,0.08);">Pokémon</a>
+      <a href="#" style="padding:8px 14px; border-radius:4px;" style-hover="background:rgba(26,22,17,0.06);">Dépôt-vente</a>
+      <a href="#" style="padding:8px 14px; border-radius:4px;" style-hover="background:rgba(26,22,17,0.06);">Rachat</a>
+      <a href="#" style="padding:8px 14px; border-radius:4px;" style-hover="background:rgba(26,22,17,0.06);">Want to Buy</a>
+    </nav>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <a href="#" style="font-size:13px; padding:8px 16px; background:rgba(255,255,255,0.5); border:1px solid rgba(255,255,255,0.7); border-radius:4px; color:rgba(26,22,17,0.6);">Rechercher une carte…</a>
+      <a href="#" style="font-family:'JetBrains Mono',monospace; font-size:11px; padding:9px 14px; background:rgba(26,22,17,0.9); color:#E8E1D8; border-radius:4px;">PANIER · 0</a>
+    </div>
+  </header>
+
+  <div style="max-width:1360px; margin:0 auto; padding:32px 56px 0; box-sizing:border-box;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.14em; color:rgba(26,22,17,0.55);">
+      <a href="Tanuki Accueil.dc.html" style="color:rgba(26,22,17,0.55);">ACCUEIL</a> / <a href="Tanuki Pokemon.dc.html" style="color:rgba(26,22,17,0.55);">POKÉMON</a> / <a href="Tanuki Pokemon.dc.html" style="color:rgba(26,22,17,0.55);">SCELLÉ</a> / <span style="color:#1A1611;">DISPLAYS</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:20px;">
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <h1 style="font-weight:600; font-size:44px; letter-spacing:-0.03em; margin:0;">Displays</h1>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:rgba(26,22,17,0.55);">{{ count }} PRODUITS · BOÎTES DE 36 / 18 BOOSTERS · FR &amp; EN</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <sc-for list="{{ sorts }}" as="s" hint-placeholder-count="3">
+          <button onClick="{{ s.onPick }}" style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; background:{{ s.bg }}; color:{{ s.fg }}; border:1px solid rgba(255,255,255,0.7); padding:10px 18px; border-radius:4px; cursor:pointer; backdrop-filter:blur(12px);">{{ s.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:1360px; margin:32px auto 64px; padding:0 56px; box-sizing:border-box; display:flex; flex-direction:column; gap:14px;">
+    <sc-for list="{{ products }}" as="p" hint-placeholder-count="6">
+      <a href="#" style="display:grid; grid-template-columns:180px 1fr auto; gap:32px; align-items:center; background:rgba(248,244,236,0.5); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,0.65); border-radius:4px; padding:20px 32px 20px 20px; box-shadow:0 10px 28px -14px rgba(26,22,17,0.18);" style-hover="background:rgba(255,255,255,0.7);">
+        <div style="position:relative; height:120px;">
+          <image-slot id="{{ p.slotId }}" shape="rect" placeholder="{{ p.slotLabel }}"></image-slot>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <span style="font-size:17px; font-weight:600; letter-spacing:-0.01em;">{{ p.name }}</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; color:rgba(26,22,17,0.55);">{{ p.meta }}</span>
+          <sc-if value="{{ p.lowStock }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:12px; font-weight:500; color:rgba(26,22,17,0.75); margin-top:4px;">Stock faible — {{ p.qty }} restants</span>
+          </sc-if>
+          <sc-if value="{{ p.inStock }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:12px; color:rgba(26,22,17,0.55); margin-top:4px;">En stock — {{ p.qty }} disponibles</span>
+          </sc-if>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+          <span style="font-size:20px; font-weight:600; color:#C8860A;">{{ p.price }}</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.6);">VOIR →</span>
+        </div>
+      </a>
+    </sc-for>
+  </div>
+
+  <footer style="max-width:1360px; margin:0 auto 32px; padding:20px 32px; background:rgba(248,244,236,0.45); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.6); border-radius:4px; display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.12em; color:rgba(26,22,17,0.55); box-sizing:border-box;">
+    <span>© 2026 TANUKI TCG — TOUS DROITS RÉSERVÉS</span>
+    <span>AUTHENTIFIÉ · SCANNÉ · GARANTI</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { sort: 'PRIX ↓' };
+  renderVals() {
+    const base = [
+      { name: 'Display Écarlate et Violet — 151', meta: 'SV3.5 · FR · 36 BOOSTERS · SOUS BLISTER', p: 649, qty: 2 },
+      { name: 'Display Prismatic Evolutions', meta: 'SV8.5 · EN · 36 BOOSTERS · SOUS BLISTER', p: 899, qty: 1 },
+      { name: 'Display Destined Rivals', meta: 'SV10 · FR · 36 BOOSTERS · SOUS BLISTER', p: 289, qty: 8 },
+      { name: 'Display Évolutions à Paldea', meta: 'SV2 · FR · 36 BOOSTERS · SOUS BLISTER', p: 219, qty: 5 },
+      { name: 'Display Flammes Obsidiennes', meta: 'SV3 · FR · 36 BOOSTERS · SOUS BLISTER', p: 199, qty: 11 },
+      { name: 'Display Couronne Stellaire', meta: 'SV7 · FR · 36 BOOSTERS · SOUS BLISTER', p: 179, qty: 3 },
+      { name: 'Display Fable Nébuleuse', meta: 'SV6.5 · FR · 36 BOOSTERS · SOUS BLISTER', p: 259, qty: 2 },
+      { name: 'Display Tempête Argentée', meta: 'SWSH12 · FR · 36 BOOSTERS · SOUS BLISTER', p: 329, qty: 1 },
+    ];
+    const fmt = (p) => p.toLocaleString('fr-FR') + ' €';
+    const sorted = [...base].sort((a, b) => {
+      if (this.state.sort === 'PRIX ↓') return b.p - a.p;
+      if (this.state.sort === 'PRIX ↑') return a.p - b.p;
+      return a.name.localeCompare(b.name);
+    });
+    return {
+      count: base.length,
+      products: sorted.map((p, i) => ({
+        ...p,
+        price: fmt(p.p),
+        lowStock: p.qty <= 3,
+        inStock: p.qty > 3,
+        slotId: 'pkd-' + p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        slotLabel: 'photo — ' + p.name,
+      })),
+      sorts: ['PRIX ↓', 'PRIX ↑', 'A–Z'].map(label => ({
+        label,
+        bg: this.state.sort === label ? 'rgba(26,22,17,0.9)' : 'rgba(255,255,255,0.45)',
+        fg: this.state.sort === label ? '#E8E1D8' : '#1A1611',
+        onPick: () => this.setState({ sort: label }),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

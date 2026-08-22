@@ -10,7 +10,7 @@ const IMPORT_SOURCES = [
   {
     href: '/admin/import/onepiece',
     label: 'One Piece TCG',
-    description: 'Import via OPECards API — sets FR officiels',
+    description: 'Import via Poneglyphe — sets FR, cartes Standard',
   },
 ]
 

@@ -28,6 +28,7 @@ la charger ni s'y référer.
 ## Règles métier
 - Prix CardMarket (`price_cm`) et données pokemon-api.com : ADMIN ONLY, jamais exposés client.
 - Photos : cartes <1€ → image API seule ; ≥1€ → vraie photo si dispo ; flip recto/verso seulement si photo verso existe. Flag `needs_photo` géré par trigger SQL.
+- **Rachat — aucun prix avant inspection.** Aucun montant n'est jamais affiché à l'utilisateur avant que Goriki ait eu les cartes en main : ni estimation, ni fourchette, ni total. Il n'existe volontairement AUCUN barème de reprise dans le code (`BUYBACK_RATES` a été supprimé) ; `buyback_requests.offer_amount` reste NULL jusqu'à la saisie manuelle après inspection. Les écrans de rachat ne doivent afficher que des nombres de CARTES.
 - Boutique FR uniquement.
 
 ---
@@ -66,10 +67,17 @@ ne sont plus dans le dépôt — ne plus jamais les charger.
 3. **Les 20 fichiers `Tanuki_*_dc.html`** — référence de comportement/structure pour les écrans non couverts par la planche globale (ex. Auth, Compte détaillé, Admin). En cas de divergence de style avec la planche globale sur un point commun, la planche globale gagne.
 4. **Ce présent document** — tokens exacts, doctrine motion, règles de composition.
 
-> ⚠️ État constaté au 2026-08-21 : `docs/design-reference/` ne contient QUE les 20 fichiers
-> `.dc.html`. Les deux images de référence (planche globale, home) sont **absentes du dépôt**.
-> Tant qu'elles n'y sont pas déposées, les rangs 1 et 2 de cette hiérarchie ne sont pas
-> applicables et le rang 3 fait autorité de fait.
+> État au 2026-08-21 (mission REFONTE GLOBALE) : les deux images sont **déposées** et
+> `docs/design-reference/` contient 22 fichiers (20 `.dc.html` + 2 PNG). La hiérarchie
+> ci-dessus s'applique donc pleinement, rangs 1 et 2 compris.
+>
+> Là où l'image montre une donnée que Goriki n'a PAS, on ne l'invente pas : on remplace par
+> une donnée réelle de masse visuelle équivalente, et on l'écrit dans l'en-tête du fichier.
+> Les substitutions actées à ce jour — variations de cote (« +12,4 % ») et sparklines
+> « Marché » (aucun historique de prix en base), visuels de sets (`*_sets.image_url` NULL
+> partout), visuels de scellés (`sealed_products.image_url` NULL), numérotation séquentielle
+> des commandes (`orders` n'a qu'un UUID), champ « Téléphone » du profil (colonne inexistante),
+> basculement Recto/Verso (`back_photo_url` NULL partout).
 
 ## Couleurs (stables depuis le début, jamais remises en cause)
 `--color-bg: #E8E1D8`, accent ambre `--color-accent: #C8860A`, encre `--color-ink: #1A1611`. Gradient radial léger en fond sur tout le parcours public (pas l'admin) :
@@ -90,11 +98,14 @@ background-attachment: fixed;
 
 Playfair Display, DM Sans, Instrument Serif : **abandonnées**, ne plus charger ni référencer.
 
-> ⚠️ Écart code/doctrine au 2026-08-21 : `app/layout.tsx` charge encore Playfair Display,
-> DM Sans, JetBrains Mono et Instrument Serif, et `globals.css` définit `--font-display`,
-> `--font-body`, `--font-grotesk`, `--font-voice` en conséquence. La bascule vers
-> Archivo Black + Inter est une **mission de code à part entière**, non faite ici (la mission
-> de nettoyage interdisait de toucher au code).
+> Bascule FAITE le 2026-08-21. `app/layout.tsx` ne charge plus que **Archivo Black, Inter et
+> JetBrains Mono**. Dans `globals.css`, `--font-display` pointe sur Archivo Black,
+> `--font-body` et `--font-grotesk` sur Inter ; `--font-voice` est supprimé (il n'était
+> référencé nulle part).
+>
+> ⚠️ Archivo Black n'existe **qu'en graisse 400** : `font-weight: 600/700` sur un titre
+> déclencherait un faux gras synthétique. Les règles `h1…h6` posent donc `font-weight: 400`
+> et `font-synthesis-weight: none` — ne pas les rétablir en 600/700.
 
 ## Radius — système à paliers (stable)
 sm 12px (boutons/inputs/badges) · md 18-20px (cartes/panneaux) · lg 24-28px (hero/gros blocs). Rien dans la planche globale ne contredit ce système — conservé.
@@ -109,6 +120,30 @@ Aucun écran ne peut être déclaré conforme s'il ressemble encore à une décl
 
 **Validation obligatoire par écran** : capture desktop (≥1280px) + comparaison explicite sous six catégories : Composition / Typographie / Spacing / Produits / Atmosphère / Interactions. Un rapport qui déclare "conforme" sans détailler ces six catégories est refusé — cette règle s'applique à toute mission visuelle future, pas seulement à la refonte en cours.
 
+## Vocabulaire de composition issu de la planche (`styles/globals.css`)
+
+Ces classes SONT la grammaire de la planche. Une page qui ne les emploie pas retombe
+mécaniquement dans l'ancien layout.
+
+| Classe | Rôle |
+|---|---|
+| `.site-bar` | Barre de nav **plate**, pleine largeur, filet en pied. La planche ne montre AUCUNE pilule de verre flottante — le header et le footer arrondis du portage v3 étaient une invention. |
+| `.nav-link[data-active]` | Lien de nav souligné d'ocre sur l'actif. Sert aussi aux onglets de rareté. |
+| `.pill[data-active]` | Pilule de filtre : encre pleine si active, claire sinon. |
+| `.field` | Champ de recherche en pilule claire, filet fin. |
+| `.display-hero` / `.display-section` / `.display-sub` | Échelle de titres, **toujours en capitales**, tracking très serré. |
+| `.hair` | Séparation par un filet — la planche sépare ses blocs par un trait, pas par une carte de verre de plus. |
+| `.corner-tag` | Étiquette posée SUR le visuel produit (DÉPÔT, SCAN). |
+| `.status[data-tone]` | Puce d'état (Livrée / Expédiée / Trouvée / En attente). |
+
+**Traitement produit** : le visuel déborde, s'incline, porte une ombre franche — éventail de
+cartes au hero, cartes en éventail dans les tuiles de set, visuel en débord dans les tuiles de
+rayon. Une carte posée bien à plat au centre d'une vignette est le symptôme de l'ancien layout.
+
+**Titres multi-lignes** : la coupe est décidée dans le JSX (une `<span whitespace-nowrap>` par
+ligne), jamais laissée au navigateur — sinon le manifeste du hero passe de 3 à 5 lignes selon
+la largeur.
+
 ## Responsive
 Desktop ≥1280px = fidélité stricte à la référence. Tablette/mobile = adaptation du même système de composition (densité, hiérarchie, rythme) — jamais une simplification générique en cartes empilées par défaut.
 
@@ -119,6 +154,12 @@ motion-system (skill complet, `docs/MOTION-SYSTEM-SKILL.md` si déposé, sinon c
 3. **Catalogue (CardTile/CardGrid)** — tilt 3D au curseur, reflet/shine piloté par la rareté, curseur "VOIR →" au survol, stagger reveal.
 4. **Transition Home→Univers** (`template.tsx`, jamais `layout.tsx`) — le morph d'`AtmosphereCanvas` s'intensifie pendant la transition.
 5. **AtmosphereCanvas/UniverseProvider** — MONTÉS en `fixed -z-10` sur tout le parcours public, exclus de `/admin` et `/checkout`. ⚠️ Ces composants ont existé en code mort pendant plusieurs missions sans être montés nulle part — toujours vérifier leur présence réelle dans l'arbre rendu (pas juste `npm run build`) avant de les tenir pour acquis.
+
+   **Deux cartographies, pas une seule déclinée.** One Piece = NAVIGATION (rose des vents gravée, anneaux gradués, relèvements). Pokémon = CLASSIFICATION (Pokéball gravée, viseur d'index, réglette). Le fondu est croisé et STRICT : à `ease = 1` la rose est à zéro, et réciproquement. Vérifier au RENDU sur les deux univers — un `npm run build` vert ne prouve rien ici.
+
+   **Le fond ne porte que le motif d'univers et le gradient radial.** Pas de quadrillage, pas de réseau de points, pas de grille technique par-dessus : un motif identique sur tous les écrans écrase les différences de composition, ce qui est l'inverse du but recherché.
+
+   ⚠️ Sous `prefers-reduced-motion`, le canvas n'a **aucune boucle rAF** : il n'est peint qu'une fois. Tout changement d'état (univers, intensité) doit donc déclencher un redessin EXPLICITE, sinon l'écran reste figé sur le premier motif — bug réel, corrigé le 2026-08-22.
 6. **Fiche carte (CardViewer)** — profondeur réelle (ombre parallax, glow à la manipulation), approfondissement de l'existant, pas de nouvel effet gadget.
 
 Guards non négociables sur toute animation : SSR (`typeof window === 'undefined'`), double-init StrictMode, désactivation sur `pointer: coarse` (tactile), neutralisation totale sous `prefers-reduced-motion: reduce`. `will-change` uniquement actif entre `mouseenter`/`mouseleave`, jamais permanent.
