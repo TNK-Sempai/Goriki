@@ -18,11 +18,21 @@ export default function ScanStage({
   images,
   altText,
   reference,
+  variante,
 }: {
   /** Scans réellement disponibles, recto d'abord */
   images: { url: string; label: string }[]
   altText: string
   reference: string
+  /**
+   * Libellé de variante — « Normale », « Reverse », « Holo »…
+   *
+   * Il vivait en pastille autonome dans la colonne de texte, à côté de l'état
+   * et de « Scan réel ». Noyé parmi eux, il ne disait plus de QUOI il parlait :
+   * or c'est la seule chose qui distingue deux fiches par ailleurs identiques.
+   * Posé sur le visuel, il se lit au même endroit que ce qu'il qualifie.
+   */
+  variante?: string | null
 }) {
   const [active, setActive] = useState(0)
   const [zoom, setZoom] = useState(false)
@@ -56,14 +66,30 @@ export default function ScanStage({
         {/* Scan principal */}
         <div className="glass flex flex-1 items-center justify-center overflow-hidden rounded-panel-lg p-5">
           {current ? (
-            // eslint-disable-next-line @next/next/no-img-element -- scan transformé au zoom
-            <img
-              src={current.url}
-              alt={altText}
-              onClick={() => setZoom(z => !z)}
-              className="max-h-[440px] w-auto cursor-zoom-in rounded-[8px] object-contain shadow-[0_30px_60px_-26px_rgba(26,22,17,0.6)] transition-transform duration-500"
-              style={{ transform: zoom ? 'scale(1.35)' : 'none' }}
-            />
+            /* Conteneur `relative` ajusté à l'image : le scan est en
+               `object-contain w-auto`, sa boîte réelle dépend donc du visuel.
+               Ancrer l'étiquette sur le panneau de verre l'aurait posée dans la
+               marge, à côté de la carte au lieu d'être dessus. */
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element -- scan transformé au zoom */}
+              <img
+                src={current.url}
+                alt={altText}
+                onClick={() => setZoom(z => !z)}
+                className="max-h-[440px] w-auto cursor-zoom-in rounded-[8px] object-contain shadow-[0_30px_60px_-26px_rgba(26,22,17,0.6)] transition-transform duration-500"
+                style={{ transform: zoom ? 'scale(1.35)' : 'none' }}
+              />
+              {variante && (
+                /* `.corner-tag` est la classe de la planche pour une étiquette
+                   POSÉE sur un visuel — déjà en service pour DÉPÔT, ÉPUISÉ,
+                   NOUVEAU. On la réemploie plutôt que d'inventer un badge de
+                   plus : 8 px, mono, encre à 88 %, rien de coloré ni de large.
+                   `pointer-events-none` pour ne pas voler le clic du zoom. */
+                <span className="corner-tag pointer-events-none absolute bottom-2 left-2">
+                  {variante}
+                </span>
+              )}
+            </div>
           ) : (
             <div className="scan-pending flex aspect-[2.5/3.5] w-[240px] items-center justify-center rounded-[8px]">
               <span className="data text-[9px]">scan à venir</span>

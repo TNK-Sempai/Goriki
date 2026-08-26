@@ -28,7 +28,7 @@ export default async function ComptePage() {
   const [{ data: profile }, orders, wishlist, { data: depots }, { data: lastAddress }] = await Promise.all([
     supabase
       .from('profiles')
-      .select('full_name, email, store_credit, created_at, identity_status')
+      .select('full_name, username, email, store_credit, created_at, identity_status')
       .eq('id', user!.id)
       .single(),
     supabase.from('orders').select('id', { count: 'exact', head: true }).eq('user_id', user!.id),
@@ -63,8 +63,10 @@ export default async function ComptePage() {
       <div className="flex flex-col gap-4">
         <ProfilForm
           initialName={profile?.full_name ?? ''}
+          initialUsername={profile?.username ?? ''}
           email={profile?.email ?? ''}
           identityLabel={STATUS_LABEL[identity]}
+          identityVerified={identity === 'verified'}
         />
 
         {/* Indicateurs du compte — rangée fine, pas quatre gros panneaux. */}

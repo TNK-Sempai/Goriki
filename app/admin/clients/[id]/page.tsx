@@ -30,37 +30,37 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const cardStyle: React.CSSProperties = { background: 'var(--surface-1)', border: '1px solid rgba(212,144,12,0.08)', borderRadius: '3px', padding: '16px', marginBottom: '16px' }
 
   return (
-    <div style={{ maxWidth: '560px' }}>
-      <div className="admin-header-row">
+    <div className="gk-corps" style={{ maxWidth: '560px' }}>
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">{data.profile?.full_name ?? data.profile?.email}</div>
-          <div className="admin-sub">{data.profile?.email}</div>
+          <div className="gk-titre">{data.profile?.full_name ?? data.profile?.email}</div>
+          <div className="gk-eyebrow-texte">{data.profile?.email}</div>
         </div>
       </div>
 
       <div style={cardStyle}>
-        <div className="admin-sep" style={{ marginTop: 0 }}>Crédit boutique <div className="admin-sep-line" /></div>
+        <div className="gk-sep" style={{ marginTop: 0 }}>Crédit boutique <div className="gk-sep-line" /></div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <input type="number" min="0" step="0.01" value={credit}
-            onChange={e => setCredit(parseFloat(e.target.value) || 0)} className="admin-input" style={{ width: '120px' }} />
+            onChange={e => setCredit(parseFloat(e.target.value) || 0)} className="gk-input" style={{ width: '120px' }} />
           <span style={{ fontSize: '11px', color: 'var(--muted)' }}>€</span>
-          <button onClick={handleSaveCredit} disabled={saving} className="btn btn-primary btn-sm">
+          <button onClick={handleSaveCredit} disabled={saving} className="gk-btn" data-primaire="true">
             {saving ? 'Sauvegarde...' : 'Mettre à jour'}
           </button>
         </div>
       </div>
 
       <div style={cardStyle}>
-        <div className="admin-sep" style={{ marginTop: 0 }}>Commandes ({data.orders?.length ?? 0}) <div className="admin-sep-line" /></div>
+        <div className="gk-sep" style={{ marginTop: 0 }}>Commandes ({data.orders?.length ?? 0}) <div className="gk-sep-line" /></div>
         <div>
           {data.orders?.map((o: any) => (
             <div key={o.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(212,144,12,0.04)' }}>
               <div>
-                <div className="admin-cell mono">{o.id.slice(0, 8)}</div>
+                <div className="gk-cell mono">{o.id.slice(0, 8)}</div>
                 <div style={{ fontSize: '10px', color: 'var(--muted)' }}>{new Date(o.created_at).toLocaleDateString('fr-FR')}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div className="admin-cell amber">{o.total?.toFixed(2)} €</div>
+                <div className="gk-cell amber">{o.total?.toFixed(2)} €</div>
                 <span className="ab ab-muted">{o.status}</span>
               </div>
             </div>

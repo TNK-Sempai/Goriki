@@ -36,7 +36,8 @@ export default async function WantToBuyPage() {
       ? supabase.from('onepiece_cards').select('id, name_fr, number, image_url').in('id', opIds)
       : Promise.resolve({ data: [] }),
     pkmIds.length
-      ? supabase.from('pokemon_listings').select('id, card_id').in('card_id', pkmIds).eq('is_active', true).gt('quantity', 0).gt('price', 0)
+      ? supabase.from('pokemon_card_variants').select('id, card_id, pokemon_listings!inner(id)').in('card_id', pkmIds)
+          .eq('pokemon_listings.is_active', true).gt('pokemon_listings.quantity', 0).gt('pokemon_listings.price', 0)
       : Promise.resolve({ data: [] }),
     opIds.length
       ? supabase.from('onepiece_listings').select('id, card_id').in('card_id', opIds).eq('is_active', true).gt('quantity', 0).gt('price', 0)

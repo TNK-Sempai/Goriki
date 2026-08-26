@@ -187,13 +187,23 @@ async function traiterFeuille(
 
   const idsCartes = (cartes ?? []).map(c => c.id)
   const listings = new Map<string, { id: string; quantity: number }>()  // `${card_id}|${variant_id}`
+  // Depuis ARCHI-01, la quantité vit sur l'EXEMPLAIRE, rattaché à la variante.
+  // Une variante sans exemplaire n'est pas une erreur : c'est le cas de 27 569
+  // des 29 210. Elle reste absente de cette carte, et la règle « ne jamais
+  // créer de ligne » s'applique telle quelle — le rapport la signalera.
   for (let i = 0; i < idsCartes.length; i += 500) {
     const { data } = await supabase
-      .from('pokemon_listings')
-      .select('id, card_id, variant_type_id, quantity')
+      .from('pokemon_card_variants')
+      .select('card_id, variant_type_id, pokemon_listings(id, quantity)')
       .in('card_id', idsCartes.slice(i, i + 500))
-    for (const l of data ?? []) {
-      listings.set(`${l.card_id}|${l.variant_type_id}`, { id: l.id, quantity: l.quantity })
+    for (const v of (data ?? []) as unknown as {
+      card_id: string
+      variant_type_id: string
+      pokemon_listings: { id: string; quantity: number }[] | null
+    }[]) {
+      const ex = (v.pokemon_listings ?? [])[0]
+      if (!ex) continue
+      listings.set(`${v.card_id}|${v.variant_type_id}`, { id: ex.id, quantity: ex.quantity })
     }
   }
 

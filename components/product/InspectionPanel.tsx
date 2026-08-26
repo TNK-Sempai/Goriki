@@ -1,4 +1,4 @@
-import { formatPrice } from '@/lib/utils'
+import { prixOuEpuise } from '@/lib/utils'
 
 /**
  * Relevé d'inspection — ce qui distingue une pièce vérifiée d'une fiche générique.
@@ -50,7 +50,7 @@ export default function InspectionPanel({ inspection, price }: InspectionPanelPr
       <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-base font-semibold text-ink">Inspection</h2>
         <span className="data text-[10px]">
-          Relevé maison{date ? ` · ${date}` : ''} · pièce à {formatPrice(price)}
+          Relevé maison{date ? ` · ${date}` : ''} · pièce à {prixOuEpuise(price)}
         </span>
       </div>
 

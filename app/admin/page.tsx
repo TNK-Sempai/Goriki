@@ -1,145 +1,179 @@
-import { createClient } from '@/lib/supabase/server'
-import { formatPrice } from '@/lib/utils'
 import Link from 'next/link'
-import StatsCharts from '@/components/admin/StatsCharts'
+import { createClient } from '@/lib/supabase/server'
+import Topbar from '@/components/admin/Topbar'
 
+export const dynamic = 'force-dynamic'
+
+/**
+ * Dashboard — écran 1 de la maquette.
+ *
+ * Il répond à une seule question : **par quoi je continue aujourd'hui ?**
+ *
+ * La boutique n'a pas ouvert — 0 commande, 0 prix saisi. Un tableau de bord de
+ * vente n'aurait donc que des zéros à montrer, ce qui n'apprend rien. Celui-ci
+ * pilote le CHANTIER en cours : l'avancement du catalogue, et la file de ce qui
+ * bloque la mise en vente.
+ *
+ * Le bloc commerce apparaît de lui-même dès la première commande : les deux
+ * états cohabitent dans la maquette, on garde les deux.
+ */
 export default async function AdminDashboard() {
   const supabase = await createClient()
 
   const [
-    { count: totalOrders },
-    { data: revenueData },
-    { count: pkmListings },
-    { count: opListings },
-    { count: needsPhoto },
-    { data: recentOrders },
-    { data: ordersByStatus },
+    sets, cartes, variantes, exemplaires,
+    { count: commandes }, { data: paiements },
+    { count: sansVisuel }, { count: sansPrix }, { count: scelles },
+    { data: apercu },
   ] = await Promise.all([
-    supabase.from('orders').select('*', { count: 'exact', head: true }),
-    supabase.from('orders').select('total, created_at').eq('status', 'paid'),
-    supabase.from('pokemon_listings').select('*', { count: 'exact', head: true }).gt('quantity', 0).eq('is_active', true),
-    supabase.from('onepiece_listings').select('*', { count: 'exact', head: true }).gt('quantity', 0).eq('is_active', true),
-    supabase.from('pokemon_listings').select('*', { count: 'exact', head: true }).eq('needs_photo', true),
-    supabase.from('orders').select('id, total, status, created_at, profiles(email)').order('created_at', { ascending: false }).limit(5),
-    supabase.from('orders').select('status'),
+    supabase.from('pokemon_sets').select('id', { count: 'exact', head: true }),
+    supabase.from('pokemon_cards').select('id', { count: 'exact', head: true }),
+    supabase.from('pokemon_card_variants').select('id', { count: 'exact', head: true }),
+    supabase.from('pokemon_listings').select('id', { count: 'exact', head: true }),
+    supabase.from('orders').select('id', { count: 'exact', head: true }),
+    supabase.from('orders').select('total').eq('status', 'paid'),
+    supabase.from('pokemon_card_variants').select('id', { count: 'exact', head: true }).is('image_url', null),
+    supabase.from('pokemon_listings').select('id', { count: 'exact', head: true }).lte('price', 0),
+    supabase.from('sealed_products').select('id', { count: 'exact', head: true }),
+    supabase.rpc('admin_pokemon_sets_nettoyage'),
   ])
 
-  const totalRevenue = revenueData?.reduce((sum, o) => sum + (o.total ?? 0), 0) ?? 0
+  const lignes = (apercu ?? []) as {
+    code: string; name_fr: string; cartes: number; card_count: number | null; cartes_corrigees: number
+  }[]
 
-  const now = new Date()
-  const monthlyRevenue = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
-    const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
-    const total = revenueData?.filter(o => {
-      const od = new Date(o.created_at)
-      return od.getMonth() === d.getMonth() && od.getFullYear() === d.getFullYear()
-    }).reduce((sum, o) => sum + (o.total ?? 0), 0) ?? 0
-    return { label, total }
+  // Écart base / attendu : la mesure qui sort les sets anormaux sans rien
+  // chercher. NÉGATIF = cartes manquantes ; POSITIF = sous-blocs, donc sain.
+  const manquants = lignes.filter(s => s.card_count !== null && Number(s.cartes) < s.card_count)
+  const cartesManquantes = manquants.reduce((n, s) => n + ((s.card_count ?? 0) - Number(s.cartes)), 0)
+  const entames = lignes.filter(s => Number(s.cartes_corrigees) > 0).length
+
+  const ca = (paiements ?? []).reduce((n, o) => n + (o.total ?? 0), 0)
+  const fr = (n: number) => n.toLocaleString('fr-FR')
+
+  // Histogramme : les cinq sets à qui il manque le plus de cartes. C'est la
+  // seule série chiffrée qui ait un sens tant qu'aucune vente n'existe.
+  const barres = manquants
+    .map(s => ({ label: s.code, manque: (s.card_count ?? 0) - Number(s.cartes) }))
+    .sort((a, b) => b.manque - a.manque)
+    .slice(0, 8)
+  const pire = barres[0]?.manque ?? 1
+
+  const file = [
+    {
+      titre: 'Prix à saisir',
+      compte: sansPrix ?? 0,
+      sub: 'Aucun exemplaire ne peut être vendu sans prix',
+      href: '/admin/listings',
+      ton: (sansPrix ?? 0) > 0 ? 'rouge' : 'muet',
+    },
+    {
+      titre: 'Variantes sans visuel',
+      compte: sansVisuel ?? 0,
+      sub: 'La fiche publique retombe sur l’illustration de la carte',
+      href: '/admin/catalogue/editeur',
+      ton: 'accent',
+    },
+    {
+      titre: 'Cartes manquantes',
+      compte: cartesManquantes,
+      sub: `${manquants.length} set(s) incomplet(s) à l’import`,
+      href: '/admin/catalogue',
+      ton: cartesManquantes > 0 ? 'rouge' : 'muet',
+    },
+    {
+      titre: 'Produits scellés',
+      compte: scelles ?? 0,
+      sub: 'Rayon à remplir avant ouverture',
+      href: '/admin/produits',
+      ton: 'muet',
+    },
+  ] as const
+
+  const aujourdhui = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
 
-  const statusCounts = (ordersByStatus ?? []).reduce((acc: Record<string, number>, o) => {
-    acc[o.status] = (acc[o.status] ?? 0) + 1
-    return acc
-  }, {})
-
-  const STATUS_FR: Record<string, string> = {
-    pending: 'En attente', paid: 'Payée', preparing: 'En préparation',
-    shipped: 'Expédiée', delivered: 'Livrée', cancelled: 'Annulée', refunded: 'Remboursée',
-  }
-  const STATUS_CLASS: Record<string, string> = {
-    pending: 'ab ab-muted', paid: 'ab ab-amber', preparing: 'ab ab-amber',
-    shipped: 'ab ab-green', delivered: 'ab ab-green',
-    cancelled: 'ab ab-red', refunded: 'ab ab-red',
-  }
-
   return (
-    <div>
-      {/* Header row */}
-      <div className="admin-header-row">
-        <div>
-          <div className="admin-title">Dashboard</div>
-        </div>
-        <div style={{ fontSize: '10px', color: 'var(--muted)' }}>
-          {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </div>
-      </div>
+    <>
+      <Topbar
+        titre="Dashboard"
+        eyebrow={`${aujourdhui} · chantier catalogue`}
+        action={{ label: 'Nouvel import', href: '/admin/import' }}
+        recherche="Set, carte, commande, client"
+      />
 
-      {/* Alert photos manquantes */}
-      {(needsPhoto ?? 0) > 0 && (
-        <div className="admin-alert">
-          <div className="admin-alert-dot" />
-          {needsPhoto} carte{(needsPhoto ?? 0) > 1 ? 's' : ''} avec photo manquante (prix ≥ 1€)
+      <div className="gk-corps">
+        <div className="gk-kpis">
+          <Kpi label="Sets au catalogue" valeur={fr(sets.count ?? 0)} sub={`${entames} entamé(s) au nettoyage`} />
+          <Kpi label="Cartes" valeur={fr(cartes.count ?? 0)} sub={`${fr(variantes.count ?? 0)} variantes`} />
+          <Kpi label="Exemplaires" valeur={fr(exemplaires.count ?? 0)} sub="pièces physiquement détenues" ton="accent" />
+          <Kpi
+            label="Chiffre d’affaires"
+            valeur={commandes ? `${ca.toFixed(2)} €` : '—'}
+            sub={commandes ? `${fr(commandes)} commande(s)` : 'la boutique n’a pas ouvert'}
+            ton={commandes ? undefined : 'muet'}
+          />
         </div>
-      )}
 
-      {/* KPIs */}
-      <div className="admin-kpi-grid">
-        <div className="admin-kpi">
-          <span className="admin-kpi-label">Chiffre d&apos;affaires</span>
-          <span className="admin-kpi-val amber">{formatPrice(totalRevenue)}</span>
-          <span className="admin-kpi-sub">commandes payées</span>
-        </div>
-        <div className="admin-kpi">
-          <span className="admin-kpi-label">Commandes</span>
-          <span className="admin-kpi-val">{totalOrders ?? 0}</span>
-          <span className="admin-kpi-sub">au total</span>
-        </div>
-        <div className="admin-kpi">
-          <span className="admin-kpi-label">Pokémon en stock</span>
-          <span className="admin-kpi-val">{pkmListings ?? 0}</span>
-          <span className="admin-kpi-sub">listings actifs</span>
-        </div>
-        <div className="admin-kpi">
-          <span className="admin-kpi-label">One Piece en stock</span>
-          <span className="admin-kpi-val">{opListings ?? 0}</span>
-          <span className="admin-kpi-sub">listings actifs</span>
-        </div>
-      </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14, alignItems: 'start' }}>
+          <section className="gk-panneau">
+            <div className="gk-panneau-tete">
+              <span className="gk-label">Sets les plus incomplets</span>
+              <span style={{ flex: 1 }} />
+              <span className="gk-label">{fr(cartesManquantes)} cartes manquantes</span>
+            </div>
+            <div style={{ padding: '20px 16px 16px' }}>
+              {barres.length > 0 ? (
+                <div className="gk-barres">
+                  {barres.map(b => (
+                    <div key={b.label} className="gk-barre" title={`${b.label} — ${b.manque} carte(s) manquante(s)`}>
+                      <span
+                        className="gk-barre-fut"
+                        data-ton={b.manque === pire ? 'accent' : undefined}
+                        style={{ height: Math.max(4, Math.round((b.manque / pire) * 130)) }}
+                      />
+                      <span className="gk-barre-label">{b.label}</span>
+                      <span className="gk-mono gk-dim">{b.manque}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="gk-aide" style={{ margin: 0 }}>
+                  Aucun set incomplet : la base et les nombres annoncés coïncident partout.
+                </p>
+              )}
+            </div>
+          </section>
 
-      {/* Charts */}
-      <StatsCharts monthlyRevenue={monthlyRevenue} statusCounts={statusCounts} />
-
-      {/* Commandes récentes */}
-      <div className="admin-sep" style={{ marginTop: '16px' }}>
-        Commandes récentes <div className="admin-sep-line" />
-        <Link href="/admin/commandes" className="admin-table-action">Voir tout →</Link>
-      </div>
-
-      {(recentOrders ?? []).length === 0 ? (
-        <div style={{ fontSize: '11px', color: 'var(--muted)', padding: '20px 0' }}>
-          Aucune commande pour l&apos;instant.
-        </div>
-      ) : (
-        <div className="admin-table">
-          <div className="admin-col-heads" style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px 70px' }}>
-            <span className="admin-col-head">#</span>
-            <span className="admin-col-head">Client</span>
-            <span className="admin-col-head">Total</span>
-            <span className="admin-col-head">Statut</span>
-            <span className="admin-col-head">Date</span>
-          </div>
-          {(recentOrders ?? []).map((o: any) => (
-            <Link
-              key={o.id}
-              href={`/admin/commandes/${o.id}`}
-              className="admin-row"
-              style={{ gridTemplateColumns: '90px 1fr 100px 100px 70px' }}
-            >
-              <span className="admin-cell mono">{o.id.slice(0, 8)}</span>
-              <span className="admin-cell">{o.profiles?.email ?? '—'}</span>
-              <span className="admin-cell amber">{formatPrice(o.total)}</span>
-              <span className="admin-cell">
-                <span className={STATUS_CLASS[o.status] ?? 'ab ab-muted'}>
-                  {STATUS_FR[o.status] ?? o.status}
+          <section className="gk-panneau">
+            <div className="gk-panneau-tete">
+              <span className="gk-label">File d’attente</span>
+              <span style={{ flex: 1 }} />
+              <span className="gk-label">Ce qui bloque l’ouverture</span>
+            </div>
+            {file.map(q => (
+              <Link key={q.titre} href={q.href} className="gk-row" data-cliquable="true" style={{ gridTemplateColumns: '1fr auto' }}>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                  <span>{q.titre}</span>
+                  <span className="gk-aide">{q.sub}</span>
                 </span>
-              </span>
-              <span className="admin-cell muted">
-                {new Date(o.created_at).toLocaleDateString('fr-FR')}
-              </span>
-            </Link>
-          ))}
+                <span className="gk-tag" data-ton={q.ton}>{fr(q.compte)}</span>
+              </Link>
+            ))}
+          </section>
         </div>
-      )}
+      </div>
+    </>
+  )
+}
+
+function Kpi({ label, valeur, sub, ton }: { label: string; valeur: string; sub: string; ton?: 'accent' | 'muet' }) {
+  return (
+    <div className="gk-kpi">
+      <span className="gk-kpi-label">{label}</span>
+      <span className="gk-kpi-val" data-ton={ton}>{valeur}</span>
+      <span className="gk-kpi-sub">{sub}</span>
     </div>
   )
 }

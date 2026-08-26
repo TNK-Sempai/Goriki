@@ -78,32 +78,32 @@ export default function SetsBrowser({ sets }: { sets: SetRow[] }) {
 
   return (
     <>
-      <div className="admin-kpi-grid">
-        <div className="admin-kpi">
-          <span className="admin-kpi-label">Sets</span>
-          <span className="admin-kpi-val">{totaux.sets}</span>
-          <span className="admin-kpi-sub">{totaux.avecStock} avec du stock</span>
+      <div className="gk-kpis">
+        <div className="gk-kpi">
+          <span className="gk-kpi-label">Sets</span>
+          <span className="gk-kpi-val">{totaux.sets}</span>
+          <span className="gk-kpi-sub">{totaux.avecStock} avec du stock</span>
         </div>
-        <div className="admin-kpi">
-          <span className="admin-kpi-label">Listings en stock</span>
-          <span className="admin-kpi-val">{totaux.listings.toLocaleString('fr-FR')}</span>
-          <span className="admin-kpi-sub">quantité &gt; 0</span>
+        <div className="gk-kpi">
+          <span className="gk-kpi-label">Listings en stock</span>
+          <span className="gk-kpi-val">{totaux.listings.toLocaleString('fr-FR')}</span>
+          <span className="gk-kpi-sub">quantité &gt; 0</span>
         </div>
-        <div className="admin-kpi">
-          <span className="admin-kpi-label">Sans prix</span>
-          <span className={`admin-kpi-val${totaux.sansPrix > 0 ? ' amber' : ''}`}>
+        <div className="gk-kpi">
+          <span className="gk-kpi-label">Sans prix</span>
+          <span className={`gk-kpi-val${totaux.sansPrix > 0 ? ' amber' : ''}`}>
             {totaux.sansPrix.toLocaleString('fr-FR')}
           </span>
-          <span className="admin-kpi-sub">
+          <span className="gk-kpi-sub">
             {totaux.sansPrix > 0 ? 'non vendables en l’état' : 'tout est chiffré'}
           </span>
         </div>
-        <div className="admin-kpi">
-          <span className="admin-kpi-label">Photos manquantes</span>
-          <span className="admin-kpi-val">
+        <div className="gk-kpi">
+          <span className="gk-kpi-label">Photos manquantes</span>
+          <span className="gk-kpi-val">
             {sets.filter(s => s.universe === univers).reduce((n, s) => n + s.sans_photo, 0)}
           </span>
-          <span className="admin-kpi-sub">pièces à scanner</span>
+          <span className="gk-kpi-sub">pièces à scanner</span>
         </div>
       </div>
 
@@ -111,12 +111,12 @@ export default function SetsBrowser({ sets }: { sets: SetRow[] }) {
         style={{
           background: 'rgba(232,225,216,0.04)',
           border: '1px solid rgba(232,225,216,0.1)',
-          borderRadius: 'var(--radius-admin-sm)',
+          borderRadius: 'var(--radius-gk-sm)',
           padding: '14px',
           marginBottom: '12px',
         }}
       >
-        <div className="admin-filter-pills">
+        <div className="gk-facette-liste">
           {(['pokemon', 'onepiece'] as const).map(u => (
             <button
               key={u}
@@ -134,7 +134,7 @@ export default function SetsBrowser({ sets }: { sets: SetRow[] }) {
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Filtrer par code, nom ou série…"
-            className="admin-input"
+            className="gk-input"
             style={{ flex: 1, minWidth: '220px' }}
           />
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -152,7 +152,7 @@ export default function SetsBrowser({ sets }: { sets: SetRow[] }) {
         </div>
       </div>
 
-      <div className="admin-table">
+      <div className="gk-panneau">
         <div
           style={{
             display: 'grid',
@@ -163,7 +163,7 @@ export default function SetsBrowser({ sets }: { sets: SetRow[] }) {
           }}
         >
           {['Code', 'Set', 'Série', 'Total', 'Stock', 'Sans prix', 'Sans photo', ''].map((h, i) => (
-            <span key={i} className="admin-table-label" style={{ textAlign: i >= 3 && i <= 6 ? 'right' : 'left' }}>
+            <span key={i} className="gk-label" style={{ textAlign: i >= 3 && i <= 6 ? 'right' : 'left' }}>
               {h}
             </span>
           ))}
@@ -188,16 +188,16 @@ export default function SetsBrowser({ sets }: { sets: SetRow[] }) {
                 textDecoration: 'none',
               }}
             >
-              <span className="admin-cell mono" style={{ color: 'var(--amber)' }}>{s.code}</span>
-              <span className="admin-cell" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span className="gk-cell mono" style={{ color: 'var(--amber)' }}>{s.code}</span>
+              <span className="gk-cell" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {s.name_fr}
               </span>
-              <span className="admin-cell muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span className="gk-cell muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {s.serie_name ?? '—'}
               </span>
-              <span className="admin-cell muted" style={{ textAlign: 'right' }}>{s.total}</span>
+              <span className="gk-cell muted" style={{ textAlign: 'right' }}>{s.total}</span>
               <span
-                className="admin-cell"
+                className="gk-cell"
                 style={{ textAlign: 'right', color: s.avec_stock > 0 ? '#4ade80' : 'rgba(232,225,216,0.3)' }}
               >
                 {s.avec_stock}
@@ -205,14 +205,14 @@ export default function SetsBrowser({ sets }: { sets: SetRow[] }) {
               <span style={{ textAlign: 'right' }}>
                 {s.sans_prix > 0
                   ? <span className="ab ab-amber">{s.sans_prix}</span>
-                  : <span className="admin-cell muted">—</span>}
+                  : <span className="gk-cell muted">—</span>}
               </span>
               <span style={{ textAlign: 'right' }}>
                 {s.sans_photo > 0
                   ? <span className="ab ab-red">{s.sans_photo}</span>
-                  : <span className="admin-cell muted">—</span>}
+                  : <span className="gk-cell muted">—</span>}
               </span>
-              <span className="admin-cell muted" style={{ textAlign: 'right' }}>→</span>
+              <span className="gk-cell muted" style={{ textAlign: 'right' }}>→</span>
             </Link>
           ))
         )}

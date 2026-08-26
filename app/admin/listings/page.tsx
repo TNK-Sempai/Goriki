@@ -27,17 +27,17 @@ export default async function ListingsPage() {
   }))
 
   return (
-    <div>
-      <div className="admin-header-row">
+    <div className="gk-corps">
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">Listings</div>
-          <div className="admin-sub">Choisir un set pour saisir prix et stock</div>
+          <div className="gk-titre">Listings</div>
+          <div className="gk-eyebrow-texte">Choisir un set pour saisir prix et stock</div>
         </div>
       </div>
 
       {error && (
-        <div className="admin-alert">
-          <span className="admin-alert-dot" />
+        <div className="gk-vide">
+          <span className="gk-pastille" />
           Lecture des compteurs impossible : {error.message}
         </div>
       )}

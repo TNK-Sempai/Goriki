@@ -23,13 +23,15 @@ interface CardViewerProps {
   altText: string
   reference: string
   rarity?: string | null
+  /** Libellé de variante posé sur la scène — voir le rendu plus bas. */
+  variante?: string | null
   /** défauts enregistrés, en % de la surface du recto */
   defects?: { x: number; y: number; label: string }[]
 }
 
 const HOME = { rx: -5, ry: 16, zoom: 1 }
 
-export default function CardViewer({ frontUrl, backUrl, altText, reference, rarity, defects = [] }: CardViewerProps) {
+export default function CardViewer({ frontUrl, backUrl, altText, reference, rarity, variante, defects = [] }: CardViewerProps) {
   const [view, setView] = useState({ ...HOME, flipped: false })
   const [auto, setAuto] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -98,6 +100,17 @@ export default function CardViewer({ frontUrl, backUrl, altText, reference, rari
         <span className="data text-[10px] text-[rgba(232,225,216,0.5)]">{reference} · scan HD recto / verso</span>
         <span className="data text-[10px] text-amber">{view.flipped ? 'Verso' : 'Recto'}</span>
       </div>
+
+      {/* Étiquette de variante — même rôle et même classe que sur `ScanStage`,
+          mais posée sur la SCÈNE et non sur la carte : celle-ci pivote en 3D,
+          une étiquette embarquée se retrouverait en miroir au verso.
+          (Ce composant n'est atteint que pour une pièce ≥ 1 € disposant d'un
+          vrai scan verso — `back_photo_url` est NULL partout à ce jour, il est
+          donc inatteignable en production. Le badge y est quand même, pour
+          qu'il n'ait pas à être redécouvert le jour où un verso arrive.) */}
+      {variante && (
+        <span className="corner-tag pointer-events-none absolute bottom-5 left-6">{variante}</span>
+      )}
 
       <div
         ref={stageRef}

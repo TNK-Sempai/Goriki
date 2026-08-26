@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import type { Era } from '@/lib/catalogue/series'
+import { Pagination, sAbonnerParPage, lireParPageClient, parPageServeur } from '@/components/ui/Pagination'
 import type { SetCardData } from './SetGrid'
 
 /**
@@ -11,8 +12,8 @@ import type { SetCardData } from './SetGrid'
  * Composition de la planche, dans l'ordre : grand titre d'univers à gauche,
  * champ de recherche aligné à droite sur la même ligne de base, rangée de
  * pilules de filtre, puis grille 3 colonnes de tuiles de set — chaque tuile
- * portant un ÉVENTAIL de cartes du set, pas un simple logo. Un bouton
- * « Voir tous les sets » ferme la section tant que tout n'est pas déplié.
+ * portant un ÉVENTAIL de cartes du set, pas un simple logo. La liste est
+ * PAGINÉE (30 ou 50 par page) : Pokémon compte 185 sets.
  *
  * Remplace la landing « bento » précédente (hero + gros bloc Singles + grille
  * asymétrique de catégories de scellé) : cette composition-là ne figure nulle
@@ -23,7 +24,15 @@ import type { SetCardData } from './SetGrid'
  * sur la liste fictive dessinée dans l'image.
  */
 
-const PAGE = 9
+/**
+ * Cet écran garde ses filtres en ÉTAT LOCAL — ils ne sont pas dans l'URL, et
+ * les y porter sortirait du périmètre. La pagination se branche donc sur ce même
+ * état local, avec le MÊME composant `<Pagination>` que les grilles pilotées par
+ * l'URL : une seule apparence sur tout le site.
+ *
+ * Le choix 30/50, lui, vient du cookie partagé — la préférence est donc commune
+ * à toutes les grilles, quel que soit leur mode de pilotage.
+ */
 
 function SetTile({ set, basePath }: { set: SetCardData; basePath: string }) {
   const preview = set.preview ?? []
@@ -57,7 +66,10 @@ function SetTile({ set, basePath }: { set: SetCardData; basePath: string }) {
             )
           })
         ) : (
-          <span className="data text-[9px] text-ink-55">Aucune pièce en vente</span>
+          // Le stock est déjà dit par le compteur « N dispo » sous la tuile. Ici,
+          // une tuile sans visuel signifie que la SOURCE n'a fourni aucune image
+          // pour ce set — 72 sets Pokémon sont dans ce cas.
+          <span className="data text-[9px] text-ink-55">Visuels non importés</span>
         )}
       </div>
 
@@ -91,7 +103,12 @@ export default function SetsIndex({
 }) {
   const [filter, setFilter] = useState<string>('*')
   const [query, setQuery] = useState('')
-  const [expanded, setExpanded] = useState(false)
+  const [page, setPage] = useState(1)
+  // Le « par page » vient du cookie partagé avec toutes les autres grilles.
+  // `useSyncExternalStore` évite à la fois la divergence d'hydratation et le
+  // `setState` dans un effet : le serveur rend le défaut, le client adopte le
+  // cookie dès le premier rendu, et tout changement re-notifie les abonnés.
+  const parPage = useSyncExternalStore(sAbonnerParPage, lireParPageClient, parPageServeur)
 
   // Pilules : « Tous » + les séries réellement présentes, les plus fournies
   // d'abord — c'est l'ordre que suit la planche (principaux sets en tête).
@@ -108,7 +125,11 @@ export default function SetsIndex({
       .filter(s => !q || s.name_fr.toLowerCase().includes(q) || s.code.toLowerCase().includes(q))
   }, [eras, filter, query])
 
-  const shown = expanded ? sets : sets.slice(0, PAGE)
+  // Découpage en dernier : `sets` est déjà filtré par série et par recherche.
+  const pages = Math.max(1, Math.ceil(sets.length / parPage))
+  const pageSure = Math.min(page, pages)
+  const debut = (pageSure - 1) * parPage
+  const shown = sets.slice(debut, debut + parPage)
 
   return (
     <>
@@ -117,7 +138,7 @@ export default function SetsIndex({
         <div className="relative w-full sm:w-[300px]">
           <input
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => { setQuery(e.target.value); setPage(1) }}
             placeholder="Rechercher un set…"
             aria-label="Rechercher un set"
             className="field pr-9"
@@ -135,7 +156,7 @@ export default function SetsIndex({
 
       {series.length > 1 && (
         <div className="mb-7 flex flex-wrap gap-2 lg:mb-9">
-          <button type="button" className="pill" data-active={filter === '*'} onClick={() => { setFilter('*'); setExpanded(false) }}>
+          <button type="button" className="pill" data-active={filter === '*'} onClick={() => { setFilter('*'); setPage(1) }}>
             Tous
           </button>
           {series.map(s => (
@@ -144,7 +165,7 @@ export default function SetsIndex({
               type="button"
               className="pill"
               data-active={filter === s.name}
-              onClick={() => { setFilter(s.name); setExpanded(false) }}
+              onClick={() => { setFilter(s.name); setPage(1) }}
             >
               {s.name}
             </button>
@@ -168,17 +189,24 @@ export default function SetsIndex({
         </div>
       )}
 
-      {sets.length > PAGE && (
-        <div className="mt-8 flex justify-center lg:mt-10">
-          <button
-            type="button"
-            onClick={() => setExpanded(x => !x)}
-            className="rounded-control border border-[rgba(26,22,17,0.16)] bg-[rgba(255,255,255,0.6)] px-7 py-3.5 font-mono text-[10px] uppercase tracking-[0.14em] text-ink transition-colors hover:bg-white"
-          >
-            {expanded ? 'Réduire' : `Voir tous les sets (${sets.length})`}
-          </button>
-        </div>
-      )}
+      {/* Remplace le bouton « Voir tous les sets », qui dépliait les 185 sets
+          Pokémon d'un coup — 185 tuiles portant chacune un éventail de 3
+          visuels, soit 555 images sur une seule page. */}
+      <Pagination
+        page={pageSure}
+        pages={pages}
+        total={sets.length}
+        parPage={parPage}
+        premier={sets.length === 0 ? 0 : debut + 1}
+        dernier={Math.min(debut + parPage, sets.length)}
+        unite="set"
+        onChange={({ page: p }) => {
+          // Le « par page » n'est pas repris ici : `<Pagination>` l'a déjà écrit
+          // dans le cookie, et `useSyncExternalStore` le relit aussitôt.
+          if (p !== undefined) setPage(p)
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        }}
+      />
     </>
   )
 }

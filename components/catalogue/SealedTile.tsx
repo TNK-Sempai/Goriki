@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { formatPrice } from '@/lib/utils'
+import { prixOuEpuise } from '@/lib/utils'
 
 export interface SealedProduct {
   id: string
@@ -53,8 +53,13 @@ export default function SealedTile({ product }: { product: SealedProduct }) {
         <span className="line-clamp-2 text-[13px] font-semibold leading-tight text-ink">{product.name}</span>
         <span className="data mt-1.5 line-clamp-1 text-[9px]">{product.meta}</span>
         <div className="mt-auto flex items-baseline justify-between gap-2 pt-3">
-          <span className="text-[16px] font-semibold text-ink">{formatPrice(product.price)}</span>
-          <span className="data text-[9px]">{soldOut ? 'Épuisé' : `${product.quantity} en stock`}</span>
+          <span className="text-[16px] font-semibold text-ink">{prixOuEpuise(product.price)}</span>
+          {/* Le prix porte déjà « Épuisé » quand rien n'est chiffré : cette
+              ligne ne redit le mot que si l'article a un prix mais plus de
+              stock, ce qui est une information différente. */}
+          <span className="data text-[9px]">
+            {product.price > 0 ? (soldOut ? 'Épuisé' : `${product.quantity} en stock`) : 'Non chiffré'}
+          </span>
         </div>
       </div>
     </Link>

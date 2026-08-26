@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { fetchSets, fetchSet } from '@/lib/tcgdex'
-import { importPokemonSet, buildCodeToIdMap, type LogFn } from '@/lib/import/pokemon'
+import { importPokemonSet, buildCodeToIdMap, filtrerSetsImportables, type LogFn } from '@/lib/import/pokemon'
 
 // Le bulk import peut traiter 190+ sets × pause entre chaque → dépasse les 60s par défaut Vercel
 export const maxDuration = 300 // 5 min — Vercel Pro
@@ -51,7 +51,9 @@ export async function GET() {
   const { response } = await requireAdmin()
   if (response) return response
 
-  const sets = await fetchSets()
+  // La liste proposée à l'admin est filtrée elle aussi : un set qu'on refuse
+  // d'importer n'a aucune raison d'être offert au clic.
+  const sets = await filtrerSetsImportables(await fetchSets())
   return NextResponse.json(sets)
 }
 
@@ -105,7 +107,7 @@ async function handleBulkImport(supabase: SupabaseClient) {
 
   try {
     log('[START] Récupération de tous les sets TCGdex...')
-    const allSets = await fetchSets()
+    const allSets = await filtrerSetsImportables(await fetchSets(), log)
     log(`[TCGdex] ${allSets.length} set(s) trouvé(s)`)
 
     for (const setMeta of allSets) {
@@ -158,9 +160,13 @@ async function handleSync(supabase: SupabaseClient) {
     if (existingError) throw new Error(`Lecture sets existants : ${existingError.message}`)
 
     const existingCodes = new Set((existingSets ?? []).map(s => s.code))
-    const allSets = await fetchSets()
+    // Filtré une seule fois, et utilisé pour les DEUX usages ci-dessous. Un set
+    // resté en base alors que sa série est exclue remontera donc en « id API non
+    // résolu » plutôt que de se faire recompléter en douce : c'est le signal
+    // voulu, pas une régression.
+    const allSets = await filtrerSetsImportables(await fetchSets(), log)
     // FIX : plus de `existingSet.code.toLowerCase()` — l'id API n'est pas déductible du
-    // code de façon fiable (15 sets TCG Pocket case-sensitive : A1, A1a, A2, ...). On
+    // code de façon fiable (certains ids sont case-sensitive : A1, A1a, A2, ...). On
     // résout via une map construite depuis la liste réelle des sets TCGdex.
     const codeToId = buildCodeToIdMap(allSets)
     log(`[TCGdex] ${allSets.length} set(s) disponible(s) · ${existingCodes.size} déjà en BDD`)

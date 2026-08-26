@@ -39,36 +39,64 @@ export async function getSeriesByEra(
 
   // Cartes réellement en vente, avec leur set et leur prix. Filtré côté base :
   // seules les lignes en stock remontent.
-  const { data: live } = await supabase
-    .from(t.listings)
-    .select(`price, quantity, image_api, front_photo_url, cards:${t.cards}!inner(set_id, image_url)`)
+  // Depuis ARCHI-01, l'exemplaire Pokémon rejoint la carte par sa VARIANTE ;
+  // One Piece garde le chemin direct. Seul le chemin de jointure change : on ne
+  // lit ici que le prix et le set, pour les compteurs.
+  const { data: live } = await (universe === 'pokemon'
+    ? supabase
+        .from('pokemon_listings')
+        .select('price, quantity, pokemon_card_variants!inner(pokemon_cards!inner(set_id))')
+    : supabase
+        .from(t.listings)
+        .select(`price, quantity, cards:${t.cards}!inner(set_id)`)
+  )
     .eq('is_active', true)
     .gt('quantity', 0)
     .gt('price', 0)
     .order('price', { ascending: false })
     .limit(10000)
 
-  // `preview` : jusqu'a 3 visuels par set, pris sur les pieces REELLEMENT en
-  // vente et les plus valorisees d'abord. La planche dessine un eventail de
-  // cartes dans chaque tuile de set — sans stock, la tuile n'invente rien.
-  const stock = new Map<string, { n: number; min: number; preview: string[] }>()
-  for (const row of (live ?? []) as unknown as {
-    price: number
-    image_api: string | null
-    front_photo_url: string | null
-    cards: { set_id: string; image_url: string | null } | { set_id: string; image_url: string | null }[]
-  }[]) {
-    const card = Array.isArray(row.cards) ? row.cards[0] : row.cards
-    if (!card) continue
-    const img = row.front_photo_url ?? row.image_api ?? card.image_url
-    const cur = stock.get(card.set_id)
+  // Compteurs de stock uniquement : les VISUELS de la tuile ne viennent plus
+  // d'ici (voir `apercus` plus bas). Les tirer des pièces en vente vidait la
+  // tuile dès qu'un set n'avait pas de stock — c'est-à-dire presque partout.
+  // Les jointures PostgREST peuvent remonter un objet ou un tableau selon la
+  // cardinalité déduite : on aplatit systématiquement.
+  const seul = (v: unknown): Record<string, unknown> | undefined =>
+    (Array.isArray(v) ? v[0] : v) as Record<string, unknown> | undefined
+
+  /** Pokémon : listing → variante → carte. One Piece : listing → carte. */
+  const setDeLaLigne = (row: Record<string, unknown>): string | undefined => {
+    const carte =
+      universe === 'pokemon'
+        ? seul(seul(row.pokemon_card_variants)?.pokemon_cards)
+        : seul(row.cards)
+    return carte?.set_id as string | undefined
+  }
+
+  const stock = new Map<string, { n: number; min: number }>()
+  for (const row of (live ?? []) as unknown as Record<string, unknown>[]) {
+    const setId = setDeLaLigne(row)
+    if (!setId) continue
+    const prix = Number(row.price ?? 0)
+    const cur = stock.get(setId)
     if (cur) {
       cur.n += 1
-      cur.min = Math.min(cur.min, row.price)
-      if (img && cur.preview.length < 3) cur.preview.push(img)
+      cur.min = Math.min(cur.min, prix)
     } else {
-      stock.set(card.set_id, { n: 1, min: row.price, preview: img ? [img] : [] })
+      stock.set(setId, { n: 1, min: prix })
     }
+  }
+
+  // Trois cartes représentatives par set, prises dans le CATALOGUE et non dans
+  // le stock : une tuile montre toujours de quoi le set est fait, même quand
+  // rien n'est à vendre (fonction `apercus_de_set`, migration 0031).
+  const { data: apercusBruts } = await supabase.rpc('apercus_de_set', { p_universe: universe })
+
+  const apercus = new Map<string, string[]>()
+  for (const a of (apercusBruts ?? []) as { set_id: string; image_url: string }[]) {
+    const liste = apercus.get(a.set_id)
+    if (liste) liste.push(a.image_url)
+    else apercus.set(a.set_id, [a.image_url])
   }
 
   const eras = new Map<string, SetCardData[]>()
@@ -88,7 +116,7 @@ export async function getSeriesByEra(
       inStock: s?.n ?? 0,
       total: raw.card_count ?? 0,
       priceFrom: s?.min ?? null,
-      preview: s?.preview ?? [],
+      preview: apercus.get(raw.id) ?? [],
     }
     const bucket = eras.get(era)
     if (bucket) bucket.push(card)

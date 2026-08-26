@@ -15,22 +15,22 @@ export default function ClientsPage() {
   }, [])
 
   return (
-    <div>
-      <div className="admin-header-row">
+    <div className="gk-corps">
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">Clients</div>
-          <div className="admin-sub">{clients.length} compte{clients.length > 1 ? 's' : ''}</div>
+          <div className="gk-titre">Clients</div>
+          <div className="gk-eyebrow-texte">{clients.length} compte{clients.length > 1 ? 's' : ''}</div>
         </div>
       </div>
 
-      <div className="admin-table">
-        <div className="admin-col-heads" style={{ display: 'grid', gridTemplateColumns: '1fr 130px 80px 70px 70px 60px' }}>
-          <span className="admin-col-head">Email</span>
-          <span className="admin-col-head">Nom</span>
-          <span className="admin-col-head">Crédit</span>
-          <span className="admin-col-head">Rôle</span>
-          <span className="admin-col-head">Inscrit</span>
-          <span className="admin-col-head"></span>
+      <div className="gk-panneau">
+        <div className="gk-heads" style={{ display: 'grid', gridTemplateColumns: '1fr 130px 80px 70px 70px 60px' }}>
+          <span className="gk-label">Email</span>
+          <span className="gk-label">Nom</span>
+          <span className="gk-label">Crédit</span>
+          <span className="gk-label">Rôle</span>
+          <span className="gk-label">Inscrit</span>
+          <span className="gk-label"></span>
         </div>
         {loading ? (
           <div style={{ padding: '24px 14px', fontSize: '11px', color: 'var(--muted)' }}>Chargement…</div>
@@ -40,17 +40,17 @@ export default function ClientsPage() {
           <Link
             key={c.id}
             href={`/admin/clients/${c.id}`}
-            className="admin-row"
+            className="gk-row"
             style={{ gridTemplateColumns: '1fr 130px 80px 70px 70px 60px' }}
           >
-            <span className="admin-cell">{c.email}</span>
-            <span className="admin-cell">{c.full_name ?? '—'}</span>
-            <span className="admin-cell muted">{c.store_credit?.toFixed(2)} €</span>
-            <span className="admin-cell">
+            <span className="gk-cell">{c.email}</span>
+            <span className="gk-cell">{c.full_name ?? '—'}</span>
+            <span className="gk-cell muted">{c.store_credit?.toFixed(2)} €</span>
+            <span className="gk-cell">
               <span className={`ab ${c.role === 'admin' ? 'ab-amber' : 'ab-muted'}`}>{c.role}</span>
             </span>
-            <span className="admin-cell muted">{new Date(c.created_at).toLocaleDateString('fr-FR')}</span>
-            <span className="admin-cell" style={{ color: 'rgba(212,144,12,0.5)', fontSize: '10px' }}>Voir →</span>
+            <span className="gk-cell muted">{new Date(c.created_at).toLocaleDateString('fr-FR')}</span>
+            <span className="gk-cell" style={{ color: 'rgba(212,144,12,0.5)', fontSize: '10px' }}>Voir →</span>
           </Link>
         ))}
       </div>

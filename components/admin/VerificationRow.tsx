@@ -52,30 +52,30 @@ export default function VerificationRow({
   return (
     <div style={{ borderBottom: '1px solid rgba(232,225,216,0.1)', padding: '14px 0', display: 'grid', gridTemplateColumns: '1fr 110px 130px 1fr', gap: '12px', alignItems: 'center' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
-        <span className="admin-cell">{email}</span>
-        {reason && <span className="admin-cell muted">Motif : {reason}</span>}
+        <span className="gk-cell">{email}</span>
+        {reason && <span className="gk-cell muted">Motif : {reason}</span>}
       </div>
 
-      <span className="admin-cell muted">
+      <span className="gk-cell muted">
         {stamp ? new Date(stamp).toLocaleDateString('fr-FR') : '—'}
       </span>
 
-      <span className="admin-cell mono" style={{ color: STATUS_TONE[status] }}>
+      <span className="gk-cell mono" style={{ color: STATUS_TONE[status] }}>
         {status === 'pending' ? 'EN ATTENTE' : status === 'verified' ? 'VÉRIFIÉE' : 'REFUSÉE'}
       </span>
 
       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
-        {feedback && <span className="admin-cell mono" style={{ color: 'oklch(0.62 0.12 150)' }}>{feedback}</span>}
-        {error && <span className="admin-cell mono" style={{ color: '#ef4444' }}>{error}</span>}
-        <button onClick={open} disabled={!documentPath} className="btn btn-outline btn-sm">
+        {feedback && <span className="gk-cell mono" style={{ color: 'oklch(0.62 0.12 150)' }}>{feedback}</span>}
+        {error && <span className="gk-cell mono" style={{ color: '#ef4444' }}>{error}</span>}
+        <button onClick={open} disabled={!documentPath} className="gk-btn">
           Document
         </button>
         {status === 'pending' && (
           <>
-            <button onClick={() => decide('verified')} disabled={busy !== null} className="btn btn-primary btn-sm">
+            <button onClick={() => decide('verified')} disabled={busy !== null} className="gk-btn" data-primaire="true">
               {busy === 'verified' ? '…' : 'Approuver'}
             </button>
-            <button onClick={() => decide('rejected')} disabled={busy !== null} className="btn btn-outline btn-sm">
+            <button onClick={() => decide('rejected')} disabled={busy !== null} className="gk-btn">
               {busy === 'rejected' ? '…' : 'Rejeter'}
             </button>
           </>

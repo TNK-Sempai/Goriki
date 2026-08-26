@@ -1,0 +1,600 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   BACK-OFFICE GORIKI — système de classes
+   Traduit de `docs/design-reference/Goriki Admin.dc (2).html`.
+
+   La maquette est un export Claude Design : tout y est en styles INLINE avec
+   un templating `{{ }}`. On la TRADUIT en classes, on ne la recopie pas — sinon
+   chaque écran redéfinirait sa propre typographie et la refonte se déferait au
+   premier ajout.
+
+   Portée : `.gk` et ses descendants, montés par `app/admin/layout.tsx`.
+   Ce fichier remplace les anciens vocabulaires `.admin-*` et `.pgl-*`.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  .gk {
+    --gk-bg: #09090e;
+    --gk-panel: #0e0e15;
+    --gk-rail: #0b0b11;
+    --gk-hover: #13131c;
+    --gk-line: rgba(255, 255, 255, 0.06);
+    --gk-line-faible: rgba(255, 255, 255, 0.04);
+    --gk-texte: #ede8df;
+    --gk-doux: #bdb8b0;
+    --gk-gris: #9c9590;
+    --gk-muet: #6b665f;
+    --gk-accent: #c8f060;
+    --gk-accent-clair: #dcf78f;
+    --gk-rouge: #ff7a68;
+    --gk-violet: #c88cff;
+
+    /* ── Jetons du site public, réécrits pour le sous-arbre admin ────────
+       Une quinzaine d'écrans référencent encore `--amber`, `--muted`,
+       `--surface-1` : sur le beige du site ce sont des repères, sur le noir
+       du back-office c'est l'ancienne palette qui perce à travers la refonte.
+       Les redéfinir ICI les fait tous basculer d'un coup — la cascade fait le
+       travail que quinze passes de sed auraient fait moins sûrement, et le
+       site public conserve intégralement les siens. Ce n'est pas de la dette :
+       c'est le point unique où les deux palettes se rencontrent.
+
+       `--radius-gk-sm` n'existait NULLE PART : la conversion en masse du
+       vocabulaire a renommé `--radius-admin-sm` jusque dans ses usages, sans
+       son point de définition. Onze `border-radius` retombaient donc
+       silencieusement à zéro. */
+    --radius-gk-sm: 4px;
+    --amber: var(--gk-accent);
+    --amber-light: var(--gk-accent-clair);
+    --muted: var(--gk-muet);
+    --cream: var(--gk-texte);
+    --surface-1: var(--gk-panel);
+    --surface-2: var(--gk-hover);
+    --bg: var(--gk-bg);
+
+    /* ── DÉPENDANCE INVISIBLE — À NE PAS DÉFAIRE ────────────────────────
+       Cette coquille ne défile QUE parce que Lenis est exclu de `/admin`
+       (`PREFIXE_ADMIN`, `components/providers/LenisProvider.tsx`).
+
+       Le lissage pose sur `window` un écouteur `wheel` NON PASSIF qui appelle
+       `preventDefault()` : aucun conteneur interne ne reçoit alors la molette.
+       Mesuré au CDP sur cette coquille exacte, molette dispatchée en trois
+       points de l'écran — 1 écouteur → `.gk-main` défile de 0 px ; 0 écouteur
+       → 600 px. Rien ici ne le dit tout haut, d'où ces lignes : le jour où
+       quelqu'un remet Lenis sur l'admin, tout le back-office se fige.
+
+       `100dvh` et non `100vh` + `min-height: 780px` : mesuré à 700 px de
+       hauteur de fenêtre, le `min-height` l'emportait, la coquille faisait
+       780 px dans une fenêtre de 700, et les 80 px du bas — le pied du rail —
+       passaient sous la ligne de flottaison derrière un SECOND défilement, ce
+       que `overflow: hidden` interdisait justement d'atteindre. Sans lui, le
+       rail se replie proprement : `.gk-nav` porte déjà son propre défilement. */
+    position: relative;
+    display: flex;
+    height: 100dvh;
+    overflow: hidden;
+    background: var(--gk-bg);
+    color: var(--gk-texte);
+    font-family: var(--font-instrument), Helvetica, sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Fonds : grain + deux halos. Purement décoratifs, jamais cliquables. ── */
+  .gk-grain,
+  .gk-halo {
+    position: absolute;
+    pointer-events: none;
+  }
+  .gk-grain {
+    inset: 0;
+    z-index: 5;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .gk-halo { z-index: 0; border-radius: 50%; filter: blur(90px); }
+  .gk-halo-1 { top: -160px; left: 180px; width: 520px; height: 420px; background: rgba(200, 240, 96, 0.055); }
+  .gk-halo-2 { bottom: -220px; right: 60px; width: 560px; height: 440px; background: rgba(100, 180, 255, 0.045); }
+
+  /* ── Rail de navigation ─────────────────────────────────────────────── */
+  .gk-rail {
+    position: relative;
+    z-index: 2;
+    width: 244px;
+    flex: 0 0 244px;
+    display: flex;
+    flex-direction: column;
+    background: var(--gk-rail);
+    border-right: 1px solid var(--gk-line);
+  }
+  .gk-marque {
+    padding: 26px 22px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-bottom: 1px solid var(--gk-line);
+  }
+  .gk-marque-nom {
+    font-family: var(--font-bebas), sans-serif;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+  }
+  .gk-pastille { width: 7px; height: 7px; border-radius: 50%; background: var(--gk-accent); }
+
+  .gk-nav { flex: 1; overflow-y: auto; padding: 18px 12px 16px; display: flex; flex-direction: column; gap: 22px; }
+  .gk-nav-groupe { display: flex; flex-direction: column; gap: 3px; }
+  /* Le numéro de groupe est un repère de progression, pas un ornement :
+     il donne une place stable à chaque rubrique dans un outil qu'on rouvre
+     des dizaines de fois par semaine. */
+  .gk-nav-titre {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px 9px;
+    font-family: var(--font-dmmono), monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--gk-muet);
+  }
+  .gk-nav-titre em { color: var(--gk-accent); font-style: normal; }
+  .gk-nav-titre i { flex: 1; height: 1px; background: var(--gk-line); }
+
+  .gk-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    cursor: pointer;
+    border-radius: 7px;
+    padding: 8px 11px;
+    font-size: 13.5px;
+    background: none;
+    color: var(--gk-gris);
+    text-decoration: none;
+    transition: background 160ms, color 160ms;
+  }
+  .gk-nav-item:hover { background: var(--gk-hover); color: var(--gk-texte); }
+  .gk-nav-item[data-active='true'] { background: var(--gk-hover); color: var(--gk-texte); font-weight: 500; }
+  .gk-nav-item[data-active='true'] .gk-nav-dot { background: var(--gk-accent); }
+  .gk-nav-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, 0.14); flex: 0 0 auto; }
+  .gk-nav-badge { font-family: var(--font-dmmono), monospace; font-size: 10px; letter-spacing: 0.06em; color: var(--gk-muet); }
+
+  .gk-rail-pied { padding: 16px 22px 20px; border-top: 1px solid var(--gk-line); display: flex; flex-direction: column; gap: 7px; }
+
+  /* ── Colonne principale ─────────────────────────────────────────────── */
+  /* `overflow-y: auto` et non `hidden` : un écran qui oublierait son conteneur
+     `.gk-corps` serait autrement TRONQUÉ en silence, sans même une barre pour
+     s'en apercevoir. Ici il défile, au pire avec un second scroller inoffensif.
+     Le filet vaut mieux que la panne muette. */
+  .gk-main { position: relative; z-index: 2; flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto; }
+  .gk-topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 22px;
+    padding: 26px 32px 20px;
+    border-bottom: 1px solid var(--gk-line);
+  }
+  .gk-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--font-dmmono), monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--gk-muet);
+  }
+  .gk-eyebrow span { width: 5px; height: 5px; border-radius: 50%; background: var(--gk-accent); flex: 0 0 auto; }
+  .gk-titre {
+    margin: 0;
+    font-family: var(--font-bebas), sans-serif;
+    font-size: 44px;
+    line-height: 0.9;
+    letter-spacing: 0.03em;
+  }
+
+  /* Le contenu défile ICI. Un seul conteneur défilant par écran : Lenis est
+     désactivé sur /admin (session 37), la molette atteint donc ce conteneur
+     sans clic préalable. */
+  .gk-corps { flex: 1; padding: 28px 32px 56px; min-height: 0; }
+
+  /* Colonne défilante indépendante — vue éditeur uniquement, où le
+     défilement séparé de chaque colonne EST le but. Pas de padding de page. */
+  .gk-colonne { overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+
+  /* ── Champs et boutons ──────────────────────────────────────────────── */
+  .gk-champ {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: var(--gk-panel);
+    border: 1px solid var(--gk-line);
+    border-radius: 8px;
+    padding: 9px 13px;
+  }
+  .gk-champ:focus-within { border-color: rgba(200, 240, 96, 0.35); }
+  .gk-champ input { flex: 1; background: none; border: 0; outline: none; font-size: 13px; min-width: 0; color: inherit; }
+  .gk-kbd {
+    font-family: var(--font-dmmono), monospace;
+    font-size: 9.5px;
+    color: var(--gk-muet);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 4px;
+    padding: 2px 5px;
+  }
+
+  .gk-btn {
+    border: 1px solid var(--gk-line);
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 8px 14px;
+    background: none;
+    color: var(--gk-doux);
+    font-family: var(--font-dmmono), monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: background 160ms, border-color 160ms, color 160ms;
+  }
+  .gk-btn:hover { border-color: rgba(255, 255, 255, 0.16); color: var(--gk-texte); }
+  .gk-btn[data-primaire='true'] { background: var(--gk-accent); border-color: var(--gk-accent); color: #0b0b11; padding: 10px 18px; }
+  .gk-btn[data-primaire='true']:hover { background: var(--gk-accent-clair); color: #0b0b11; }
+  .gk-btn[data-danger='true'] { border-color: rgba(255, 122, 104, 0.4); color: var(--gk-rouge); }
+  .gk-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ── Barre de facettes ──────────────────────────────────────────────── */
+  /* Patron central de l'outil : les compteurs sont AFFICHÉS, jamais cachés
+     dans un menu. Lire « NORMALE 120 · REVERSE 44 » avant de filtrer est ce
+     qui rend l'anomalie visible. */
+  .gk-facettes {
+    border: 1px solid var(--gk-line);
+    border-radius: 12px;
+    background: var(--gk-panel);
+    padding: 4px 16px;
+    margin-bottom: 20px;
+  }
+  .gk-facette-ligne {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--gk-line-faible);
+  }
+  .gk-facette-ligne:last-child { border-bottom: none; }
+  .gk-facette-label {
+    flex: 0 0 78px;
+    padding-top: 5px;
+    font-family: var(--font-dmmono), monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--gk-muet);
+  }
+  .gk-facette-liste { flex: 1; display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+  .gk-facette {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    cursor: pointer;
+    border: 1px solid var(--gk-line);
+    background: none;
+    border-radius: 6px;
+    padding: 4px 9px;
+    font-family: var(--font-dmmono), monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gk-gris);
+  }
+  .gk-facette:hover { border-color: rgba(200, 240, 96, 0.35); }
+  .gk-facette b { font-size: 10.5px; font-weight: 500; color: var(--gk-texte); }
+  .gk-facette[data-active='true'] { border-color: var(--gk-accent); color: var(--gk-accent); background: rgba(200, 240, 96, 0.07); }
+  .gk-facette[data-active='true'] b { color: var(--gk-accent); }
+  .gk-facette-note {
+    flex: 0 0 auto;
+    padding-top: 5px;
+    font-family: var(--font-dmmono), monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gk-muet);
+  }
+
+  /* ── Panneaux et tables ─────────────────────────────────────────────── */
+  .gk-panneau { border: 1px solid var(--gk-line); border-radius: 12px; background: var(--gk-panel); overflow: hidden; }
+  .gk-panneau-tete {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--gk-line);
+  }
+  .gk-label {
+    font-family: var(--font-dmmono), monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--gk-muet);
+  }
+  .gk-heads { display: grid; gap: 12px; padding: 9px 16px; border-bottom: 1px solid var(--gk-line); }
+  .gk-row {
+    display: grid;
+    gap: 12px;
+    align-items: center;
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--gk-line-faible);
+    font-size: 12.5px;
+    text-decoration: none;
+    color: inherit;
+  }
+  .gk-row:last-child { border-bottom: none; }
+  .gk-row[data-cliquable='true'] { cursor: pointer; }
+  .gk-row[data-cliquable='true']:hover { background: rgba(200, 240, 96, 0.03); }
+  .gk-row[data-active='true'] { background: rgba(200, 240, 96, 0.07); }
+  /* ── En-tête de bloc du catalogue ────────────────────────────────────
+     Une BARRE, pas une carte : le bloc regroupe des lignes de table, il ne
+     doit pas se présenter comme un panneau de plus. D'où le fond légèrement
+     relevé, le filet plein dessus, et la même gouttière de 16 px que
+     `.gk-row` — les codes de set restent alignés sous le nom du bloc.
+
+     C'est un vrai `<button>` : replier un bloc doit se faire au clavier
+     comme à la souris, et `aria-expanded` dit son état aux lecteurs d'écran. */
+  .gk-bloc {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 16px;
+    border: 0;
+    border-top: 1px solid var(--gk-line);
+    border-bottom: 1px solid var(--gk-line);
+    background: rgba(255, 255, 255, 0.022);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+  }
+  .gk-bloc:hover { background: rgba(200, 240, 96, 0.045); }
+  .gk-bloc-chevron { color: var(--gk-accent); font-size: 10px; width: 10px; flex: 0 0 auto; }
+  .gk-bloc-nom {
+    font-family: var(--font-bebas), sans-serif;
+    font-size: 17px;
+    letter-spacing: 0.045em;
+    color: var(--gk-texte);
+  }
+  .gk-bloc-periode,
+  .gk-bloc-compte,
+  .gk-bloc-avancement {
+    font-family: var(--font-dmmono), monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--gk-muet);
+  }
+  /* L'avancement est poussé à droite : c'est ce qu'on vient lire en balayant
+     la colonne pour savoir où le nettoyage en est. */
+  .gk-bloc-avancement { margin-left: auto; color: var(--gk-gris); }
+
+  .gk-mono { font-family: var(--font-dmmono), monospace; font-size: 11px; letter-spacing: 0.06em; }
+  .gk-dim { color: var(--gk-muet); }
+  .gk-gris { color: var(--gk-gris); }
+
+  /* ── Indicateurs chiffrés ───────────────────────────────────────────── */
+  .gk-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .gk-kpi { border: 1px solid var(--gk-line); border-radius: 12px; background: var(--gk-panel); padding: 16px 18px; display: flex; flex-direction: column; gap: 7px; }
+  .gk-kpi-label { font-family: var(--font-dmmono), monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--gk-muet); }
+  .gk-kpi-val { font-family: var(--font-bebas), sans-serif; font-size: 40px; line-height: 0.85; letter-spacing: 0.02em; }
+  .gk-kpi-val[data-ton='accent'] { color: var(--gk-accent); }
+  .gk-kpi-val[data-ton='muet'] { color: var(--gk-muet); }
+  .gk-kpi-sub { font-size: 11px; color: var(--gk-gris); }
+
+  /* ── Étiquettes d'état ──────────────────────────────────────────────── */
+  .gk-tag {
+    font-family: var(--font-dmmono), monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 2px 7px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    display: inline-block;
+    white-space: nowrap;
+  }
+  .gk-tag[data-ton='accent'] { color: var(--gk-accent); border-color: rgba(200, 240, 96, 0.28); background: rgba(200, 240, 96, 0.08); }
+  .gk-tag[data-ton='rouge'] { color: var(--gk-rouge); border-color: rgba(255, 122, 104, 0.28); background: rgba(255, 122, 104, 0.07); }
+  .gk-tag[data-ton='violet'] { color: var(--gk-violet); border-color: rgba(200, 140, 255, 0.28); background: rgba(200, 140, 255, 0.07); }
+  .gk-tag[data-ton='muet'] { color: var(--gk-muet); border-color: var(--gk-line); }
+
+  /* ── Grille de vignettes ────────────────────────────────────────────── */
+  .gk-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 9px; }
+  .gk-vignette {
+    border: 1px solid var(--gk-line);
+    border-radius: 8px;
+    padding: 6px;
+    cursor: pointer;
+    background: var(--gk-panel);
+    text-align: left;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .gk-vignette:hover { border-color: rgba(200, 240, 96, 0.3); }
+  .gk-vignette[data-active='true'] { border-color: var(--gk-accent); }
+  .gk-vignette img { width: 100%; aspect-ratio: 2.5 / 3.5; object-fit: cover; display: block; border-radius: 4px; }
+  .gk-vignette-vide { width: 100%; aspect-ratio: 2.5 / 3.5; display: block; border-radius: 4px; background: #111119; }
+
+  /* ── Panneau latéral d'édition ──────────────────────────────────────── */
+  .gk-tiroir {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(430px, 92vw);
+    background: var(--gk-rail);
+    border-left: 1px solid var(--gk-line);
+    z-index: 60;
+    overflow-y: auto;
+    padding: 22px;
+  }
+  /* `gap` 4 → 6 et `margin-bottom` 13 → 17 : dans l'éditeur de variantes, dix
+     de ces blocs s'enchaînent dans une colonne de 340 px, et l'étiquette
+     collait à son contrôle autant que le bloc au suivant — rien ne séparait
+     donc un champ du champ d'à côté. L'écart entre blocs doit rester
+     nettement plus grand que l'écart interne, sinon la colonne se lit comme
+     une seule liste continue. */
+  .gk-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 17px; }
+  .gk-input {
+    background: #06060a;
+    border: 1px solid var(--gk-line);
+    color: var(--gk-texte);
+    font-family: var(--font-dmmono), monospace;
+    font-size: 11.5px;
+    padding: 7px 9px;
+    border-radius: 6px;
+    width: 100%;
+  }
+  .gk-input:focus { outline: none; border-color: rgba(200, 240, 96, 0.45); }
+  .gk-input[data-verrouille='true'] { border-color: rgba(200, 240, 96, 0.32); }
+  .gk-aide { font-size: 10px; line-height: 1.5; color: var(--gk-muet); }
+
+  /* ── Histogramme du dashboard ───────────────────────────────────────── */
+  .gk-barres { display: flex; align-items: flex-end; gap: 10px; height: 150px; padding: 0 4px; }
+  .gk-barre { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; }
+  .gk-barre-fut { width: 100%; border-radius: 4px 4px 0 0; background: rgba(200, 240, 96, 0.22); }
+  .gk-barre-fut[data-ton='accent'] { background: var(--gk-accent); }
+  .gk-barre-label {
+    font-family: var(--font-dmmono), monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gk-muet);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  /* ── État vide ──────────────────────────────────────────────────────── */
+  /* Un écran vide DIT pourquoi il est vide et ce qu'il faut faire — sinon on
+     ne sait pas distinguer « rien à afficher » de « c'est cassé ». */
+  .gk-vide {
+    border: 1px dashed var(--gk-line);
+    border-radius: 12px;
+    padding: 46px 32px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .gk-vide-titre { font-family: var(--font-bebas), sans-serif; font-size: 26px; letter-spacing: 0.04em; }
+  .gk-vide-texte { font-size: 12.5px; color: var(--gk-gris); max-width: 46ch; line-height: 1.6; }
+  .gk-serif { font-family: var(--font-dmserif), Georgia, serif; font-style: italic; }
+  /* ── Reliquat du vocabulaire catalogue, absorbé ici ─────────────────── */
+  .gk-verrou { font-size: 10px; color: var(--gk-accent); letter-spacing: 0.06em; }
+  .gk-vignette-num { font-family: var(--font-dmmono), monospace; font-size: 9px; color: var(--gk-muet); letter-spacing: 0.08em; }
+  .gk-vignette-nom { font-size: 10.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Écart base/attendu. Deux natures, deux traitements : un sous-bloc n'est
+     PAS une anomalie, le peindre en rouge ferait crier au loup sur 7 sets
+     sains et on cesserait de lire la colonne. */
+  .gk-ecart { font-family: var(--font-dmmono), monospace; font-size: 10px; letter-spacing: 0.06em; }
+  .gk-ecart[data-etat='complet'] { color: var(--gk-muet); }
+  .gk-ecart[data-etat='manquant'] { color: var(--gk-rouge); }
+  .gk-ecart[data-etat='sous-blocs'] { color: var(--gk-gris); }
+
+  /* ── Badges hérités `.ab-*` ──────────────────────────────────────────
+     Trente-neuf usages dans le back-office, définis dans `components.css`
+     avec l'ambre du site public écrit en dur (`rgba(212,144,12,…)`) : c'est
+     ce qui faisait ressortir en orange la pastille active des commandes au
+     milieu d'un écran passé au vert-citron.
+
+     On les réaligne sur `.gk-tag` ici plutôt que de réécrire les 39 appels :
+     même couche `@layer components`, mais `.gk .ab-amber` (0,2,0) l'emporte
+     sur `.ab-amber` (0,1,0). Le site public garde ses badges tels quels. */
+  .gk .ab { font-family: var(--font-dmmono), monospace; font-size: 9px; letter-spacing: 0.12em; padding: 2px 7px; border-radius: 5px; }
+  .gk .ab-amber { background: rgba(200, 240, 96, 0.08); color: var(--gk-accent); border-color: rgba(200, 240, 96, 0.28); }
+  /* `ab-green` reste vert : sur ces écrans amber et green portent deux sens
+     distincts (mise en avant vs succès). Les fondre tous les deux dans
+     l'accent aurait effacé la distinction au lieu de la reteinter. */
+  .gk .ab-green { background: rgba(74, 222, 128, 0.09); color: #6ee7a0; border-color: rgba(74, 222, 128, 0.24); }
+  .gk .ab-muted { background: rgba(255, 255, 255, 0.04); color: var(--gk-muet); border-color: var(--gk-line); }
+  .gk .ab-red { background: rgba(255, 122, 104, 0.07); color: var(--gk-rouge); border-color: rgba(255, 122, 104, 0.28); }
+
+  /* ── Ascenseurs ──────────────────────────────────────────────────────
+     `globals.css` peint le pouce en ambre plein (`--amber`) : sur le fond
+     clair du site public c'est un repère, sur le noir du back-office ça
+     devient une barre fluo qui tire l'œil plus fort que les données.
+     On corrige ICI et pas dans `globals.css` — le périmètre est /admin, le
+     site public garde son ambre. `@layer components` passe après
+     `@layer base`, l'emport est acquis sans course à la spécificité. */
+  .gk ::-webkit-scrollbar { width: 8px; height: 8px; }
+  .gk ::-webkit-scrollbar-track { background: transparent; }
+  .gk ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.09);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  .gk ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); background-clip: content-box; }
+  .gk { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.14) transparent; }
+
+  /* ── Reliquat de l'ancien vocabulaire admin, absorbé ────────────────── */
+  /* Ces écrans gardent leur logique ; seule leur peau change. Les classes
+     ci-dessous existent pour qu'aucun d'eux ne reste orphelin pendant la
+     conversion — elles reprennent la même grammaire que le reste. */
+  .gk-cell { font-size: 12.5px; color: var(--gk-doux); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .gk-cell.muted, .gk-cell.mono { color: var(--gk-muet); }
+  .gk-cell.mono { font-family: var(--font-dmmono), monospace; font-size: 10.5px; letter-spacing: 0.06em; }
+  .gk-cell.amber { color: var(--gk-accent); }
+  .gk-sm { font-size: 11px; color: var(--gk-gris); }
+  .gk-sep { margin: 22px 0 12px; display: flex; align-items: center; gap: 10px; }
+  .gk-sep-line { flex: 1; height: 1px; background: var(--gk-line); }
+  /* En-tête des écrans qui n'utilisent pas <Topbar>.
+     Leur titre est souvent une expression (un nom de client, un set avec son
+     lien de retour) : les convertir en props aurait demandé quatorze chirurgies
+     JSX pour un résultat identique à l'écran. On les rend COLLANTES à la place
+     — `.gk-main` est le scrollport, donc `top: 0` accroche au bon endroit — et
+     on annule le padding de `.gk-corps` par des marges négatives pour que le
+     filet traverse toute la largeur, exactement comme `.gk-topbar`. */
+  .gk-entete-ecran {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: -28px -32px 22px;
+    padding: 26px 32px 20px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 22px;
+    background: var(--gk-bg);
+    border-bottom: 1px solid var(--gk-line);
+  }
+  .gk-entete-ecran .gk-titre { font-size: 44px; }
+  /* Ces écrans écrivent titre PUIS sous-titre ; la maquette place l'eyebrow
+     AU-DESSUS. `column-reverse` inverse l'ordre visuel sans toucher au JSX.
+     Le `:has()` cible le cas exact « titre suivi de l'eyebrow, et rien d'autre »
+     — deux écrans glissent un lien de retour avant le titre, et eux doivent
+     garder leur ordre naturel. */
+  .gk-entete-ecran > div:has(> .gk-titre:first-child + .gk-eyebrow-texte:last-child) {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 7px;
+  }
+  .gk-eyebrow-texte {
+    font-family: var(--font-dmmono), monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--gk-muet);
+  }
+
+}

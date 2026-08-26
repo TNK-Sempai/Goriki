@@ -25,19 +25,19 @@ export default function CommandesPage() {
   }, [])
 
   return (
-    <div>
-      <div className="admin-header-row">
+    <div className="gk-corps">
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">Commandes</div>
-          <div className="admin-sub">{orders.length} au total</div>
+          <div className="gk-titre">Commandes</div>
+          <div className="gk-eyebrow-texte">{orders.length} au total</div>
         </div>
-        <a href="/api/export/commandes" download className="btn btn-outline btn-sm">
+        <a href="/api/export/commandes" download className="gk-btn">
           ↓ Export CSV
         </a>
       </div>
 
       {/* Filtres statut */}
-      <div className="admin-filter-pills">
+      <div className="gk-facette-liste">
         {['Toutes', 'Payées', 'Expédiées', 'En attente', 'Annulées'].map(f => (
           <button
             key={f}
@@ -49,14 +49,14 @@ export default function CommandesPage() {
         ))}
       </div>
 
-      <div className="admin-table">
-        <div className="admin-col-heads" style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px 70px 60px' }}>
-          <span className="admin-col-head">#</span>
-          <span className="admin-col-head">Client</span>
-          <span className="admin-col-head">Total</span>
-          <span className="admin-col-head">Statut</span>
-          <span className="admin-col-head">Date</span>
-          <span className="admin-col-head"></span>
+      <div className="gk-panneau">
+        <div className="gk-heads" style={{ display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px 70px 60px' }}>
+          <span className="gk-label">#</span>
+          <span className="gk-label">Client</span>
+          <span className="gk-label">Total</span>
+          <span className="gk-label">Statut</span>
+          <span className="gk-label">Date</span>
+          <span className="gk-label"></span>
         </div>
         {loading ? (
           <div style={{ padding: '24px 14px', fontSize: '11px', color: 'var(--muted)' }}>Chargement…</div>
@@ -68,15 +68,15 @@ export default function CommandesPage() {
             <Link
               key={o.id}
               href={`/admin/commandes/${o.id}`}
-              className="admin-row"
+              className="gk-row"
               style={{ gridTemplateColumns: '90px 1fr 100px 100px 70px 60px' }}
             >
-              <span className="admin-cell mono">{o.id.slice(0, 8)}</span>
-              <span className="admin-cell">{o.profiles?.email ?? '—'}</span>
-              <span className="admin-cell amber">{o.total?.toFixed(2)} €</span>
-              <span className="admin-cell"><span className={`ab ${st.class}`}>{st.label}</span></span>
-              <span className="admin-cell muted">{new Date(o.created_at).toLocaleDateString('fr-FR')}</span>
-              <span className="admin-cell" style={{ color: 'rgba(212,144,12,0.5)', fontSize: '10px' }}>Voir →</span>
+              <span className="gk-cell mono">{o.id.slice(0, 8)}</span>
+              <span className="gk-cell">{o.profiles?.email ?? '—'}</span>
+              <span className="gk-cell amber">{o.total?.toFixed(2)} €</span>
+              <span className="gk-cell"><span className={`ab ${st.class}`}>{st.label}</span></span>
+              <span className="gk-cell muted">{new Date(o.created_at).toLocaleDateString('fr-FR')}</span>
+              <span className="gk-cell" style={{ color: 'rgba(212,144,12,0.5)', fontSize: '10px' }}>Voir →</span>
             </Link>
           )
         })}

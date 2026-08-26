@@ -3,8 +3,14 @@ import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import PageContainer from '@/components/layout/PageContainer'
 import CardGrid from '@/components/catalogue/CardGrid'
+import type { CardEntry, VariantOption } from '@/components/catalogue/CardTile'
 import SetToolbar from '@/components/catalogue/SetToolbar'
+import SetVisual from '@/components/catalogue/SetVisual'
+import { PaginationUrl } from '@/components/ui/Pagination'
+import { chargerVariantes, estVendable, type LigneVariante } from '@/lib/catalogue/variantes'
 import { createClient } from '@/lib/supabase/server'
+import { decouper, lirePage } from '@/lib/pagination'
+import { resoudreParPage } from '@/lib/pagination.server'
 import { UNIVERSES } from '@/lib/universe-theme'
 
 const TABLES = {
@@ -14,6 +20,7 @@ const TABLES = {
 
 const SORTS = [
   { value: 'num', label: 'N° croissant' },
+  { value: 'num-desc', label: 'N° décroissant' },
   { value: 'price-desc', label: 'Prix décroissant' },
   { value: 'price-asc', label: 'Prix croissant' },
   { value: 'name', label: 'A → Z' },
@@ -37,11 +44,12 @@ const CONDITIONS = ['Mint', 'Near Mint', 'Excellent', 'Light Played', 'Moderate 
  * supprimée : elle amputait la grille d'un quart de la largeur et ne figure
  * pas dans la planche.
  *
- * Divergence de données assumée : la planche montre un visuel produit (boîte
- * de booster) à droite du hero. `*_sets.image_url` est NULL pour la totalité
- * des sets en base — aucun visuel de set n'a été importé. On affiche donc un
- * éventail de cartes RÉELLES du set, à masse visuelle équivalente, plutôt que
- * de laisser un trou ou d'inventer une image.
+ * Le visuel du hero est désormais le LOGO du set (`SetVisual`), avec repli sur
+ * le symbole puis sur le cadre rayé. La substitution précédente — un éventail
+ * des cartes les plus chères en vente — avait été actée quand `*_sets.image_url`
+ * était NULL sur la totalité des sets. Ce n'est plus vrai : 121 des 185 sets
+ * Pokémon portent un logo et 147 un symbole. One Piece n'en a aucun (0 sur 30)
+ * et retombe donc sur le cadre.
  */
 export default async function SetDetail({
   universe,
@@ -61,84 +69,220 @@ export default async function SetDetail({
     return typeof v === 'string' ? v : undefined
   }
 
+  // `symbol_url` n'existe QUE sur `pokemon_sets` : le demander à `onepiece_sets`
+  // ferait échouer la requête entière. One Piece n'a de toute façon aucun visuel
+  // de set en base (0 sur 30), il retombera sur le cadre.
+  const colonnesSet =
+    'id, code, name_fr, card_count, release_date, serie_name, image_url' +
+    (universe === 'pokemon' ? ', symbol_url' : '')
+
   const { data: setData } = await supabase
     .from(t.sets)
-    .select('id, code, name_fr, card_count, release_date, serie_name, image_url')
+    .select(colonnesSet)
     .eq('id', setId)
-    .single()
+    .single<{
+      id: string
+      code: string
+      name_fr: string
+      card_count: number | null
+      release_date: string | null
+      serie_name: string | null
+      image_url: string | null
+      symbol_url?: string | null
+    }>()
 
   if (!setData) notFound()
 
-  const [{ data: rarities }, { data: variants }, dispo, { data: preview }] = await Promise.all([
+  // Nombre de pièces réellement achetables dans ce set.
+  // Depuis ARCHI-01, l'exemplaire Pokémon n'a plus de `card_id` : il rejoint la
+  // carte par sa VARIANTE. One Piece garde le chemin direct.
+  const comptePieces =
+    universe === 'pokemon'
+      ? supabase
+          .from('pokemon_listings')
+          .select('id, pokemon_card_variants!inner(pokemon_cards!inner(set_id))', {
+            count: 'exact',
+            head: true,
+          })
+          .eq('is_active', true)
+          .gt('quantity', 0)
+          .gt('price', 0)
+          .eq('pokemon_card_variants.pokemon_cards.set_id', setId)
+      : supabase
+          .from(t.listings)
+          .select(`id, ${t.cards}!inner(set_id)`, { count: 'exact', head: true })
+          .eq('is_active', true)
+          .gt('quantity', 0)
+          .gt('price', 0)
+          .eq(`${t.cards}.set_id`, setId)
+
+  const [{ data: rarities }, { data: variants }, dispo] = await Promise.all([
     supabase.from(t.cards).select('rarity').eq('set_id', setId).not('rarity', 'is', null),
     supabase.from(t.variants).select('code, label').or(`set_id.eq.${setId},set_id.is.null`),
-    supabase
-      .from(t.listings)
-      .select(`id, ${t.cards}!inner(set_id)`, { count: 'exact', head: true })
-      .eq('is_active', true)
-      .gt('quantity', 0)
-      .gt('price', 0)
-      .eq(`${t.cards}.set_id`, setId),
-    supabase
-      .from(t.listings)
-      .select(`price, image_api, front_photo_url, ${t.cards}!inner(set_id, image_url)`)
-      .eq('is_active', true)
-      .gt('quantity', 0)
-      .gt('price', 0)
-      .eq(`${t.cards}.set_id`, setId)
-      .order('price', { ascending: false })
-      .limit(3),
+    comptePieces,
   ])
 
-  let query = supabase
-    .from(t.listings)
-    .select(`
-      id, price, quantity, condition, front_photo_url, image_api, needs_photo,
-      ${t.cards}!inner(id, number, name_fr, rarity, set_id),
-      ${t.variants}!inner(id, code, label)
-    `)
-    .eq('is_active', true)
-    .eq(`${t.cards}.set_id`, setId)
+  // ── La grille part des CARTES, jamais des listings ────────────────────────
+  // `*_cards` contient TOUJOURS l'intégralité du set (import TCGdex / Poneglyphe).
+  // Partir des listings ferait dépendre l'affichage du stock : on ne verrait
+  // plus le set, on verrait l'inventaire. Le catalogue doit montrer le set
+  // entier, les pièces qu'on ne vend pas comprises.
+  let cardsQuery = supabase
+    .from(t.cards)
+    .select('id, number, name_fr, rarity, image_url')
+    .eq('set_id', setId)
 
-  if (sp('rarity')) query = query.eq(`${t.cards}.rarity`, sp('rarity')!)
-  if (sp('variant')) query = query.eq(`${t.variants}.code`, sp('variant')!)
-  if (sp('condition')) query = query.eq('condition', sp('condition')!)
-  if (sp('stock') === '1') query = query.gt('quantity', 0)
-  if (sp('q')) query = query.ilike(`${t.cards}.name_fr`, `%${sp('q')}%`)
+  if (sp('rarity')) cardsQuery = cardsQuery.eq('rarity', sp('rarity')!)
+  if (sp('q')) cardsQuery = cardsQuery.ilike('name_fr', `%${sp('q')}%`)
 
-  const sort = sp('sort') ?? 'num'
-  if (sort === 'price-desc') query = query.order('price', { ascending: false })
-  else if (sort === 'price-asc') query = query.order('price', { ascending: true })
-  else if (sort === 'name') query = query.order(`${t.cards}(name_fr)`)
-  else query = query.order(`${t.cards}(number)`)
+  const tri = sp('sort') ?? 'num'
 
-  const { data: listings } = await query.limit(120)
+  // ── Ordre naturel des numéros ─────────────────────────────────────────────
+  // `pokemon_cards.number` est du TEXTE : trier dessus donne 1, 10, 100, 11…
+  // et 1 854 numéros ne sont pas convertibles en entier (SV#, TG#, 103a…).
+  // Les colonnes générées `sort_prefix` / `sort_num` (migration
+  // `add_natural_sort_keys_pokemon_cards`, index dédié) portent déjà l'ordre
+  // attendu : préfixe de sous-bloc — vide pour les numéros purs, donc set
+  // principal d'abord — puis l'entier, puis le texte brut pour départager les
+  // suffixes (103 < 103a). Le tri reste en base : le réimplémenter en JS
+  // garantirait une divergence.
+  // One Piece garde `number` : ses numéros sont zéro-paddés de format constant
+  // (`OP01-001`) et ses tables n'ont pas ces colonnes.
+  const colonnesNum = universe === 'pokemon' ? ['sort_prefix', 'sort_num', 'number'] : ['number']
+  // Décroissant : les TROIS colonnes s'inversent, sinon l'ordre est incohérent.
+  for (const col of colonnesNum) cardsQuery = cardsQuery.order(col, { ascending: tri !== 'num-desc' })
 
-  // Les jointures Supabase peuvent remonter des tableaux — cf. CLAUDE.md.
-  const flat = (listings ?? []).map(l => {
-    const row = l as unknown as Record<string, unknown>
-    const card = row[t.cards]
-    const variant = row[t.variants]
+  // Borne large et volontaire : le plus gros set du catalogue compte 299 cartes.
+  // On charge donc toujours le set entier, et les vignettes sont en `lazy`.
+  const { data: cartes } = await cardsQuery.limit(400)
+
+  const idsCartes = (cartes ?? []).map(c => c.id)
+
+  // Les VARIANTES de ces cartes, avec leurs exemplaires. `chargerVariantes`
+  // absorbe la différence de schéma entre les deux univers depuis ARCHI-01.
+  const variantes = await chargerVariantes(supabase, universe, idsCartes)
+
+  const parCarte = new Map<string, LigneVariante[]>()
+  for (const v of variantes) {
+    const groupe = parCarte.get(v.cardId)
+    if (groupe) groupe.push(v)
+    else parCarte.set(v.cardId, [v])
+  }
+
+  const filtreVariante = sp('variant')
+  const filtreCondition = sp('condition')
+
+  /** Le meilleur exemplaire vendable d'une variante, ou null. */
+  const meilleurExemplaire = (v: LigneVariante) =>
+    v.exemplaires
+      .filter(estVendable)
+      .filter(e => !filtreCondition || e.condition === filtreCondition)
+      .sort((a, b) => a.price - b.price)[0] ?? null
+
+  // ── Versions imprimées d'une carte ────────────────────────────────────────
+  // 8 770 cartes Pokémon ont plusieurs variantes — 8 436 à deux versions,
+  // 334 à trois. Le switch de la tuile les donne à voir sans dupliquer la tuile.
+  //
+  // PÉRIMÈTRE : Pokémon seulement. One Piece est en pause (nettoyage Poneglyphe
+  // côté utilisateur) — il reçoit un tableau vide et sa tuile est inchangée.
+  const gereVariantes = universe === 'pokemon'
+
+  const versionsDe = (groupe: LigneVariante[], imageCarte: string | null): VariantOption[] => {
+    if (!gereVariantes) return []
+
+    return groupe
+      .filter(v => !filtreVariante || v.code === filtreVariante)
+      .slice()
+      // Ordre du set : Normale avant Reverse avant les Ball, jamais l'ordre
+      // d'arrivée des lignes en base.
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(v => {
+        const retenue = meilleurExemplaire(v)
+        return {
+          code: v.code,
+          label: v.label,
+          // Le visuel appartient désormais à la VARIANTE ; le scan d'un
+          // exemplaire précis prime quand il existe.
+          imageUrl: retenue?.frontPhotoUrl ?? v.imageUrl ?? imageCarte,
+          // L'URL de fiche produit porte la VARIANTE, pas l'exemplaire : elle
+          // existe pour les 29 210 lignes et survit aux mouvements de stock.
+          listingId: v.id,
+          available: retenue !== null,
+          price: retenue?.price ?? null,
+          condition: retenue?.condition ?? null,
+          quantity: retenue?.quantity ?? 0,
+          hasRealScan: !!retenue?.frontPhotoUrl,
+          // Ni scan d'exemplaire ni visuel propre à la variante : ce qui
+          // s'affiche est l'illustration de la carte de base. 3 702 variantes
+          // sur 29 210 sont dans ce cas — un affichage sur huit.
+          imageEstRepli: !retenue?.frontPhotoUrl && !v.imageUrl && !!imageCarte,
+        } satisfies VariantOption
+      })
+  }
+
+  const entrees: CardEntry[] = (cartes ?? []).map(c => {
+    const groupe = (parCarte.get(c.id) ?? [])
+      .filter(v => !filtreVariante || v.code === filtreVariante)
+
+    // La variante retenue pour l'état par défaut de la tuile : celle qui porte
+    // l'exemplaire vendable le moins cher, sinon la première du set.
+    const candidates = groupe
+      .map(v => ({ v, e: meilleurExemplaire(v) }))
+      .filter(x => x.e !== null)
+      .sort((a, b) => a.e!.price - b.e!.price)
+
+    const retenue = candidates[0]?.e ?? null
+    const varianteRetenue = candidates[0]?.v ?? null
+    const repli = [...groupe].sort((a, b) => a.sortOrder - b.sortOrder)[0] ?? null
+    const source = varianteRetenue ?? repli
+
     return {
-      ...(row as object),
-      [t.cards]: Array.isArray(card) ? card[0] : card,
-      [t.variants]: Array.isArray(variant) ? variant[0] : variant,
+      cardId: c.id,
+      number: c.number,
+      name: c.name_fr,
+      rarity: c.rarity,
+      imageUrl: retenue?.frontPhotoUrl ?? source?.imageUrl ?? c.image_url ?? null,
+      listingId: source?.id ?? null,
+      available: retenue !== null,
+      price: retenue?.price ?? null,
+      condition: retenue?.condition ?? null,
+      variantLabel: varianteRetenue?.label ?? null,
+      quantity: retenue?.quantity ?? 0,
+      hasRealScan: !!retenue?.frontPhotoUrl,
+      variants: versionsDe(groupe, c.image_url),
     }
-  }) as unknown as Parameters<typeof CardGrid>[0]['listings']
+  })
+
+  const disponiblesSeulement = sp('stock') === '1'
+  const visibles = disponiblesSeulement ? entrees.filter(e => e.available) : entrees
+
+  if (tri === 'name') {
+    visibles.sort((a, b) => a.name.localeCompare(b.name))
+  } else if (tri === 'price-desc' || tri === 'price-asc') {
+    // Les indisponibles n'ont pas de prix : elles ferment la marche, quel que
+    // soit le sens du tri.
+    const signe = tri === 'price-asc' ? 1 : -1
+    visibles.sort((a, b) => {
+      if (a.available !== b.available) return a.available ? -1 : 1
+      // `sort` est stable : renvoyer 0 conserve l'ordre naturel déjà établi par
+      // la base. `localeCompare(number)` rejouait ici le tri lexicographique.
+      if (!a.available) return 0
+      return ((a.price ?? 0) - (b.price ?? 0)) * signe
+    })
+  }
+
+  const nbDisponibles = entrees.filter(e => e.available).length
+
+  // ── Pagination, en DERNIER ────────────────────────────────────────────────
+  // `visibles` est déjà filtré (rareté, version, état, stock, recherche) et déjà
+  // trié. On ne découpe qu'ici : découper avant filtrerait une tranche de 30
+  // dont il ne resterait qu'une poignée d'éléments. 145 des 185 sets Pokémon
+  // dépassent 30 cartes, 125 dépassent 50 — le plus gros en compte 299.
+  const parPage = await resoudreParPage(searchParams)
+  const tranche = decouper(visibles, lirePage(searchParams), parPage)
 
   const uniqueRarities = [...new Set((rarities ?? []).map(r => r.rarity).filter(Boolean))] as string[]
 
-  const previewImages = ((preview ?? []) as unknown as {
-    image_api: string | null
-    front_photo_url: string | null
-    [k: string]: unknown
-  }[])
-    .map(row => {
-      const card = row[t.cards]
-      const c = (Array.isArray(card) ? card[0] : card) as { image_url: string | null } | undefined
-      return row.front_photo_url ?? row.image_api ?? c?.image_url ?? null
-    })
-    .filter((v): v is string => Boolean(v))
 
   const sortie = setData.release_date
     ? new Date(setData.release_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -190,28 +334,14 @@ export default async function SetDetail({
             </a>
           </div>
 
-          <div className="relative flex min-h-[220px] items-center justify-center lg:min-h-[280px]">
-            {previewImages.length > 0 ? (
-              previewImages.map((src, i) => {
-                const off = i - (previewImages.length - 1) / 2
-                return (
-                  // eslint-disable-next-line @next/next/no-img-element -- éventail décoratif transformé
-                  <img
-                    key={i}
-                    src={src}
-                    alt=""
-                    aria-hidden
-                    className="absolute h-[236px] rounded-[8px] object-cover shadow-[0_30px_58px_-24px_rgba(26,22,17,0.55)]"
-                    style={{ transform: `translateX(${off * 96}px) rotate(${off * 9}deg)`, zIndex: 3 - Math.abs(off) }}
-                  />
-                )
-              })
-            ) : (
-              <div className="scan-pending flex aspect-[2.5/3.5] h-[236px] items-center justify-center rounded-[8px]">
-                <span className="data text-[9px]">aucune pièce en vente</span>
-              </div>
-            )}
-          </div>
+          {/* Logo du set → symbole → cadre rayé. L'éventail de cartes en vente
+              qui occupait cette place datait d'une époque où AUCUN set n'avait
+              de visuel en base ; 121 en ont un aujourd'hui. */}
+          <SetVisual
+            logoUrl={setData.image_url ?? null}
+            symbolUrl={setData.symbol_url ?? null}
+            setName={setData.name_fr}
+          />
         </div>
       </PageContainer>
 
@@ -226,14 +356,37 @@ export default async function SetDetail({
           />
         </Suspense>
 
+        <p className="data mb-4 text-[9px]">
+          {/* Le compte annonce ce que la GRILLE montre, pas le résultat entier :
+              dire « 299 cartes affichées » au-dessus de 30 vignettes serait faux. */}
+          {tranche.total > tranche.elements.length
+            ? `${tranche.premier}–${tranche.dernier} sur ${tranche.total} cartes`
+            : `${visibles.length} carte${visibles.length > 1 ? 's' : ''} affichée${visibles.length > 1 ? 's' : ''}`}
+          {' · '}
+          {nbDisponibles} disponible{nbDisponibles > 1 ? 's' : ''}{' '}à l&apos;achat
+        </p>
+
         <CardGrid
-          listings={flat}
+          cards={tranche.elements}
           emptyLabel={
-            setData.card_count
-              ? "Aucune carte de ce set n'est encore proposée à la vente."
+            disponiblesSeulement
+              ? "Aucune carte de ce set n'est disponible à l'achat pour le moment."
               : 'Ce set ne contient aucune carte importée.'
           }
         />
+
+        <Suspense fallback={<div className="mt-8 h-[52px]" />}>
+          <PaginationUrl
+            page={tranche.page}
+            pages={tranche.pages}
+            total={tranche.total}
+            parPage={parPage}
+            premier={tranche.premier}
+            dernier={tranche.dernier}
+            unite="carte"
+            ancre="#cartes"
+          />
+        </Suspense>
       </PageContainer>
     </main>
   )

@@ -2,6 +2,13 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  carteDuListing,
+  varianteDuListing,
+  visuelDuListing,
+  comparerParCarte,
+  type ListingAdmin,
+} from '@/lib/admin/listings'
 
 /**
  * Éditeur de listings d'un set — la vraie vue de gestion.
@@ -18,23 +25,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type Univers = 'pokemon' | 'onepiece'
 
-interface Carte { id: string; number: string; name_fr: string; rarity: string | null }
-interface Variante { id: string; code: string; label: string }
-
-interface Listing {
-  id: string
-  quantity: number
-  price: number
-  condition: string
-  needs_photo: boolean
-  is_active: boolean
-  front_photo_url: string | null
-  image_api: string | null
-  pokemon_cards?: Carte
-  onepiece_cards?: Carte
-  pokemon_variant_types?: Variante
-  onepiece_variant_types?: Variante
-}
+/**
+ * La forme de l'exemplaire vient de `lib/admin/listings` — elle n'est plus
+ * redécrite ici. C'est la copie locale, restée à l'ancienne chaîne plate, qui
+ * vidait les colonnes Carte, Variante, Rareté et la vignette.
+ */
+type Listing = ListingAdmin
 
 const CONDITIONS = ['Mint', 'Near Mint', 'Excellent', 'Light Played', 'Moderate Played']
 
@@ -48,8 +44,8 @@ const STATUTS: { v: Statut; label: string }[] = [
   { v: 'inactifs', label: 'Inactifs' },
 ]
 
-const carteDe = (l: Listing) => l.pokemon_cards ?? l.onepiece_cards
-const varianteDe = (l: Listing) => l.pokemon_variant_types ?? l.onepiece_variant_types
+const carteDe = carteDuListing
+const varianteDe = varianteDuListing
 
 export default function SetListingsEditor({
   universe,
@@ -94,7 +90,10 @@ export default function SetListingsEditor({
       setListings([])
     } else {
       setErreur(null)
-      setListings(Array.isArray(data) ? data : [])
+      // Trié ici : la route ne peut pas ordonner sur une colonne intégrée (voir
+      // le commentaire de `comparerParCarte`). Sans ce tri, 245 cartes arrivent
+      // dans l'ordre physique de la table.
+      setListings(Array.isArray(data) ? [...(data as Listing[])].sort(comparerParCarte) : [])
     }
     setChargement(false)
   }, [universe, setId])
@@ -239,8 +238,8 @@ export default function SetListingsEditor({
   return (
     <>
       {erreur && (
-        <div className="admin-alert">
-          <span className="admin-alert-dot" />
+        <div className="gk-vide">
+          <span className="gk-pastille" />
           {erreur}
         </div>
       )}
@@ -250,12 +249,12 @@ export default function SetListingsEditor({
         style={{
           background: 'rgba(232,225,216,0.04)',
           border: '1px solid rgba(232,225,216,0.1)',
-          borderRadius: 'var(--radius-admin-sm)',
+          borderRadius: 'var(--radius-gk-sm)',
           padding: '14px',
           marginBottom: '12px',
         }}
       >
-        <div className="admin-filter-pills">
+        <div className="gk-facette-liste">
           {STATUTS.map(s => (
             <button
               key={s.v}
@@ -273,17 +272,17 @@ export default function SetListingsEditor({
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Nom ou numéro…"
-            className="admin-input"
+            className="gk-input"
             style={{ flex: 1, minWidth: '200px' }}
           />
           {variantes.length > 1 && (
-            <select value={variante} onChange={e => setVariante(e.target.value)} className="admin-input" style={{ width: '150px' }}>
+            <select value={variante} onChange={e => setVariante(e.target.value)} className="gk-input" style={{ width: '150px' }}>
               <option value="">Toutes variantes</option>
               {variantes.map(v => <option key={v.code} value={v.code}>{v.label}</option>)}
             </select>
           )}
           {raretes.length > 1 && (
-            <select value={rarete} onChange={e => setRarete(e.target.value)} className="admin-input" style={{ width: '150px' }}>
+            <select value={rarete} onChange={e => setRarete(e.target.value)} className="gk-input" style={{ width: '150px' }}>
               <option value="">Toutes raretés</option>
               {raretes.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
@@ -297,7 +296,7 @@ export default function SetListingsEditor({
           style={{
             background: 'rgba(212,144,12,0.08)',
             border: '1px solid rgba(212,144,12,0.22)',
-            borderRadius: 'var(--radius-admin-sm)',
+            borderRadius: 'var(--radius-gk-sm)',
             padding: '10px 14px',
             marginBottom: '12px',
             display: 'flex',
@@ -309,13 +308,13 @@ export default function SetListingsEditor({
           <span style={{ fontSize: '11px', color: 'var(--amber)' }}>
             {selection.size} sélectionné{selection.size > 1 ? 's' : ''}
           </span>
-          <input value={lotPrix} onChange={e => setLotPrix(e.target.value)} placeholder="Prix €" className="admin-input" style={{ width: '90px' }} />
-          <input value={lotStock} onChange={e => setLotStock(e.target.value)} placeholder="Stock" className="admin-input" style={{ width: '80px' }} />
-          <select value={lotCondition} onChange={e => setLotCondition(e.target.value)} className="admin-input" style={{ width: '140px' }}>
+          <input value={lotPrix} onChange={e => setLotPrix(e.target.value)} placeholder="Prix €" className="gk-input" style={{ width: '90px' }} />
+          <input value={lotStock} onChange={e => setLotStock(e.target.value)} placeholder="Stock" className="gk-input" style={{ width: '80px' }} />
+          <select value={lotCondition} onChange={e => setLotCondition(e.target.value)} className="gk-input" style={{ width: '140px' }}>
             <option value="">État inchangé</option>
             {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <button onClick={appliquerALaSelection} className="btn btn-primary btn-sm">Appliquer à la sélection</button>
+          <button onClick={appliquerALaSelection} className="gk-btn" data-primaire="true">Appliquer à la sélection</button>
           <button
             onClick={() => setSelection(new Set())}
             className="ab ab-muted"
@@ -332,7 +331,7 @@ export default function SetListingsEditor({
           style={{
             background: 'rgba(74,222,128,0.06)',
             border: '1px solid rgba(74,222,128,0.2)',
-            borderRadius: 'var(--radius-admin-sm)',
+            borderRadius: 'var(--radius-gk-sm)',
             padding: '10px 14px',
             marginBottom: '12px',
             display: 'flex',
@@ -352,7 +351,7 @@ export default function SetListingsEditor({
             >
               Annuler
             </button>
-            <button onClick={enregistrer} disabled={enregistrement} className="btn btn-primary btn-sm">
+            <button onClick={enregistrer} disabled={enregistrement} className="gk-btn" data-primaire="true">
               {enregistrement ? 'Enregistrement…' : 'Enregistrer'}
             </button>
           </span>
@@ -361,14 +360,14 @@ export default function SetListingsEditor({
 
       {rapport && (
         <div
-          className={rapport.ko.length ? 'admin-alert' : undefined}
+          className={rapport.ko.length ? 'gk-vide' : undefined}
           style={
             rapport.ko.length
               ? undefined
               : {
                   background: 'rgba(74,222,128,0.06)',
                   border: '1px solid rgba(74,222,128,0.2)',
-                  borderRadius: 'var(--radius-admin-sm)',
+                  borderRadius: 'var(--radius-gk-sm)',
                   padding: '9px 12px',
                   marginBottom: '12px',
                   fontSize: '11px',
@@ -376,16 +375,16 @@ export default function SetListingsEditor({
                 }
           }
         >
-          {rapport.ko.length > 0 && <span className="admin-alert-dot" />}
+          {rapport.ko.length > 0 && <span className="gk-pastille" />}
           {rapport.ok} ligne(s) enregistrée(s)
           {rapport.ko.length > 0 && ` · ${rapport.ko.length} échec(s) : ${rapport.ko.map(k => k.error).join(' · ')}`}
         </div>
       )}
 
       {/* ── Grille ───────────────────────────────────────────────────────── */}
-      <div className="admin-table">
-        <div className="admin-table-header">
-          <span className="admin-table-label">
+      <div className="gk-panneau">
+        <div className="gk-panneau-tete">
+          <span className="gk-label">
             {visibles.length} listing(s) affiché(s) sur {listings.length}
             {sansPrix > 0 ? ` · ${sansPrix} avec stock mais sans prix` : ''}
           </span>
@@ -402,15 +401,15 @@ export default function SetListingsEditor({
           }}
         >
           <input type="checkbox" checked={toutSelectionne} onChange={basculerTout} aria-label="Tout sélectionner" />
-          <span className="admin-table-label" />
-          <span className="admin-table-label">Carte</span>
-          <span className="admin-table-label">Variante</span>
-          <span className="admin-table-label">Rareté</span>
-          <span className="admin-table-label" style={{ textAlign: 'right' }}>Stock</span>
-          <span className="admin-table-label" style={{ textAlign: 'right' }}>Prix €</span>
-          <span className="admin-table-label">État</span>
-          <span className="admin-table-label" style={{ textAlign: 'center' }}>Actif</span>
-          <span className="admin-table-label" />
+          <span className="gk-label" />
+          <span className="gk-label">Carte</span>
+          <span className="gk-label">Variante</span>
+          <span className="gk-label">Rareté</span>
+          <span className="gk-label" style={{ textAlign: 'right' }}>Stock</span>
+          <span className="gk-label" style={{ textAlign: 'right' }}>Prix €</span>
+          <span className="gk-label">État</span>
+          <span className="gk-label" style={{ textAlign: 'center' }}>Actif</span>
+          <span className="gk-label" />
         </div>
 
         {visibles.length === 0 ? (
@@ -426,7 +425,7 @@ export default function SetListingsEditor({
             const prix = valeur(l, 'price') as number
             const actif = valeur(l, 'is_active') as boolean
             const alerte = qte > 0 && prix <= 0
-            const img = l.front_photo_url ?? l.image_api
+            const img = visuelDuListing(l)
 
             return (
               <div
@@ -462,17 +461,17 @@ export default function SetListingsEditor({
                 )}
 
                 <span style={{ minWidth: 0 }}>
-                  <span className="admin-cell" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span className="gk-cell" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c?.name_fr}
                   </span>
-                  <span className="admin-cell mono" style={{ display: 'block' }}>
+                  <span className="gk-cell mono" style={{ display: 'block' }}>
                     #{c?.number}
                     {l.needs_photo ? ' · photo requise' : ''}
                   </span>
                 </span>
 
                 <span className="ab ab-muted" style={{ justifySelf: 'start' }}>{v?.label ?? '—'}</span>
-                <span className="admin-cell muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span className="gk-cell muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {c?.rarity ?? '—'}
                 </span>
 
@@ -481,7 +480,7 @@ export default function SetListingsEditor({
                   min={0}
                   value={qte}
                   onChange={e => editer(l.id, 'quantity', parseInt(e.target.value, 10) || 0)}
-                  className="admin-mini-input"
+                  className="gk-input"
                   style={{ textAlign: 'right' }}
                   aria-label={`Stock de ${c?.name_fr ?? ''}`}
                 />
@@ -492,7 +491,7 @@ export default function SetListingsEditor({
                   step="0.01"
                   value={prix}
                   onChange={e => editer(l.id, 'price', parseFloat(e.target.value) || 0)}
-                  className="admin-mini-input"
+                  className="gk-input"
                   style={{
                     textAlign: 'right',
                     borderColor: alerte ? 'rgba(212,144,12,0.5)' : undefined,
@@ -504,7 +503,7 @@ export default function SetListingsEditor({
                 <select
                   value={valeur(l, 'condition') as string}
                   onChange={e => editer(l.id, 'condition', e.target.value)}
-                  className="admin-mini-input"
+                  className="gk-input"
                   aria-label={`État de ${c?.name_fr ?? ''}`}
                 >
                   {CONDITIONS.map(x => <option key={x} value={x}>{x}</option>)}
@@ -522,7 +521,7 @@ export default function SetListingsEditor({
                 <Link
                   href={`/admin/listings/${l.id}`}
                   title="Fiche complète"
-                  className="admin-cell muted"
+                  className="gk-cell muted"
                   style={{ textAlign: 'right', textDecoration: 'none' }}
                 >
                   →

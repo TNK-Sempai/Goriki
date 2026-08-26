@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { formatPrice } from '@/lib/utils'
+import { prixOuEpuise } from '@/lib/utils'
 
 export interface SealedProduct {
   id: string
@@ -49,10 +49,12 @@ export default function SealedRow({ product }: { product: SealedProduct }) {
       </div>
 
       <div className="flex items-center justify-between gap-6 sm:justify-end">
+        {/* Même règle que sur la tuile : ne pas répéter « Épuisé », que le
+            prix affiche déjà quand rien n'est chiffré. */}
         <span className="font-mono text-[10px] tracking-[0.1em] text-ink-55">
-          {soldOut ? 'ÉPUISÉ' : `${product.quantity} EN STOCK`}
+          {product.price > 0 ? (soldOut ? 'ÉPUISÉ' : `${product.quantity} EN STOCK`) : 'NON CHIFFRÉ'}
         </span>
-        <span className="text-[18px] font-semibold">{formatPrice(product.price)}</span>
+        <span className="text-[18px] font-semibold">{prixOuEpuise(product.price)}</span>
       </div>
     </Link>
   )

@@ -31,14 +31,14 @@ export default async function AdminSetPage({
   if (!set) notFound()
 
   return (
-    <div>
-      <div className="admin-header-row">
+    <div className="gk-corps">
+      <div className="gk-entete-ecran">
         <div>
-          <Link href="/admin/listings" className="admin-table-action" style={{ display: 'block', marginBottom: '6px' }}>
+          <Link href="/admin/listings" className="gk-btn" style={{ display: 'block', marginBottom: '6px' }}>
             ← Tous les sets
           </Link>
-          <div className="admin-title">{set.name_fr}</div>
-          <div className="admin-sub">
+          <div className="gk-titre">{set.name_fr}</div>
+          <div className="gk-eyebrow-texte">
             {set.code} · {universe === 'pokemon' ? 'Pokémon' : 'One Piece'}
             {set.serie_name ? ` · ${set.serie_name}` : ''}
             {set.card_count ? ` · ${set.card_count} cartes au set` : ''}

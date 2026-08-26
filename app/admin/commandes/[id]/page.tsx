@@ -66,16 +66,16 @@ export default function CommandeDetailPage({ params }: { params: Promise<{ id: s
   const labelStyle: React.CSSProperties = { display: 'block', fontSize: '8px', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(238,228,204,0.25)', marginBottom: '5px' }
 
   return (
-    <div style={{ maxWidth: '560px' }}>
-      <div className="admin-header-row">
+    <div className="gk-corps" style={{ maxWidth: '560px' }}>
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">Commande</div>
-          <div className="admin-sub" style={{ fontFamily: 'monospace' }}>{order.id}</div>
+          <div className="gk-titre">Commande</div>
+          <div className="gk-eyebrow-texte" style={{ fontFamily: 'monospace' }}>{order.id}</div>
         </div>
       </div>
 
       <div style={cardStyle}>
-        <div className="admin-sep" style={{ marginTop: 0 }}>Client <div className="admin-sep-line" /></div>
+        <div className="gk-sep" style={{ marginTop: 0 }}>Client <div className="gk-sep-line" /></div>
         <div style={{ fontSize: '11px', color: 'rgba(238,228,204,0.7)' }}>{order.profiles?.email}</div>
         <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{order.profiles?.full_name}</div>
         {order.shipping_address && (
@@ -87,13 +87,13 @@ export default function CommandeDetailPage({ params }: { params: Promise<{ id: s
 
       {order.needs_review && (
         <div style={{ ...cardStyle, border: '1px solid rgba(239,68,68,0.4)' }}>
-          <div className="admin-sep" style={{ marginTop: 0 }}>À vérifier <div className="admin-sep-line" /></div>
+          <div className="gk-sep" style={{ marginTop: 0 }}>À vérifier <div className="gk-sep-line" /></div>
           <div style={{ fontSize: '11px', color: '#ef4444' }}>{order.review_reason ?? 'Commande signalée pour revue.'}</div>
         </div>
       )}
 
       <div style={cardStyle}>
-        <div className="admin-sep" style={{ marginTop: 0 }}>Paiement <div className="admin-sep-line" /></div>
+        <div className="gk-sep" style={{ marginTop: 0 }}>Paiement <div className="gk-sep-line" /></div>
         {order.stripe_payment_id || order.stripe_session_id ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {order.stripe_payment_id && (
@@ -123,19 +123,19 @@ export default function CommandeDetailPage({ params }: { params: Promise<{ id: s
       </div>
 
       <div style={cardStyle}>
-        <div className="admin-sep" style={{ marginTop: 0 }}>Statut &amp; Suivi <div className="admin-sep-line" /></div>
+        <div className="gk-sep" style={{ marginTop: 0 }}>Statut &amp; Suivi <div className="gk-sep-line" /></div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div>
             <label style={labelStyle}>Statut</label>
-            <select value={status} onChange={e => setStatus(e.target.value)} className="admin-input">
+            <select value={status} onChange={e => setStatus(e.target.value)} className="gk-input">
               {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
             <label style={labelStyle}>N° de suivi</label>
-            <input value={tracking} onChange={e => setTracking(e.target.value)} className="admin-input" placeholder="FR123456789" />
+            <input value={tracking} onChange={e => setTracking(e.target.value)} className="gk-input" placeholder="FR123456789" />
           </div>
-          <button onClick={handleSave} disabled={saving} className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-start' }}>
+          <button onClick={handleSave} disabled={saving} className="gk-btn" data-primaire="true" style={{ alignSelf: 'flex-start' }}>
             {saving ? 'Sauvegarde...' : 'Mettre à jour'}
           </button>
           {saveError && <div style={{ fontSize: '11px', color: '#ef4444' }}>{saveError}</div>}
@@ -143,7 +143,7 @@ export default function CommandeDetailPage({ params }: { params: Promise<{ id: s
       </div>
 
       <div style={cardStyle}>
-        <div className="admin-sep" style={{ marginTop: 0 }}>Articles ({order.order_items?.length ?? 0}) <div className="admin-sep-line" /></div>
+        <div className="gk-sep" style={{ marginTop: 0 }}>Articles ({order.order_items?.length ?? 0}) <div className="gk-sep-line" /></div>
         <div>
           {order.order_items?.map((item: any) => (
             <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(212,144,12,0.04)' }}>
@@ -151,7 +151,7 @@ export default function CommandeDetailPage({ params }: { params: Promise<{ id: s
                 <div style={{ fontSize: '11px', color: 'rgba(238,228,204,0.7)' }}>{item.item_snapshot?.name ?? item.item_type}</div>
                 <div style={{ fontSize: '10px', color: 'var(--muted)' }}>Qté : {item.quantity}</div>
               </div>
-              <div className="admin-cell amber">{(item.price_at_purchase * item.quantity).toFixed(2)} €</div>
+              <div className="gk-cell amber">{(item.price_at_purchase * item.quantity).toFixed(2)} €</div>
             </div>
           ))}
         </div>

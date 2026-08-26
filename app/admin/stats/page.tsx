@@ -45,16 +45,16 @@ export default async function AdminStats() {
   const totalStatus = Object.values(statusCounts).reduce((s, n) => s + n, 0)
 
   return (
-    <div>
-      <div className="admin-header-row">
+    <div className="gk-corps">
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">Statistiques</div>
-          <div className="admin-sub">Analyse détaillée de l&apos;activité Goriki</div>
+          <div className="gk-titre">Statistiques</div>
+          <div className="gk-eyebrow-texte">Analyse détaillée de l&apos;activité Goriki</div>
         </div>
       </div>
 
       {/* KPIs */}
-      <div className="admin-kpi-grid">
+      <div className="gk-kpis">
         <KPICard label="Chiffre d'affaires" value={formatPrice(kpis.totalRevenue)} accent sub="commandes payées" />
         <KPICard label="Commandes" value={kpis.totalOrders} sub="au total" />
         <KPICard label="Pokémon en stock" value={kpis.pkmListings} sub="listings actifs" />
@@ -65,26 +65,26 @@ export default async function AdminStats() {
       <StatsCharts monthlyRevenue={monthlyRevenue} statusCounts={statusCounts} />
 
       {/* Détail par statut */}
-      <div className="admin-sep" style={{ marginTop: '16px' }}>
-        Répartition par statut <div className="admin-sep-line" />
+      <div className="gk-sep" style={{ marginTop: '16px' }}>
+        Répartition par statut <div className="gk-sep-line" />
       </div>
 
       {totalStatus === 0 ? (
         <div style={{ fontSize: '11px', color: 'var(--muted)', padding: '20px 0' }}>Aucune commande à analyser.</div>
       ) : (
-        <div className="admin-table">
-          <div className="admin-col-heads" style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px' }}>
-            <span className="admin-col-head">Statut</span>
-            <span className="admin-col-head">Part</span>
-            <span className="admin-col-head">Nombre</span>
+        <div className="gk-panneau">
+          <div className="gk-heads" style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px' }}>
+            <span className="gk-label">Statut</span>
+            <span className="gk-label">Part</span>
+            <span className="gk-label">Nombre</span>
           </div>
           {Object.entries(statusCounts)
             .sort((a, b) => b[1] - a[1])
             .map(([status, count]) => (
-              <div key={status} className="admin-row" style={{ gridTemplateColumns: '1fr 80px 80px', cursor: 'default' }}>
-                <span className="admin-cell">{STATUS_LABELS[status] ?? status}</span>
-                <span className="admin-cell muted">{Math.round((count / totalStatus) * 100)} %</span>
-                <span className="admin-cell amber">{count}</span>
+              <div key={status} className="gk-row" style={{ gridTemplateColumns: '1fr 80px 80px', cursor: 'default' }}>
+                <span className="gk-cell">{STATUS_LABELS[status] ?? status}</span>
+                <span className="gk-cell muted">{Math.round((count / totalStatus) * 100)} %</span>
+                <span className="gk-cell amber">{count}</span>
               </div>
             ))}
         </div>

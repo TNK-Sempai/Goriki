@@ -1,0 +1,2222 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Serif+Display:ital@0;1&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: #09090e; }
+  input, button { font: inherit; color: inherit; }
+  a { color: #c8f060; text-decoration: none; }
+  a:hover { color: #dcf78f; }
+  ::selection { background: rgba(200,240,96,0.25); }
+  input::placeholder { color: #6b665f; }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: #23232e; border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</helmet>
+<div style="position:relative; display:flex; height:100vh; min-height:780px; background:#09090e; color:#ede8df; font-family:'Instrument Sans', Helvetica, sans-serif; font-size:14px; -webkit-font-smoothing:antialiased; overflow:hidden">
+
+  <div style="position:absolute; inset:0; pointer-events:none; z-index:5; opacity:0.035; background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E&quot;)"></div>
+  <div style="position:absolute; top:-160px; left:180px; width:520px; height:420px; border-radius:50%; filter:blur(90px); background:rgba(200,240,96,0.055); pointer-events:none; z-index:0"></div>
+  <div style="position:absolute; bottom:-220px; right:60px; width:560px; height:440px; border-radius:50%; filter:blur(90px); background:rgba(100,180,255,0.045); pointer-events:none; z-index:0"></div>
+
+  <aside style="position:relative; z-index:2; width:244px; flex:0 0 244px; display:flex; flex-direction:column; background:#0b0b11; border-right:1px solid rgba(255,255,255,0.06)">
+    <div style="padding:26px 22px 22px; display:flex; flex-direction:column; gap:6px; border-bottom:1px solid rgba(255,255,255,0.06)">
+      <div style="display:flex; align-items:center; gap:9px">
+        <span style="width:7px; height:7px; border-radius:50%; background:#c8f060"></span>
+        <span style="font-family:'Bebas Neue', sans-serif; font-size:24px; line-height:1; letter-spacing:0.14em">GORIKI</span>
+      </div>
+      <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.22em; color:#6b665f; padding-left:16px">Back-office</span>
+    </div>
+
+    <nav style="flex:1; overflow-y:auto; padding:18px 12px 16px; display:flex; flex-direction:column; gap:22px">
+      <sc-for list="{{ navGroups }}" as="group" hint-placeholder-count="3">
+        <div style="display:flex; flex-direction:column; gap:3px">
+          <span style="display:flex; align-items:center; gap:8px; padding:0 10px 9px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:#6b665f">
+            <span style="color:#c8f060">{{ group.num }}</span>
+            {{ group.label }}
+            <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+          </span>
+          <sc-for list="{{ group.items }}" as="item" hint-placeholder-count="4">
+            <button onClick="{{ item.go }}" style="display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; cursor:pointer; border-radius:7px; padding:8px 11px; font-size:13.5px; font-weight:{{ item.weight }}; background:{{ item.bg }}; color:{{ item.fg }}; transition:background 160ms, color 160ms" style-hover="background:#13131c; color:#ede8df">
+              <span style="width:5px; height:5px; border-radius:50%; background:{{ item.dot }}"></span>
+              <span style="flex:1">{{ item.label }}</span>
+              <span style="font-family:'DM Mono', monospace; font-size:10px; letter-spacing:0.06em; color:{{ item.badgeFg }}">{{ item.badge }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+
+    <div style="padding:12px 12px 10px; border-top:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; gap:2px">
+      <a href="#" style="display:flex; align-items:center; gap:10px; border-radius:7px; padding:8px 11px; font-size:13px; color:#bdb8b0; transition:background 160ms" style-hover="background:#13131c; color:#c8f060">
+        <span style="width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,0.14)"></span>
+        <span style="flex:1">Boutique publique</span>
+        <span style="font-family:'DM Mono', monospace; font-size:10px; color:#6b665f">↗</span>
+      </a>
+      <a href="#" style="display:flex; align-items:center; gap:10px; border-radius:7px; padding:8px 11px; font-size:13px; color:{{ shopCtx.fg }}; transition:background 160ms" style-hover="background:#13131c; color:#c8f060">
+        <span style="width:5px; height:5px; border-radius:50%; background:{{ shopCtx.dot }}"></span>
+        <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ shopCtx.label }}</span>
+        <span style="font-family:'DM Mono', monospace; font-size:10px; color:#6b665f">{{ shopCtx.arrow }}</span>
+      </a>
+    </div>
+
+    <div style="padding:14px 18px 20px; border-top:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; gap:11px">
+      <div style="width:30px; height:30px; flex:0 0 30px; border-radius:50%; border:1px solid rgba(200,240,96,0.3); background:rgba(200,240,96,0.12); display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue', sans-serif; font-size:15px; color:#c8f060">T</div>
+      <div style="display:flex; flex-direction:column; gap:1px; min-width:0">
+        <span style="font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">tanuki.corporation</span>
+        <a href="#" style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#6b665f">Déconnexion</a>
+      </div>
+    </div>
+  </aside>
+
+  <main style="position:relative; z-index:2; flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden">
+    <header style="flex:0 0 auto; display:flex; align-items:flex-end; gap:22px; padding:26px 32px 20px; border-bottom:1px solid rgba(255,255,255,0.06)">
+      <div style="display:flex; flex-direction:column; gap:8px; min-width:0">
+        <span style="display:flex; align-items:center; gap:9px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.22em; color:#6b665f">
+          <span style="width:5px; height:5px; border-radius:50%; background:#c8f060"></span>
+          {{ eyebrow }}
+        </span>
+        <h1 style="margin:0; font-family:'Bebas Neue', sans-serif; font-size:44px; line-height:0.9; letter-spacing:0.03em">{{ pageTitle }}</h1>
+      </div>
+      <div style="flex:1"></div>
+      <div style="display:flex; align-items:center; gap:10px; padding-bottom:4px">
+        <label style="display:flex; align-items:center; gap:9px; background:#0e0e15; border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:9px 13px; width:300px" style-focus="border-color:rgba(200,240,96,0.35)">
+          <span style="width:6px; height:6px; border:1.5px solid #6b665f; border-radius:50%"></span>
+          <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Set, carte, commande, client" style="flex:1; background:none; border:0; outline:none; font-size:13px; min-width:0">
+          <span style="font-family:'DM Mono', monospace; font-size:9.5px; color:#6b665f; border:1px solid rgba(255,255,255,0.09); border-radius:4px; padding:2px 5px">⌘K</span>
+        </label>
+        <button onClick="{{ primaryGo }}" style="border:1px solid #c8f060; cursor:pointer; border-radius:8px; padding:10px 18px; background:#c8f060; color:#0b0b11; font-family:'DM Mono', monospace; font-size:10.5px; font-weight:500; text-transform:uppercase; letter-spacing:0.14em; transition:background 160ms" style-hover="background:#dcf78f">{{ primaryAction }}</button>
+      </div>
+    </header>
+
+    <div style="flex:1; overflow-y:auto; padding:28px 32px 56px">
+
+      <sc-if value="{{ hasFilterBar }}" hint-placeholder-val="{{ false }}">
+        <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; padding:4px 16px; margin-bottom:20px">
+          <sc-for list="{{ fb.rows }}" as="fr" hint-placeholder-count="3">
+            <div style="display:flex; align-items:flex-start; gap:14px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.04)">
+              <span style="flex:0 0 78px; padding-top:5px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.16em; color:{{ fr.labelFg }}">{{ fr.label }}</span>
+              <div style="flex:1; display:flex; flex-wrap:wrap; gap:4px; min-width:0">
+                <sc-for list="{{ fr.options }}" as="o" hint-placeholder-count="4">
+                  <button onClick="{{ o.go }}" style="display:flex; align-items:baseline; gap:6px; cursor:pointer; border:1px solid {{ o.border }}; background:{{ o.bg }}; border-radius:6px; padding:4px 9px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.1em; color:{{ o.fg }}" style-hover="border-color:rgba(200,240,96,0.35)">
+                    {{ o.label }}
+                    <span style="font-size:10.5px; color:{{ o.countFg }}">{{ o.count }}</span>
+                  </button>
+                </sc-for>
+              </div>
+              <span style="flex:0 0 auto; padding-top:5px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.1em; color:#6b665f">{{ fr.note }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-direction:column; gap:34px; max-width:1520px">
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:1px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.06); border-radius:12px; overflow:hidden">
+            <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+              <div style="background:#0e0e15; padding:20px 22px; display:flex; flex-direction:column; gap:14px">
+                <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.18em; white-space:nowrap; color:#6b665f">{{ k.label }}</span>
+                <div style="display:flex; align-items:baseline; gap:10px">
+                  <span style="font-family:'Bebas Neue', sans-serif; font-size:40px; line-height:0.85; letter-spacing:0.02em; white-space:nowrap; color:{{ k.valueFg }}">{{ k.value }}</span>
+                  <span style="font-family:'DM Mono', monospace; font-size:11px; white-space:nowrap; color:{{ k.deltaFg }}">{{ k.delta }}</span>
+                </div>
+                <span style="font-size:12px; color:#9c9590">{{ k.sub }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:20px">
+            <section style="display:flex; flex-direction:column; gap:20px">
+              <div style="display:flex; align-items:center; gap:14px">
+                <span style="font-family:'DM Mono', monospace; font-size:9.5px; letter-spacing:0.2em; color:#c8f060">01 /</span>
+                <h2 style="margin:0; font-family:'DM Serif Display', Georgia, serif; font-size:21px; font-weight:400">{{ chartTitle }}</h2>
+                <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+                <div style="display:flex; gap:2px">
+                  <sc-for list="{{ ranges }}" as="r" hint-placeholder-count="3">
+                    <button onClick="{{ r.go }}" style="border:1px solid {{ r.border }}; cursor:pointer; border-radius:6px; padding:5px 11px; background:{{ r.bg }}; color:{{ r.fg }}; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em">{{ r.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; padding:22px 24px 16px; display:flex; flex-direction:column; gap:16px">
+                <div style="display:flex; align-items:flex-end; gap:12px; height:196px; border-bottom:1px solid rgba(255,255,255,0.06)">
+                  <sc-for list="{{ bars }}" as="b" hint-placeholder-count="6">
+                    <div style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:9px; height:100%">
+                      <span style="font-family:'DM Mono', monospace; font-size:10.5px; color:{{ b.labelFg }}">{{ b.amount }}</span>
+                      <div style="width:100%; border-radius:4px 4px 0 0; background:{{ b.fill }}; height:{{ b.h }}%"></div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display:flex; gap:12px">
+                  <sc-for list="{{ bars }}" as="b" hint-placeholder-count="6">
+                    <span style="flex:1; text-align:center; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#6b665f">{{ b.label }}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </section>
+
+            <section style="display:flex; flex-direction:column; gap:20px">
+              <div style="display:flex; align-items:center; gap:14px">
+                <span style="font-family:'DM Mono', monospace; font-size:9.5px; letter-spacing:0.2em; color:#c8f060">02 /</span>
+                <h2 style="margin:0; font-family:'DM Serif Display', Georgia, serif; font-size:21px; font-weight:400">À traiter</h2>
+                <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+                <span style="font-family:'DM Mono', monospace; font-size:9.5px; letter-spacing:0.14em; color:#6b665f">{{ queueCount }}</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px">
+                <sc-for list="{{ queue }}" as="q" hint-placeholder-count="4">
+                  <button onClick="{{ q.go }}" style="display:flex; align-items:center; gap:14px; text-align:left; width:100%; cursor:pointer; border:1px solid rgba(255,255,255,0.06); background:#0e0e15; border-radius:10px; padding:14px 16px; transition:border-color 160ms, background 160ms" style-hover="border-color:rgba(200,240,96,0.35); background:#13131c">
+                    <span style="font-family:'Bebas Neue', sans-serif; font-size:26px; line-height:1; width:34px; text-align:center; color:{{ q.tintFg }}">{{ q.count }}</span>
+                    <span style="width:1px; height:26px; background:rgba(255,255,255,0.08)"></span>
+                    <span style="display:flex; flex-direction:column; gap:3px; min-width:0">
+                      <span style="font-size:13.5px; font-weight:500">{{ q.title }}</span>
+                      <span style="font-family:'DM Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:#6b665f">{{ q.sub }}</span>
+                    </span>
+                    <span style="flex:1"></span>
+                    <span style="color:#c8f060; font-size:14px">→</span>
+                  </button>
+                </sc-for>
+              </div>
+            </section>
+          </div>
+
+          <section style="display:flex; flex-direction:column; gap:20px">
+            <div style="display:flex; align-items:center; gap:14px">
+              <span style="font-family:'DM Mono', monospace; font-size:9.5px; letter-spacing:0.2em; color:#c8f060">03 /</span>
+              <h2 style="margin:0; font-family:'DM Serif Display', Georgia, serif; font-size:21px; font-weight:400">Activité commerciale</h2>
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+              <button onClick="{{ goOrders }}" style="border:0; background:none; cursor:pointer; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#c8f060">Commandes →</button>
+            </div>
+
+            <sc-if value="{{ commerceEmpty }}" hint-placeholder-val="{{ true }}">
+              <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; padding:24px 26px; display:flex; gap:30px; align-items:flex-start; flex-wrap:wrap">
+                <div style="display:flex; flex-direction:column; gap:12px; flex:1 1 340px; min-width:280px">
+                  <span style="font-family:'Bebas Neue', sans-serif; font-size:58px; line-height:0.8; letter-spacing:0.04em; color:transparent; -webkit-text-stroke:1px rgba(237,232,223,0.14)">AUCUNE VENTE</span>
+                  <p style="margin:0; font-size:13px; line-height:1.6; color:#9c9590; text-wrap:pretty">Zéro commande, zéro client, aucun prix saisi sur les 1 641 exemplaires en stock. Ce bloc restera vide jusqu'à la mise en vente — il ne cherche pas à faire semblant.</p>
+                  <div style="display:flex; align-items:center; gap:9px; flex-wrap:wrap">
+                    <button onClick="{{ goListings }}" style="border:1px solid #c8f060; background:#c8f060; cursor:pointer; border-radius:7px; padding:9px 15px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#0b0b11" style-hover="background:#dcf78f">Saisir les prix</button>
+                    <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#6b665f">seule étape qui débloque la vente</span>
+                  </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px; flex:0 1 300px">
+                  <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.16em; color:#6b665f">Ce qui remplira ce bloc</span>
+                  <sc-for list="{{ commerceSteps }}" as="c" hint-placeholder-count="3">
+                    <div style="display:flex; align-items:flex-start; gap:11px; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px">
+                      <span style="font-family:'DM Mono', monospace; font-size:9.5px; color:{{ c.fg }}; padding-top:2px">{{ c.step }}</span>
+                      <span style="display:flex; flex-direction:column; gap:3px">
+                        <span style="font-size:12.5px; color:#ede8df">{{ c.label }}</span>
+                        <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:{{ c.fg }}">{{ c.state }}</span>
+                      </span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ commerceLive }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; overflow-x:auto">
+              <div style="min-width:760px; display:grid; grid-template-columns:minmax(96px,112px) minmax(150px,1.4fr) minmax(160px,1.5fr) minmax(92px,110px) minmax(112px,130px); gap:14px; padding:12px 22px; border-bottom:1px solid rgba(255,255,255,0.06); font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#6b665f">
+                <span>Réf.</span><span>Client</span><span>Contenu</span><span style="text-align:right">Montant</span><span style="text-align:right">Statut</span>
+              </div>
+              <sc-for list="{{ recentOrders }}" as="o" hint-placeholder-count="5">
+                <div style="min-width:760px; display:grid; grid-template-columns:minmax(96px,112px) minmax(150px,1.4fr) minmax(160px,1.5fr) minmax(92px,110px) minmax(112px,130px); gap:14px; align-items:center; padding:14px 22px; border-bottom:1px solid rgba(255,255,255,0.04); cursor:pointer; transition:background 140ms" style-hover="background:#13131c">
+                  <span style="font-family:'DM Mono', monospace; font-size:11.5px; color:#c8f060">{{ o.ref }}</span>
+                  <span style="font-size:13px">{{ o.client }}</span>
+                  <span style="font-size:12.5px; color:#9c9590; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ o.items }}</span>
+                  <span style="font-family:'DM Mono', monospace; font-size:12.5px; text-align:right">{{ o.total }}</span>
+                  <span style="justify-self:end; display:flex; align-items:center; gap:7px; font-family:'DM Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:{{ o.pillFg }}">
+                    <span style="width:5px; height:5px; border-radius:50%; background:{{ o.pillFg }}"></span>
+                    {{ o.status }}
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+            </sc-if>
+          </section>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCatalogue }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; gap:20px; max-width:1520px">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+            <sc-for list="{{ filters }}" as="f" hint-placeholder-count="5">
+              <button onClick="{{ f.go }}" style="display:flex; align-items:center; gap:8px; cursor:pointer; border:1px solid {{ f.border }}; background:{{ f.bg }}; color:{{ f.fg }}; border-radius:20px; padding:7px 14px; font-family:'DM Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.12em; transition:border-color 160ms" style-hover="border-color:rgba(200,240,96,0.35)">
+                {{ f.label }}
+                <span style="opacity:0.6">{{ f.count }}</span>
+              </button>
+            </sc-for>
+            <span style="flex:1"></span>
+            <span style="font-family:'DM Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.14em; color:#6b665f">{{ setsSummary }}</span>
+          </div>
+
+          <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; overflow-x:auto">
+            <div style="min-width:940px; display:grid; grid-template-columns:minmax(72px,92px) minmax(190px,2fr) minmax(90px,1fr) minmax(88px,104px) minmax(130px,210px) minmax(104px,128px); gap:14px; padding:12px 22px; border-bottom:1px solid rgba(255,255,255,0.06); font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#6b665f">
+              <span>Code</span><span>Set</span><span>Série</span><span>Sortie</span><span>Complétion</span><span style="text-align:right">État</span>
+            </div>
+            <sc-for list="{{ sets }}" as="s" hint-placeholder-count="12">
+              <div onClick="{{ s.open }}" style="min-width:940px; display:grid; grid-template-columns:minmax(72px,92px) minmax(190px,2fr) minmax(90px,1fr) minmax(88px,104px) minmax(130px,210px) minmax(104px,128px); gap:14px; align-items:center; padding:13px 22px; border-bottom:1px solid rgba(255,255,255,0.04); cursor:pointer; transition:background 140ms" style-hover="background:#13131c">
+                <span style="font-family:'DM Mono', monospace; font-size:11px; color:#9c9590">{{ s.code }}</span>
+                <span style="display:flex; align-items:center; gap:12px; min-width:0">
+                  <span style="width:22px; height:30px; flex:0 0 22px; border-radius:3px; background:#13131c; border:1px solid rgba(255,255,255,0.08)"></span>
+                  <span style="font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ s.name }}</span>
+                </span>
+                <span style="font-family:'DM Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color:#9c9590">{{ s.serie }}</span>
+                <span style="font-family:'DM Mono', monospace; font-size:11.5px; color:#6b665f">{{ s.date }}</span>
+                <span style="display:flex; align-items:center; gap:12px">
+                  <span style="flex:1; height:4px; border-radius:3px; background:rgba(255,255,255,0.07); overflow:hidden; display:block">
+                    <span style="display:block; height:100%; border-radius:3px; background:{{ s.barFill }}; width:{{ s.pct }}%"></span>
+                  </span>
+                  <span style="font-family:'DM Mono', monospace; font-size:11px; color:#9c9590; width:78px; text-align:right">{{ s.ratio }}</span>
+                </span>
+                <span style="justify-self:end; display:flex; align-items:center; gap:7px; font-family:'DM Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:{{ s.pillFg }}">
+                  <span style="width:5px; height:5px; border-radius:50%; background:{{ s.pillFg }}"></span>
+                  {{ s.state }}
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isOrders }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; gap:20px; max-width:1520px">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:1px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.06); border-radius:12px; overflow:hidden">
+            <sc-for list="{{ orderStats }}" as="k" hint-placeholder-count="4">
+              <div style="background:#0e0e15; padding:18px 22px; display:flex; flex-direction:column; gap:10px">
+                <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.18em; white-space:nowrap; color:#6b665f">{{ k.label }}</span>
+                <span style="font-family:'Bebas Neue', sans-serif; font-size:34px; line-height:0.85; white-space:nowrap; color:{{ k.fg }}">{{ k.value }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+            <sc-for list="{{ orderFilters }}" as="f" hint-placeholder-count="5">
+              <button onClick="{{ f.go }}" style="display:flex; align-items:center; gap:8px; cursor:pointer; border:1px solid {{ f.border }}; background:{{ f.bg }}; color:{{ f.fg }}; border-radius:20px; padding:7px 14px; font-family:'DM Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.12em" style-hover="border-color:rgba(200,240,96,0.35)">
+                {{ f.label }}
+                <span style="opacity:0.6">{{ f.count }}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; overflow-x:auto">
+            <div style="min-width:920px; display:grid; grid-template-columns:minmax(96px,112px) minmax(150px,1.3fr) minmax(170px,1.5fr) minmax(84px,100px) minmax(94px,110px) minmax(112px,130px); gap:14px; padding:12px 22px; border-bottom:1px solid rgba(255,255,255,0.06); font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#6b665f">
+              <span>Réf.</span><span>Client</span><span>Contenu</span><span>Date</span><span style="text-align:right">Montant</span><span style="text-align:right">Statut</span>
+            </div>
+            <sc-for list="{{ visibleOrders }}" as="o" hint-placeholder-count="8">
+              <div style="min-width:920px; display:grid; grid-template-columns:minmax(96px,112px) minmax(150px,1.3fr) minmax(170px,1.5fr) minmax(84px,100px) minmax(94px,110px) minmax(112px,130px); gap:14px; align-items:center; padding:14px 22px; border-bottom:1px solid rgba(255,255,255,0.04); cursor:pointer; transition:background 140ms" style-hover="background:#13131c">
+                <span style="font-family:'DM Mono', monospace; font-size:11.5px; color:#c8f060">{{ o.ref }}</span>
+                <span style="font-size:13px">{{ o.client }}</span>
+                <span style="font-size:12.5px; color:#9c9590; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ o.items }}</span>
+                <span style="font-family:'DM Mono', monospace; font-size:11.5px; color:#6b665f">{{ o.date }}</span>
+                <span style="font-family:'DM Mono', monospace; font-size:12.5px; text-align:right">{{ o.total }}</span>
+                <span style="justify-self:end; display:flex; align-items:center; gap:7px; font-family:'DM Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:{{ o.pillFg }}">
+                  <span style="width:5px; height:5px; border-radius:50%; background:{{ o.pillFg }}"></span>
+                  {{ o.status }}
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isVariants }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; gap:16px; height:100%; min-height:0; min-width:1040px; overflow-x:auto">
+
+          <div style="flex:0 0 216px; display:flex; flex-direction:column; min-height:0; border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; overflow:hidden">
+            <div style="flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid rgba(255,255,255,0.06); font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.16em; color:#6b665f">
+              <span style="color:#c8f060">Sets</span> 01 → 200
+              <span style="flex:1"></span>
+              <span>{{ v.setsProgress }}</span>
+            </div>
+            <div style="flex:1; overflow-y:auto">
+              <sc-for list="{{ v.sets }}" as="row" hint-placeholder-count="13">
+                <button onClick="{{ row.go }}" style="display:flex; align-items:center; gap:9px; width:100%; text-align:left; cursor:pointer; border:0; border-left:2px solid {{ row.edge }}; border-bottom:1px solid rgba(255,255,255,0.04); background:{{ row.bg }}; padding:9px 12px" style-hover="background:#13131c">
+                  <span style="font-family:'DM Mono', monospace; font-size:10px; color:{{ row.numFg }}">{{ row.num }}</span>
+                  <span style="display:flex; flex-direction:column; gap:5px; min-width:0; flex:1">
+                    <span style="font-size:12px; color:{{ row.fg }}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ row.name }}</span>
+                    <span style="display:flex; align-items:center; gap:6px">
+                      <span style="flex:1; height:3px; border-radius:2px; background:rgba(255,255,255,0.07); overflow:hidden; display:block">
+                        <span style="display:block; height:100%; background:{{ row.barFill }}; width:{{ row.pct }}%"></span>
+                      </span>
+                      <span style="font-family:'DM Mono', monospace; font-size:9px; color:{{ row.lockFg }}">{{ row.lockLabel }}</span>
+                    </span>
+                  </span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="flex:1 1 460px; min-width:460px; display:flex; flex-direction:column; min-height:0; gap:12px">
+            <div style="flex:0 0 auto; display:flex; align-items:flex-end; gap:14px">
+              <div style="display:flex; flex-direction:column; gap:5px; min-width:0">
+                <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.18em; color:#6b665f">{{ v.setNum }} / 200 · {{ v.setCode }}</span>
+                <span style="font-family:'Bebas Neue', sans-serif; font-size:26px; line-height:0.9; letter-spacing:0.03em">{{ v.setName }}</span>
+              </div>
+              <span style="flex:1"></span>
+              <button onClick="{{ v.openSheet }}" style="border:1px solid rgba(255,255,255,0.12); background:none; cursor:pointer; border-radius:7px; padding:7px 12px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:#ede8df" style-hover="border-color:rgba(200,240,96,0.4); color:#c8f060">Fiche du set</button>
+            </div>
+
+            <div style="flex:0 0 auto; border:1px solid rgba(255,255,255,0.06); border-radius:10px; background:#0e0e15; padding:4px 12px">
+              <sc-for list="{{ v.facetRows }}" as="fr" hint-placeholder-count="5">
+                <div style="display:flex; align-items:center; gap:14px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.04)">
+                  <span style="flex:0 0 74px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.16em; color:#6b665f">{{ fr.label }}</span>
+                  <div style="flex:1; display:flex; flex-wrap:wrap; gap:4px">
+                    <sc-for list="{{ fr.options }}" as="o" hint-placeholder-count="4">
+                      <button onClick="{{ o.go }}" style="display:flex; align-items:baseline; gap:6px; cursor:pointer; border:1px solid {{ o.border }}; background:{{ o.bg }}; border-radius:6px; padding:4px 9px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.1em; color:{{ o.fg }}" style-hover="border-color:rgba(200,240,96,0.35)">
+                        {{ o.label }}
+                        <span style="font-size:10.5px; color:{{ o.countFg }}">{{ o.count }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="flex:0 0 auto; display:flex; align-items:center; gap:10px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:#6b665f">
+              <span style="color:#9c9590">{{ v.shownLabel }}</span>
+              <sc-if value="{{ v.filtered }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ v.clearFacets }}" style="border:0; background:none; cursor:pointer; font:inherit; text-transform:uppercase; color:#c8f060">↺ tout afficher</button>
+              </sc-if>
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+              <span>↑↓←→ naviguer · L verrouiller · Échap désélectionner</span>
+            </div>
+
+            <div style="flex:1; min-height:0; overflow-y:auto; border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; padding:14px">
+              <div ref="{{ v.gridRef }}" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(104px,1fr)); gap:10px">
+                <sc-for list="{{ v.tiles }}" as="t" hint-placeholder-count="24">
+                  <button onClick="{{ t.select }}" style="display:flex; flex-direction:column; gap:0; text-align:left; cursor:pointer; padding:0; border:1px solid {{ t.border }}; border-radius:8px; background:{{ t.bg }}; overflow:hidden" style-hover="border-color:rgba(200,240,96,0.4)">
+                    <span style="position:relative; display:block; width:100%; aspect-ratio:0.72; background:{{ t.imgBg }}; border-bottom:1px solid rgba(255,255,255,0.06)">
+                      <span style="position:absolute; top:5px; right:5px; width:6px; height:6px; border-radius:50%; background:{{ t.lockDot }}"></span>
+                      <span style="position:absolute; left:0; right:0; bottom:0; padding:3px 5px; font-family:'DM Mono', monospace; font-size:8px; text-transform:uppercase; letter-spacing:0.1em; text-align:center; background:{{ t.flagBg }}; color:{{ t.flagFg }}">{{ t.flag }}</span>
+                    </span>
+                    <span style="display:flex; flex-direction:column; gap:2px; padding:6px 7px 7px">
+                      <span style="display:flex; align-items:baseline; gap:5px">
+                        <span style="font-family:'DM Mono', monospace; font-size:9.5px; color:{{ t.numFg }}">{{ t.num }}</span>
+                        <span style="font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:{{ t.nameFg }}">{{ t.name }}</span>
+                      </span>
+                      <span style="font-family:'DM Mono', monospace; font-size:8.5px; text-transform:uppercase; letter-spacing:0.1em; color:{{ t.typeFg }}">{{ t.variant }}</span>
+                    </span>
+                  </button>
+                </sc-for>
+              </div>
+              <sc-if value="{{ v.empty }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; flex-direction:column; align-items:flex-start; gap:10px; padding:26px 4px">
+                  <span style="font-family:'Bebas Neue', sans-serif; font-size:52px; line-height:0.85; color:transparent; -webkit-text-stroke:1px rgba(237,232,223,0.14)">AUCUNE</span>
+                  <p style="margin:0; font-size:12.5px; color:#9c9590; max-width:380px; text-wrap:pretty">Ce croisement de facettes ne renvoie rien sur ce set. Les compteurs au-dessus portent sur le set entier : relâche la facette dont le compteur est à zéro.</p>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+
+          <div style="flex:0 0 316px; display:flex; flex-direction:column; min-height:0; border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; overflow:hidden">
+            <sc-if value="{{ v.hasSel }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; flex-direction:column; min-height:0; height:100%">
+                <div style="flex:0 0 auto; padding:14px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; gap:12px">
+                  <span style="width:62px; flex:0 0 62px; aspect-ratio:0.72; border-radius:5px; border:1px solid rgba(255,255,255,0.08); background:{{ v.sel.imgBg }}"></span>
+                  <span style="display:flex; flex-direction:column; gap:5px; min-width:0">
+                    <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:#c8f060">{{ v.sel.num }} · {{ v.sel.variant }}</span>
+                    <span style="font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ v.sel.name }}</span>
+                    <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#6b665f">{{ v.sel.siblingNote }}</span>
+                    <a href="#" style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em">Page publique ↗</a>
+                  </span>
+                </div>
+
+                <div style="flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:20px">
+
+                  <div style="display:flex; flex-direction:column; gap:11px">
+                    <span style="display:flex; align-items:center; gap:9px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.18em; color:#c8f060">
+                      Cette variante
+                      <span style="flex:1; height:1px; background:rgba(200,240,96,0.25)"></span>
+                    </span>
+
+                    <div style="display:flex; flex-direction:column; gap:6px">
+                      <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:#9c9590">Type de variante</span>
+                      <div style="display:flex; flex-wrap:wrap; gap:4px">
+                        <sc-for list="{{ v.sel.typeOptions }}" as="o" hint-placeholder-count="3">
+                          <button onClick="{{ o.go }}" style="cursor:pointer; border:1px solid {{ o.border }}; background:{{ o.bg }}; border-radius:6px; padding:4px 9px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.1em; color:{{ o.fg }}">{{ o.label }}</button>
+                        </sc-for>
+                      </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:7px; border:1px dashed {{ v.sel.visualBorder }}; border-radius:8px; padding:11px">
+                      <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:{{ v.sel.visualFg }}">{{ v.sel.visualState }}</span>
+                      <span style="font-size:11.5px; line-height:1.5; color:#6b665f; text-wrap:pretty">{{ v.sel.visualNote }}</span>
+                      <button style="align-self:flex-start; border:0; background:none; padding:0; cursor:pointer; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#c8f060">{{ v.sel.visualAction }}</button>
+                    </div>
+
+                    <button onClick="{{ v.sel.toggleLock }}" style="display:flex; align-items:flex-start; gap:9px; text-align:left; cursor:pointer; border:1px solid {{ v.sel.lockBorder }}; background:{{ v.sel.lockBg }}; border-radius:8px; padding:11px">
+                      <span style="width:5px; height:5px; margin-top:5px; flex:0 0 5px; border-radius:50%; background:{{ v.sel.lockFg }}"></span>
+                      <span style="display:flex; flex-direction:column; gap:4px">
+                        <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:{{ v.sel.lockFg }}">{{ v.sel.lockLabel }}</span>
+                        <span style="font-size:11.5px; line-height:1.5; color:#9c9590; text-wrap:pretty">{{ v.sel.lockNote }}</span>
+                      </span>
+                    </button>
+
+                    <sc-if value="{{ v.sel.deleting }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex; flex-direction:column; gap:9px; border:1px solid {{ v.sel.delBorder }}; background:{{ v.sel.delBg }}; border-radius:8px; padding:12px">
+                        <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:{{ v.sel.delFg }}">{{ v.sel.delTitle }}</span>
+                        <span style="font-size:11.5px; line-height:1.5; color:#ede8df; text-wrap:pretty">{{ v.sel.delBody }}</span>
+                        <sc-if value="{{ v.sel.hasStock }}" hint-placeholder-val="{{ false }}">
+                          <div style="display:flex; flex-direction:column; gap:5px">
+                            <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#9c9590">Déplacer les exemplaires vers</span>
+                            <sc-for list="{{ v.sel.moveTargets }}" as="m" hint-placeholder-count="2">
+                              <button style="display:flex; align-items:center; gap:8px; text-align:left; cursor:pointer; border:1px solid rgba(255,255,255,0.09); background:#13131c; border-radius:6px; padding:7px 10px; font-size:11.5px; color:#ede8df" style-hover="border-color:rgba(200,240,96,0.35)">
+                                <span style="font-family:'DM Mono', monospace; font-size:9px; letter-spacing:0.1em; color:#c8f060">{{ m.tag }}</span>
+                                {{ m.label }}
+                              </button>
+                            </sc-for>
+                          </div>
+                        </sc-if>
+                        <div style="display:flex; gap:7px">
+                          <button onClick="{{ v.sel.cancelDelete }}" style="border:1px solid rgba(255,255,255,0.12); background:none; cursor:pointer; border-radius:6px; padding:6px 11px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#9c9590">Annuler</button>
+                          <sc-if value="{{ v.sel.canDelete }}" hint-placeholder-val="{{ false }}">
+                            <button style="border:1px solid rgba(255,122,104,0.5); background:rgba(255,122,104,0.14); cursor:pointer; border-radius:6px; padding:6px 11px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#ff7a68">Supprimer</button>
+                          </sc-if>
+                        </div>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ v.sel.idle }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ v.sel.askDelete }}" style="align-self:flex-start; border:1px solid rgba(255,255,255,0.10); background:none; cursor:pointer; border-radius:6px; padding:6px 11px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#9c9590" style-hover="border-color:rgba(255,122,104,0.5); color:#ff7a68">Supprimer cette variante</button>
+                    </sc-if>
+                  </div>
+
+                  <div style="display:flex; flex-direction:column; gap:11px">
+                    <span style="display:flex; align-items:center; gap:9px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.18em; color:#c88cff">
+                      La carte entière
+                      <span style="flex:1; height:1px; background:rgba(200,140,255,0.25)"></span>
+                    </span>
+                    <p style="margin:0; display:flex; align-items:flex-start; gap:8px; border:1px solid rgba(200,140,255,0.3); background:rgba(200,140,255,0.07); border-radius:8px; padding:10px 11px; font-size:11.5px; line-height:1.5; color:#c88cff; text-wrap:pretty">
+                      <span style="width:5px; height:5px; margin-top:5px; flex:0 0 5px; border-radius:50%; background:#c88cff"></span>
+                      {{ v.sel.cardWarning }}
+                    </p>
+                    <sc-for list="{{ v.sel.cardFields }}" as="cf" hint-placeholder-count="3">
+                      <div style="display:flex; flex-direction:column; gap:6px">
+                        <div style="display:flex; align-items:center; gap:9px">
+                          <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:#9c9590">{{ cf.label }}</span>
+                          <span style="flex:1"></span>
+                          <button onClick="{{ cf.toggleLock }}" style="cursor:pointer; border:1px solid {{ cf.lockBorder }}; background:{{ cf.lockBg }}; border-radius:5px; padding:3px 8px; font-family:'DM Mono', monospace; font-size:8.5px; text-transform:uppercase; letter-spacing:0.1em; color:{{ cf.lockFg }}">{{ cf.lockLabel }}</button>
+                        </div>
+                        <input value="{{ cf.value }}" onChange="{{ cf.onChange }}" style="width:100%; background:#13131c; border:1px solid {{ cf.border }}; border-radius:6px; padding:8px 10px; font-family:'DM Mono', monospace; font-size:12px; color:#ede8df; outline:none" style-focus="border-color:rgba(200,240,96,0.45)">
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ v.noSel }}" hint-placeholder-val="{{ true }}">
+              <div style="height:100%; display:flex; flex-direction:column; justify-content:center; gap:12px; padding:20px">
+                <span style="font-family:'Bebas Neue', sans-serif; font-size:44px; line-height:0.85; color:transparent; -webkit-text-stroke:1px rgba(237,232,223,0.14)">ÉDITEUR</span>
+                <p style="margin:0; font-size:12px; line-height:1.5; color:#9c9590; text-wrap:pretty">Sélectionne une vignette pour corriger sa variante, ou la carte entière. Les flèches suffisent : la grille garde le focus.</p>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isStats }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; gap:34px; max-width:1520px">
+
+          <section style="display:flex; flex-direction:column; gap:18px">
+            <div style="display:flex; align-items:center; gap:14px">
+              <span style="font-family:'DM Mono', monospace; font-size:9.5px; letter-spacing:0.2em; color:#c8f060">01 /</span>
+              <h2 style="margin:0; font-family:'DM Serif Display', Georgia, serif; font-size:21px; font-weight:400">Répartition des 30 995 variantes</h2>
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+              <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#6b665f">11 types déclarés · 9 utilisés</span>
+            </div>
+            <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; padding:8px 22px">
+              <sc-for list="{{ st.variantTypes }}" as="t" hint-placeholder-count="11">
+                <div style="display:grid; grid-template-columns:minmax(110px,132px) 1fr minmax(78px,88px) minmax(56px,64px); gap:16px; align-items:center; padding:11px 0; border-bottom:1px solid rgba(255,255,255,0.04)">
+                  <span style="font-family:'DM Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.12em; color:{{ t.labelFg }}">{{ t.label }}</span>
+                  <span style="display:block; height:8px; border-radius:2px; background:rgba(255,255,255,0.05); overflow:hidden">
+                    <span style="display:block; height:100%; background:{{ t.fill }}; width:{{ t.pct }}%"></span>
+                  </span>
+                  <span style="font-family:'DM Mono', monospace; font-size:13px; text-align:right; color:{{ t.valueFg }}">{{ t.value }}</span>
+                  <span style="font-family:'DM Mono', monospace; font-size:10px; text-align:right; color:#6b665f">{{ t.share }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <p style="margin:0; display:flex; align-items:flex-start; gap:9px; font-size:12.5px; line-height:1.6; color:#9c9590; max-width:760px; text-wrap:pretty">
+              <span style="width:5px; height:5px; margin-top:7px; flex:0 0 5px; border-radius:50%; background:#c8f060"></span>
+              17 237 Normales pour 21 891 cartes : 4 654 cartes n'ont même pas leur variante de base. Les deux dernières lignes à zéro sont autorisées par la base sur les 200 sets — c'est ce que la restriction par set corrige.
+            </p>
+          </section>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:20px">
+            <sc-for list="{{ st.blocks }}" as="b" hint-placeholder-count="3">
+              <section style="display:flex; flex-direction:column; gap:16px">
+                <div style="display:flex; align-items:center; gap:14px">
+                  <span style="font-family:'DM Mono', monospace; font-size:9.5px; letter-spacing:0.2em; color:#c8f060">{{ b.num }}</span>
+                  <h2 style="margin:0; font-family:'DM Serif Display', Georgia, serif; font-size:19px; font-weight:400">{{ b.title }}</h2>
+                  <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+                </div>
+                <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; padding:6px 18px">
+                  <sc-for list="{{ b.rows }}" as="r" hint-placeholder-count="3">
+                    <div style="display:flex; align-items:center; gap:14px; padding:13px 0; border-bottom:1px solid rgba(255,255,255,0.04)">
+                      <span style="width:5px; height:5px; flex:0 0 5px; border-radius:50%; background:{{ r.dot }}"></span>
+                      <span style="flex:1; display:flex; flex-direction:column; gap:3px; min-width:0">
+                        <span style="font-size:12.5px; color:#ede8df">{{ r.label }}</span>
+                        <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#6b665f">{{ r.note }}</span>
+                      </span>
+                      <span style="font-family:'Bebas Neue', sans-serif; font-size:24px; line-height:0.85; white-space:nowrap; color:{{ r.fg }}">{{ r.value }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <p style="margin:0; font-size:12px; line-height:1.6; color:#6b665f; text-wrap:pretty">{{ b.note }}</p>
+              </section>
+            </sc-for>
+          </div>
+
+          <section style="display:flex; flex-direction:column; gap:16px">
+            <div style="display:flex; align-items:center; gap:14px">
+              <span style="font-family:'DM Mono', monospace; font-size:9.5px; letter-spacing:0.2em; color:#c8f060">05 /</span>
+              <h2 style="margin:0; font-family:'DM Serif Display', Georgia, serif; font-size:21px; font-weight:400">Ventes</h2>
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+            </div>
+            <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; padding:22px 24px; display:flex; align-items:center; gap:24px; flex-wrap:wrap">
+              <span style="font-family:'Bebas Neue', sans-serif; font-size:44px; line-height:0.8; letter-spacing:0.04em; color:transparent; -webkit-text-stroke:1px rgba(237,232,223,0.14)">PAS DE SÉRIE</span>
+              <p style="margin:0; flex:1 1 320px; font-size:12.5px; line-height:1.6; color:#9c9590; text-wrap:pretty">Aucune vente enregistrée : il n'y a rien à tracer, et une courbe plate à zéro sur six mois serait un graphique menteur. Cette section s'activera à la première commande payée.</p>
+            </div>
+          </section>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isListings }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; gap:20px; max-width:1520px">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:1px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.06); border-radius:12px; overflow:hidden">
+            <sc-for list="{{ li.kpis }}" as="k" hint-placeholder-count="4">
+              <div style="background:#0e0e15; padding:18px 22px; display:flex; flex-direction:column; gap:9px">
+                <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.18em; white-space:nowrap; color:#6b665f">{{ k.label }}</span>
+                <span style="font-family:'Bebas Neue', sans-serif; font-size:34px; line-height:0.85; white-space:nowrap; color:{{ k.fg }}">{{ k.value }}</span>
+                <span style="font-size:11.5px; color:#9c9590">{{ k.sub }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="border:1px solid rgba(200,240,96,0.28); background:rgba(200,240,96,0.06); border-radius:12px; padding:16px 20px; display:flex; align-items:center; gap:18px; flex-wrap:wrap">
+            <span style="display:flex; align-items:center; gap:10px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#c8f060">
+              <span style="width:5px; height:5px; border-radius:50%; background:#c8f060"></span>
+              Aucun prix saisi
+            </span>
+            <p style="margin:0; flex:1 1 380px; font-size:12.5px; line-height:1.6; color:#ede8df; text-wrap:pretty">Les 1 641 exemplaires sont inventoriés mais aucun n'a de prix : rien n'est vendable en l'état. La colonne prix est éditable directement dans le tableau — Entrée valide et descend à la ligne suivante.</p>
+            <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#9c9590">{{ li.progress }}</span>
+          </div>
+
+          <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; overflow-x:auto">
+            <div style="min-width:940px; display:grid; grid-template-columns:minmax(180px,2fr) minmax(120px,1.2fr) minmax(96px,110px) minmax(86px,96px) minmax(60px,70px) minmax(104px,120px) minmax(110px,130px); gap:14px; padding:12px 22px; border-bottom:1px solid rgba(255,255,255,0.06); font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#6b665f">
+              <span>Carte</span><span>Set</span><span>Variante</span><span>État</span><span style="text-align:right">Qté</span><span style="text-align:right">Prix</span><span style="text-align:right">Publication</span>
+            </div>
+            <sc-for list="{{ li.rows }}" as="r" hint-placeholder-count="10">
+              <div style="min-width:940px; display:grid; grid-template-columns:minmax(180px,2fr) minmax(120px,1.2fr) minmax(96px,110px) minmax(86px,96px) minmax(60px,70px) minmax(104px,120px) minmax(110px,130px); gap:14px; align-items:center; padding:11px 22px; border-bottom:1px solid rgba(255,255,255,0.04); transition:background 140ms" style-hover="background:#13131c">
+                <span style="display:flex; align-items:baseline; gap:8px; min-width:0">
+                  <span style="font-family:'DM Mono', monospace; font-size:10.5px; color:#6b665f">{{ r.num }}</span>
+                  <span style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.name }}</span>
+                </span>
+                <span style="font-family:'DM Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.1em; color:#9c9590; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.set }}</span>
+                <span style="font-family:'DM Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:{{ r.variantFg }}">{{ r.variant }}</span>
+                <span style="font-family:'DM Mono', monospace; font-size:10.5px; color:#9c9590">{{ r.grade }}</span>
+                <span style="font-family:'DM Mono', monospace; font-size:12px; text-align:right; color:#ede8df">{{ r.qty }}</span>
+                <input value="{{ r.price }}" onChange="{{ r.onPrice }}" placeholder="—" style="width:100%; text-align:right; background:{{ r.priceBg }}; border:1px solid {{ r.priceBorder }}; border-radius:6px; padding:6px 9px; font-family:'DM Mono', monospace; font-size:12px; color:{{ r.priceFg }}; outline:none" style-focus="border-color:rgba(200,240,96,0.45)">
+                <span style="justify-self:end; display:flex; align-items:center; gap:7px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.1em; color:{{ r.pubFg }}">
+                  <span style="width:5px; height:5px; border-radius:50%; background:{{ r.pubFg }}"></span>
+                  {{ r.pub }}
+                </span>
+              </div>
+            </sc-for>
+          </div>
+          <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#6b665f">{{ li.footer }}</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isImport }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; gap:28px; max-width:1180px">
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:16px">
+            <div style="border:1px dashed rgba(200,240,96,0.32); border-radius:12px; background:rgba(200,240,96,0.05); padding:26px 24px; display:flex; flex-direction:column; gap:11px">
+              <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.18em; color:#c8f060">Déposer un fichier</span>
+              <span style="font-size:13px; line-height:1.6; color:#ede8df; text-wrap:pretty">CSV de cartes, export d'API ou dossier de visuels. Le fichier est analysé avant d'être appliqué : rien n'est écrit sans validation.</span>
+              <span style="font-family:'DM Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:#6b665f">csv · json · zip d'images</span>
+            </div>
+            <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; padding:22px 24px; display:flex; flex-direction:column; gap:14px">
+              <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.18em; color:#6b665f">Ce que le prochain import protège</span>
+              <span style="font-family:'Bebas Neue', sans-serif; font-size:46px; line-height:0.8; color:{{ im.protectedFg }}">{{ im.protectedCount }}</span>
+              <span style="font-size:12.5px; line-height:1.6; color:#9c9590; text-wrap:pretty">{{ im.protectedNote }}</span>
+            </div>
+          </div>
+
+          <section style="display:flex; flex-direction:column; gap:16px">
+            <div style="display:flex; align-items:center; gap:14px">
+              <span style="font-family:'DM Mono', monospace; font-size:9.5px; letter-spacing:0.2em; color:#c8f060">01 /</span>
+              <h2 style="margin:0; font-family:'DM Serif Display', Georgia, serif; font-size:21px; font-weight:400">Historique</h2>
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+              <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#6b665f">4 exécutions</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:9px">
+              <sc-for list="{{ im.runs }}" as="r" hint-placeholder-count="4">
+                <div style="border:1px solid rgba(255,255,255,0.06); border-radius:10px; background:#0e0e15; padding:14px 18px; display:flex; align-items:center; gap:18px; flex-wrap:wrap">
+                  <span style="display:flex; flex-direction:column; gap:4px; flex:1 1 220px; min-width:0">
+                    <span style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.file }}</span>
+                    <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.12em; color:#6b665f">{{ r.date }} · {{ r.source }}</span>
+                  </span>
+                  <div style="display:flex; gap:22px; flex-wrap:wrap">
+                    <sc-for list="{{ r.metrics }}" as="m" hint-placeholder-count="4">
+                      <span style="display:flex; flex-direction:column; gap:3px">
+                        <span style="font-family:'DM Mono', monospace; font-size:13px; color:{{ m.fg }}">{{ m.value }}</span>
+                        <span style="font-family:'DM Mono', monospace; font-size:8.5px; text-transform:uppercase; letter-spacing:0.12em; color:#6b665f">{{ m.label }}</span>
+                      </span>
+                    </sc-for>
+                  </div>
+                  <span style="display:flex; align-items:center; gap:7px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.1em; color:{{ r.stateFg }}">
+                    <span style="width:5px; height:5px; border-radius:50%; background:{{ r.stateFg }}"></span>
+                    {{ r.state }}
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isSealed }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; flex-direction:column; gap:20px; max-width:1520px">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:1px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.06); border-radius:12px; overflow:hidden">
+            <sc-for list="{{ sl.kpis }}" as="k" hint-placeholder-count="4">
+              <div style="background:#0e0e15; padding:18px 22px; display:flex; flex-direction:column; gap:9px">
+                <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.18em; white-space:nowrap; color:#6b665f">{{ k.label }}</span>
+                <span style="font-family:'Bebas Neue', sans-serif; font-size:34px; line-height:0.85; white-space:nowrap; color:{{ k.fg }}">{{ k.value }}</span>
+                <span style="font-size:11.5px; color:#9c9590">{{ k.sub }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ sl.hasRows }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; overflow-x:auto">
+              <div style="min-width:900px; display:grid; grid-template-columns:44px minmax(190px,2fr) minmax(110px,1.1fr) minmax(96px,110px) minmax(84px,96px) minmax(56px,66px) minmax(90px,104px) minmax(104px,120px); gap:14px; padding:12px 22px; border-bottom:1px solid rgba(255,255,255,0.06); font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#6b665f">
+                <span></span><span>Produit</span><span>Extension</span><span>Catégorie</span><span>État</span><span style="text-align:right">Qté</span><span style="text-align:right">Prix</span><span style="text-align:right">Disponibilité</span>
+              </div>
+              <sc-for list="{{ sl.rows }}" as="r" hint-placeholder-count="4">
+                <div onClick="{{ r.edit }}" style="min-width:900px; display:grid; grid-template-columns:44px minmax(190px,2fr) minmax(110px,1.1fr) minmax(96px,110px) minmax(84px,96px) minmax(56px,66px) minmax(90px,104px) minmax(104px,120px); gap:14px; align-items:center; padding:11px 22px; border-bottom:1px solid rgba(255,255,255,0.04); cursor:pointer; transition:background 140ms" style-hover="background:#13131c">
+                  <span style="width:32px; height:32px; border-radius:5px; border:1px solid rgba(255,255,255,0.08); background:{{ r.thumb }}"></span>
+                  <span style="display:flex; flex-direction:column; gap:3px; min-width:0">
+                    <span style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:{{ r.nameFg }}">{{ r.name }}</span>
+                    <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.1em; color:#6b665f">{{ r.photos }}</span>
+                  </span>
+                  <span style="font-family:'DM Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.1em; color:#9c9590; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.ext }}</span>
+                  <span style="font-family:'DM Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:#9c9590">{{ r.cat }}</span>
+                  <span style="font-family:'DM Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:{{ r.stateFg }}">{{ r.state }}</span>
+                  <span style="font-family:'DM Mono', monospace; font-size:12px; text-align:right">{{ r.qty }}</span>
+                  <span style="font-family:'DM Mono', monospace; font-size:12px; text-align:right; color:{{ r.priceFg }}">{{ r.price }}</span>
+                  <span style="justify-self:end; display:flex; align-items:center; gap:7px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.1em; color:{{ r.availFg }}">
+                    <span style="width:5px; height:5px; border-radius:50%; background:{{ r.availFg }}"></span>
+                    {{ r.avail }}
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ sl.empty }}" hint-placeholder-val="{{ true }}">
+            <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; padding:26px 26px; display:flex; gap:34px; flex-wrap:wrap">
+              <div style="flex:1 1 380px; min-width:300px; display:flex; flex-direction:column; gap:14px">
+                <span style="font-family:'Bebas Neue', sans-serif; font-size:62px; line-height:0.8; letter-spacing:0.04em; color:transparent; -webkit-text-stroke:1px rgba(237,232,223,0.14)">AUCUN SCELLÉ</span>
+                <p style="margin:0; font-size:13px; line-height:1.7; color:#ede8df; max-width:520px; text-wrap:pretty">Le scellé ne passe par aucune API : ni numéro, ni rareté, ni variante. Chaque produit est saisi à la main, une fois, et vit ensuite de son stock et de sa disponibilité.</p>
+                <button onClick="{{ sl.create }}" style="align-self:flex-start; border:1px solid #c8f060; background:#c8f060; cursor:pointer; border-radius:7px; padding:10px 17px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#0b0b11" style-hover="background:#dcf78f">Saisir le premier produit</button>
+              </div>
+              <div style="flex:0 1 340px; min-width:280px; display:flex; flex-direction:column; gap:11px">
+                <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.18em; color:#6b665f">Catégories prévues</span>
+                <sc-for list="{{ sl.categories }}" as="c" hint-placeholder-count="5">
+                  <div style="display:flex; align-items:flex-start; gap:11px; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px">
+                    <span style="font-family:'DM Mono', monospace; font-size:9.5px; color:#6b665f; padding-top:2px">{{ c.num }}</span>
+                    <span style="display:flex; flex-direction:column; gap:3px">
+                      <span style="font-size:12.5px; color:#ede8df">{{ c.label }}</span>
+                      <span style="font-size:11.5px; line-height:1.5; color:#6b665f; text-wrap:pretty">{{ c.note }}</span>
+                    </span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isEmptyScreen }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; gap:34px; flex-wrap:wrap; max-width:1180px">
+          <div style="flex:1 1 400px; min-width:320px; display:flex; flex-direction:column; gap:16px">
+            <span style="font-family:'Bebas Neue', sans-serif; font-size:76px; line-height:0.8; letter-spacing:0.04em; color:transparent; -webkit-text-stroke:1px rgba(237,232,223,0.14)">{{ es.word }}</span>
+            <p style="margin:0; font-size:13.5px; line-height:1.7; color:#ede8df; max-width:520px; text-wrap:pretty">{{ es.lead }}</p>
+            <p style="margin:0; font-size:12.5px; line-height:1.7; color:#9c9590; max-width:520px; text-wrap:pretty">{{ es.reason }}</p>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding-top:4px">
+              <button onClick="{{ es.go }}" style="border:1px solid #c8f060; background:#c8f060; cursor:pointer; border-radius:7px; padding:10px 17px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#0b0b11" style-hover="background:#dcf78f">{{ es.action }}</button>
+              <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#6b665f">{{ es.actionNote }}</span>
+            </div>
+          </div>
+          <div style="flex:0 1 380px; min-width:300px; display:flex; flex-direction:column; gap:12px">
+            <span style="display:flex; align-items:center; gap:10px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.18em; color:#6b665f">
+              <span style="color:#c8f060">01 /</span> Structure prévue
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+            </span>
+            <div style="border:1px solid rgba(255,255,255,0.06); border-radius:12px; background:#0e0e15; padding:6px 18px">
+              <sc-for list="{{ es.rows }}" as="r" hint-placeholder-count="4">
+                <div style="display:flex; align-items:flex-start; gap:12px; padding:13px 0; border-bottom:1px solid rgba(255,255,255,0.04)">
+                  <span style="font-family:'DM Mono', monospace; font-size:9.5px; color:#6b665f; padding-top:2px">{{ r.num }}</span>
+                  <span style="display:flex; flex-direction:column; gap:3px; min-width:0">
+                    <span style="font-size:12.5px; color:#ede8df">{{ r.label }}</span>
+                    <span style="font-size:11.5px; line-height:1.5; color:#6b665f; text-wrap:pretty">{{ r.note }}</span>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <sc-if value="{{ sealedPanel }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:20; display:flex; justify-content:flex-end">
+      <div onClick="{{ sp.close }}" style="position:absolute; inset:0; background:rgba(9,9,14,0.62); backdrop-filter:blur(2px)"></div>
+      <section style="position:relative; width:600px; max-width:92vw; height:100%; display:flex; flex-direction:column; background:#0b0b11; border-left:1px solid rgba(255,255,255,0.09); box-shadow:-40px 0 80px rgba(0,0,0,0.5)">
+
+        <div style="flex:0 0 auto; padding:22px 26px 18px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; align-items:flex-start; gap:16px">
+          <div style="display:flex; flex-direction:column; gap:8px; min-width:0">
+            <span style="display:flex; align-items:center; gap:9px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:#6b665f">
+              <span style="color:#c8f060">{{ sp.tag }}</span> Produit scellé
+            </span>
+            <h2 style="margin:0; font-family:'Bebas Neue', sans-serif; font-size:32px; line-height:0.9; letter-spacing:0.03em">{{ sp.title }}</h2>
+          </div>
+          <span style="flex:1"></span>
+          <div style="display:flex; align-items:center; gap:8px">
+            <span style="border:1px solid rgba(255,255,255,0.07); border-radius:7px; padding:8px 12px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:{{ sp.publicFg }}">{{ sp.publicLabel }}</span>
+            <button onClick="{{ sp.close }}" style="border:1px solid rgba(255,255,255,0.12); background:none; cursor:pointer; border-radius:7px; width:32px; height:32px; font-size:14px; color:#9c9590" style-hover="border-color:rgba(255,255,255,0.3); color:#ede8df">✕</button>
+          </div>
+        </div>
+
+        <div style="flex:1; overflow-y:auto; padding:22px 26px 24px; display:flex; flex-direction:column; gap:26px">
+
+          <div style="display:flex; flex-direction:column; gap:12px">
+            <span style="display:flex; align-items:center; gap:10px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:#6b665f">
+              <span style="color:#c8f060">01 /</span> Photos
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+              <span style="color:#9c9590">{{ sp.photoNote }}</span>
+            </span>
+            <div style="display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); gap:10px">
+              <sc-for list="{{ sp.photos }}" as="p" hint-placeholder-count="4">
+                <button style="display:flex; flex-direction:column; justify-content:flex-end; gap:6px; cursor:pointer; aspect-ratio:1; border:1px dashed {{ p.border }}; background:{{ p.bg }}; border-radius:9px; padding:9px" style-hover="border-color:rgba(200,240,96,0.45)">
+                  <span style="font-family:'DM Mono', monospace; font-size:8.5px; text-transform:uppercase; letter-spacing:0.12em; text-align:left; color:{{ p.fg }}">{{ p.label }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px">
+            <span style="display:flex; align-items:center; gap:10px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:#6b665f">
+              <span style="color:#c8f060">02 /</span> Identification
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+            </span>
+            <sc-for list="{{ sp.fields }}" as="f" hint-placeholder-count="4">
+              <div style="display:flex; flex-direction:column; gap:6px">
+                <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#9c9590">{{ f.label }}</span>
+                <input value="{{ f.value }}" onChange="{{ f.onChange }}" placeholder="{{ f.placeholder }}" style="width:100%; background:#0e0e15; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:9px 12px; font-family:'DM Mono', monospace; font-size:13px; color:#ede8df; outline:none" style-focus="border-color:rgba(200,240,96,0.45)">
+                <span style="font-size:11.5px; line-height:1.5; color:#6b665f; text-wrap:pretty">{{ f.help }}</span>
+              </div>
+            </sc-for>
+            <sc-for list="{{ sp.pickers }}" as="pk" hint-placeholder-count="3">
+              <div style="display:flex; flex-direction:column; gap:7px">
+                <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#9c9590">{{ pk.label }}</span>
+                <div style="display:flex; flex-wrap:wrap; gap:5px">
+                  <sc-for list="{{ pk.options }}" as="o" hint-placeholder-count="4">
+                    <button onClick="{{ o.go }}" style="cursor:pointer; border:1px solid {{ o.border }}; background:{{ o.bg }}; border-radius:6px; padding:6px 11px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.1em; color:{{ o.fg }}" style-hover="border-color:rgba(200,240,96,0.35)">{{ o.label }}</button>
+                  </sc-for>
+                </div>
+                <span style="font-size:11.5px; line-height:1.5; color:#6b665f; text-wrap:pretty">{{ pk.help }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px">
+            <span style="display:flex; align-items:center; gap:10px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:#6b665f">
+              <span style="color:#c8f060">03 /</span> Vente
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+            </span>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+              <sc-for list="{{ sp.money }}" as="m" hint-placeholder-count="2">
+                <div style="display:flex; flex-direction:column; gap:6px">
+                  <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#9c9590">{{ m.label }}</span>
+                  <input value="{{ m.value }}" onChange="{{ m.onChange }}" placeholder="{{ m.placeholder }}" style="width:100%; background:#0e0e15; border:1px solid rgba(255,255,255,0.08); border-radius:7px; padding:9px 12px; font-family:'DM Mono', monospace; font-size:13px; color:#ede8df; outline:none" style-focus="border-color:rgba(200,240,96,0.45)">
+                </div>
+              </sc-for>
+            </div>
+            <button onClick="{{ sp.toggleAvail }}" style="display:flex; align-items:flex-start; gap:10px; text-align:left; cursor:pointer; border:1px solid {{ sp.availBorder }}; background:{{ sp.availBg }}; border-radius:9px; padding:12px 14px">
+              <span style="width:13px; height:13px; margin-top:2px; flex:0 0 13px; border-radius:3px; border:1px solid {{ sp.availBox }}; background:{{ sp.availBoxBg }}"></span>
+              <span style="display:flex; flex-direction:column; gap:4px">
+                <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:{{ sp.availFg }}">{{ sp.availLabel }}</span>
+                <span style="font-size:11.5px; line-height:1.5; color:#9c9590; text-wrap:pretty">{{ sp.availNote }}</span>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div style="flex:0 0 auto; padding:16px 26px; border-top:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; gap:12px">
+          <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:{{ sp.dirtyFg }}">{{ sp.dirtyLabel }}</span>
+          <span style="flex:1"></span>
+          <button onClick="{{ sp.close }}" style="border:1px solid rgba(255,255,255,0.12); background:none; cursor:pointer; border-radius:7px; padding:9px 15px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#9c9590" style-hover="border-color:rgba(255,255,255,0.3); color:#ede8df">Échap · fermer</button>
+          <button onClick="{{ sp.save }}" style="border:1px solid #c8f060; background:#c8f060; cursor:pointer; border-radius:7px; padding:9px 17px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#0b0b11" style-hover="background:#dcf78f">⌘S · enregistrer</button>
+        </div>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ panelOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:20; display:flex; justify-content:flex-end">
+      <div onClick="{{ closePanel }}" style="position:absolute; inset:0; background:rgba(9,9,14,0.62); backdrop-filter:blur(2px)"></div>
+
+      <section style="position:relative; width:600px; max-width:92vw; height:100%; display:flex; flex-direction:column; background:#0b0b11; border-left:1px solid rgba(255,255,255,0.09); box-shadow:-40px 0 80px rgba(0,0,0,0.5)">
+
+        <div style="flex:0 0 auto; padding:22px 26px 18px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; align-items:flex-start; gap:16px">
+          <div style="display:flex; flex-direction:column; gap:8px; min-width:0">
+            <span style="display:flex; align-items:center; gap:9px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:#6b665f">
+              <span style="color:#c8f060">{{ panel.index }}</span>
+              / 200 · {{ panel.code }}
+            </span>
+            <h2 style="margin:0; font-family:'Bebas Neue', sans-serif; font-size:34px; line-height:0.9; letter-spacing:0.03em">{{ panel.name }}</h2>
+          </div>
+          <span style="flex:1"></span>
+          <div style="display:flex; align-items:center; gap:8px">
+            <a href="#" style="display:flex; align-items:center; gap:7px; border:1px solid rgba(255,255,255,0.12); border-radius:7px; padding:8px 12px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#ede8df" style-hover="border-color:rgba(200,240,96,0.4); color:#c8f060">Page publique ↗</a>
+            <button onClick="{{ openVariants }}" style="border:1px solid rgba(255,255,255,0.12); background:none; cursor:pointer; border-radius:7px; padding:8px 13px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#ede8df" style-hover="border-color:rgba(200,240,96,0.4); color:#c8f060">Variantes →</button>
+            <button onClick="{{ closePanel }}" style="border:1px solid rgba(255,255,255,0.12); background:none; cursor:pointer; border-radius:7px; width:32px; height:32px; font-size:14px; color:#9c9590" style-hover="border-color:rgba(255,255,255,0.3); color:#ede8df">✕</button>
+          </div>
+        </div>
+
+        <div style="flex:1; overflow-y:auto; padding:22px 26px 24px; display:flex; flex-direction:column; gap:26px">
+
+          <div style="display:flex; flex-direction:column; gap:12px">
+            <span style="display:flex; align-items:center; gap:10px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:#6b665f">
+              <span style="color:#c8f060">01 /</span> Contenu réel
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+            </span>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px,1fr)); gap:1px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.06); border-radius:10px; overflow:hidden">
+              <sc-for list="{{ panel.facts }}" as="m" hint-placeholder-count="4">
+                <div style="background:#0e0e15; padding:13px 15px; display:flex; flex-direction:column; gap:6px">
+                  <span style="font-family:'Bebas Neue', sans-serif; font-size:26px; line-height:0.85; white-space:nowrap; color:{{ m.fg }}">{{ m.value }}</span>
+                  <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.14em; color:#6b665f">{{ m.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <p style="margin:0; display:flex; align-items:flex-start; gap:9px; font-size:12.5px; line-height:1.5; color:{{ panel.gapFg }}; text-wrap:pretty">
+              <span style="width:5px; height:5px; margin-top:6px; flex:0 0 5px; border-radius:50%; background:{{ panel.gapFg }}"></span>
+              {{ panel.gapNote }}
+            </p>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px">
+            <span style="display:flex; align-items:center; gap:10px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:#6b665f">
+              <span style="color:#c8f060">02 /</span> Identité du set
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+            </span>
+            <div style="display:flex; flex-direction:column">
+              <sc-for list="{{ panel.fields }}" as="f" hint-placeholder-count="5">
+                <div style="display:flex; flex-direction:column; gap:7px; padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.05)">
+                  <div style="display:flex; align-items:center; gap:10px">
+                    <label style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.16em; color:#9c9590">{{ f.label }}</label>
+                    <span style="font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:{{ f.sourceFg }}">{{ f.source }}</span>
+                    <span style="flex:1"></span>
+                    <sc-if value="{{ f.modified }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ f.revert }}" style="border:0; background:none; cursor:pointer; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#9c9590" style-hover="color:#ede8df">↺ annuler</button>
+                    </sc-if>
+                    <button onClick="{{ f.toggleLock }}" title="{{ f.lockTitle }}" style="display:flex; align-items:center; gap:6px; border:1px solid {{ f.lockBorder }}; background:{{ f.lockBg }}; cursor:pointer; border-radius:6px; padding:4px 9px; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:{{ f.lockFg }}">
+                      <span style="width:4px; height:4px; border-radius:50%; background:{{ f.lockFg }}"></span>
+                      {{ f.lockLabel }}
+                    </button>
+                  </div>
+                  <input value="{{ f.value }}" onChange="{{ f.onChange }}" style="width:100%; background:#0e0e15; border:1px solid {{ f.inputBorder }}; border-radius:7px; padding:9px 12px; font-family:'DM Mono', monospace; font-size:13px; color:#ede8df; outline:none" style-focus="border-color:rgba(200,240,96,0.45)">
+                  <span style="font-size:11.5px; line-height:1.5; color:#6b665f; text-wrap:pretty">{{ f.help }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px">
+            <span style="display:flex; align-items:center; gap:10px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:#6b665f">
+              <span style="color:#c8f060">03 /</span> Habillage
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+            </span>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:12px">
+              <sc-for list="{{ panel.assets }}" as="a" hint-placeholder-count="2">
+                <div style="border:1px dashed {{ a.border }}; border-radius:10px; padding:14px; display:flex; align-items:center; gap:13px; background:#0e0e15">
+                  <div style="width:44px; height:44px; flex:0 0 44px; border-radius:6px; background:#13131c; border:1px solid rgba(255,255,255,0.07)"></div>
+                  <div style="display:flex; flex-direction:column; gap:4px; min-width:0">
+                    <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#9c9590">{{ a.label }}</span>
+                    <span style="font-size:11.5px; color:{{ a.stateFg }}">{{ a.state }}</span>
+                    <button style="align-self:flex-start; border:0; background:none; padding:0; cursor:pointer; font-family:'DM Mono', monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:#c8f060">{{ a.action }}</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:12px">
+            <span style="display:flex; align-items:center; gap:10px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:#6b665f">
+              <span style="color:#c8f060">04 /</span> Variantes autorisées
+              <span style="flex:1; height:1px; background:rgba(255,255,255,0.06)"></span>
+              <span style="color:#9c9590">{{ panel.allowedSummary }}</span>
+            </span>
+            <p style="margin:0; font-size:11.5px; line-height:1.5; color:#6b665f; text-wrap:pretty">Aucune case cochée = les 11 types restent permis, y compris une Masterball sur un set de 1999. Cocher restreint la saisie à ce seul jeu de types.</p>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(168px,1fr)); gap:8px">
+              <sc-for list="{{ panel.variantTypes }}" as="v" hint-placeholder-count="11">
+                <button onClick="{{ v.toggle }}" style="display:flex; align-items:center; gap:10px; text-align:left; cursor:pointer; border:1px solid {{ v.border }}; background:{{ v.bg }}; border-radius:8px; padding:9px 11px" style-hover="border-color:rgba(200,240,96,0.35)">
+                  <span style="width:13px; height:13px; flex:0 0 13px; border-radius:3px; border:1px solid {{ v.boxBorder }}; background:{{ v.boxBg }}"></span>
+                  <span style="flex:1; font-size:12.5px; color:{{ v.fg }}">{{ v.label }}</span>
+                  <span style="font-family:'DM Mono', monospace; font-size:10.5px; color:{{ v.countFg }}">{{ v.count }}</span>
+                </button>
+              </sc-for>
+            </div>
+            <sc-if value="{{ panel.hasError }}" hint-placeholder-val="{{ false }}">
+              <p style="margin:0; display:flex; align-items:flex-start; gap:9px; border:1px solid rgba(255,122,104,0.35); background:rgba(255,122,104,0.08); border-radius:8px; padding:11px 13px; font-size:12px; line-height:1.5; color:#ff7a68; text-wrap:pretty">
+                <span style="width:5px; height:5px; margin-top:6px; flex:0 0 5px; border-radius:50%; background:#ff7a68"></span>
+                {{ panel.error }}
+              </p>
+            </sc-if>
+          </div>
+
+        </div>
+
+        <div style="flex:0 0 auto; padding:16px 26px; border-top:1px solid rgba(255,255,255,0.06); background:#0b0b11; display:flex; align-items:center; gap:12px">
+          <span style="font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:{{ panel.dirtyFg }}">{{ panel.dirtyLabel }}</span>
+          <span style="flex:1"></span>
+          <button onClick="{{ panel.reset }}" style="border:1px solid rgba(255,255,255,0.12); background:none; cursor:pointer; border-radius:7px; padding:9px 15px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#9c9590" style-hover="border-color:rgba(255,255,255,0.3); color:#ede8df">Échap · fermer</button>
+          <button onClick="{{ panel.save }}" style="border:1px solid #c8f060; background:#c8f060; cursor:pointer; border-radius:7px; padding:9px 17px; font-family:'DM Mono', monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:0.14em; color:#0b0b11" style-hover="background:#dcf78f">⌘S · enregistrer</button>
+        </div>
+      </section>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#c8f060&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#c8f060&quot;,&quot;#64b4ff&quot;,&quot;#c88cff&quot;,&quot;#f0a860&quot;],&quot;section&quot;:&quot;Direction artistique&quot;},&quot;denseTables&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Direction artistique&quot;},&quot;demoData&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Données&quot;,&quot;label&quot;:&quot;Commerce peuplé (démo)&quot;}}">
+const C = {
+  lime: "#c8f060",
+  limeDim: "rgba(200,240,96,0.12)",
+  blue: "rgba(100,180,255,0.75)",
+  violet: "rgba(200,140,255,0.7)",
+  red: "#ff7a68",
+  text: "#ede8df",
+  muted: "#9c9590",
+  dim: "#6b665f"
+};
+
+const NAV = [
+  { num: "01", label: "Pilotage", items: [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "stats", label: "Statistiques" }
+  ]},
+  { num: "02", label: "Inventaire", items: [
+    { id: "catalogue", label: "Catalogue", badge: "200" },
+    { id: "variants", label: "Éditeur de variantes", badge: "30 995" },
+    { id: "listings", label: "Listings", badge: "1 641" },
+    { id: "import", label: "Import" },
+    { id: "sealed", label: "Scellés" }
+  ]},
+  { num: "03", label: "Ventes", items: [
+    { id: "orders", label: "Commandes" },
+    { id: "clients", label: "Clients" },
+    { id: "checks", label: "Vérifications" },
+    { id: "buyback", label: "Rachat" }
+  ]}
+];
+
+const PAGES = {
+  dashboard: { title: "Dashboard", eyebrow: "Lundi 24 août 2026 · chantier catalogue", action: "Nouvel import", word: "" },
+  catalogue: { title: "Catalogue", eyebrow: "200 sets · 21 891 cartes · 30 995 variantes", action: "Ajouter un set", word: "" },
+  orders: { title: "Commandes", eyebrow: "0 commande enregistrée", action: "Saisir les prix", word: "" },
+  stats: { title: "Statistiques", eyebrow: "État du catalogue · aucune donnée de vente", action: "Exporter", word: "" },
+  listings: { title: "Listings", eyebrow: "1 641 exemplaires · 0 prix saisi · 0 publié", action: "Publier la sélection", word: "" },
+  import: { title: "Import", eyebrow: "4 exécutions · dernière le 23 août", action: "Importer un fichier", word: "" },
+  sealed: { title: "Scellés", eyebrow: "0 produit scellé enregistré", action: "Ajouter un produit", word: "" },
+  clients: { title: "Clients", eyebrow: "0 client · la boutique n'a pas ouvert", action: "Saisir les prix", word: "" },
+  checks: { title: "Vérifications", eyebrow: "0 lot en attente de contrôle", action: "Voir le stock", word: "" },
+  buyback: { title: "Rachat", eyebrow: "0 offre · grille de prix absente", action: "Saisir les prix", word: "" },
+  variants: { title: "Éditeur de variantes", eyebrow: "30 995 variantes · 4 286 sans visuel · 0 verrouillée", action: "Ajouter une variante", word: "" }
+};
+
+const BARS = [
+  { label: "mars", amount: "1,9k", v: 1900 },
+  { label: "avr.", amount: "2,4k", v: 2400 },
+  { label: "mai", amount: "2,1k", v: 2100 },
+  { label: "juin", amount: "3,2k", v: 3200 },
+  { label: "juil.", amount: "2,8k", v: 2800 },
+  { label: "août", amount: "3,9k", v: 3900 }
+];
+
+const SETS = [
+  { code: "BASE1", name: "Set de Base", serie: "Base", date: "1999-01-09", have: 102, total: 102, art: "logo" },
+  { code: "BASE2", name: "Jungle", serie: "Base", date: "1999-06-16", have: 64, total: 64, art: "logo" },
+  { code: "BASEP", name: "Wizards Black Star Promos", serie: "Base", date: "1999-07-01", have: 26, total: 53, art: "none" },
+  { code: "WP", name: "W Promotional", serie: "Base", date: "1999-09-01", have: 0, total: 7, art: "none" },
+  { code: "BASE3", name: "Fossile", serie: "Base", date: "1999-10-10", have: 62, total: 62, art: "logo" },
+  { code: "JUMBO", name: "Cartes Jumbo", serie: "Autre", date: "2000-02-01", have: 0, total: 160, art: "none" },
+  { code: "BASE5", name: "Team Rocket", serie: "Base", date: "2000-04-24", have: 83, total: 83, art: "logo" },
+  { code: "NEO1", name: "Neo Genesis", serie: "Neo", date: "2000-12-16", have: 111, total: 111, art: "logo" },
+  { code: "NEO2", name: "Neo Discovery", serie: "Neo", date: "2001-06-01", have: 68, total: 75, art: "symbol" },
+  { code: "ECARD1", name: "Expedition", serie: "e-cards", date: "2002-09-15", have: 165, total: 165, art: "logo" },
+  { code: "EX1", name: "EX Rubis & Saphir", serie: "EX", date: "2003-07-01", have: 109, total: 109, art: "logo" },
+  { code: "NP", name: "Promo Nintendo", serie: "POP", date: "2003-10-01", have: 21, total: 40, art: "symbol" },
+  { code: "SWSH45", name: "Destinées Radieuses", serie: "Épée & Bouclier", date: "2021-02-19", have: 82, total: 73, art: "logo" }
+];
+
+const VARIANT_TYPES = [
+  { key: "normale", label: "Normale", share: 1 },
+  { key: "reverse", label: "Reverse", share: 0.37 },
+  { key: "holo", label: "Holo", share: 0.03 },
+  { key: "ed1", label: "1ère édition", share: 0 },
+  { key: "pokeball", label: "Pokéball", share: 0 },
+  { key: "masterball", label: "Masterball", share: 0 },
+  { key: "ballcopain", label: "Ball Copain", share: 0 },
+  { key: "balllove", label: "Ball Love", share: 0 },
+  { key: "ballsombre", label: "Ball Sombre", share: 0 },
+  { key: "ballrapide", label: "Ball Rapide", share: 0 },
+  { key: "ballrocket", label: "Ball Rocket", share: 0 }
+];
+
+const FIELD_DEFS = [
+  { key: "code", label: "Code", help: "Identifiant du set dans les URL de catalogue. Le changer casse les liens déjà partagés." },
+  { key: "name", label: "Nom", help: "Affiché en boutique et dans la recherche ; sert aussi de repère au moment de l'import." },
+  { key: "serie", label: "Série", help: "Regroupe le set dans les filtres. Une série inconnue crée un nouveau groupe au lieu de rejoindre l'existant." },
+  { key: "date", label: "Date de sortie", help: "Ordonne le catalogue et la file de nettoyage. Une date fausse déplace le set loin de ses voisins." },
+  { key: "total", label: "Nombre attendu", help: "Référence de l'écart. Le baisser fait disparaître l'alerte de cartes manquantes sans corriger le set." }
+];
+
+function setDetail(x) {
+  const cards = x.have;
+  const variants = Math.round(cards * 1.4);
+  return {
+    cards: cards,
+    variants: variants,
+    noVisual: Math.round(variants * 0.138),
+    locked: 0,
+    ecart: x.have - x.total
+  };
+}
+
+const ORDERS = [
+  { ref: "GRK-2841", client: "Mathieu Lefèvre", items: "Charizard Base PSA 8 + 3 cartes", total: "486,00 €", date: "24 août", status: "À expédier" },
+  { ref: "GRK-2840", client: "Léa Marchand", items: "Lot Neo Genesis (11 cartes)", total: "132,50 €", date: "24 août", status: "Payée" },
+  { ref: "GRK-2839", client: "Kevin Roussel", items: "Display EX Dragon scellé", total: "1 240,00 €", date: "23 août", status: "Vérification" },
+  { ref: "GRK-2838", client: "Sofia Benali", items: "Jungle set complet", total: "310,00 €", date: "23 août", status: "Expédiée" },
+  { ref: "GRK-2837", client: "Antoine Prunier", items: "2 boosters Fossile", total: "89,90 €", date: "22 août", status: "Impayée" },
+  { ref: "GRK-2836", client: "Camille Doré", items: "Team Rocket holo x4", total: "398,00 €", date: "22 août", status: "À expédier" },
+  { ref: "GRK-2835", client: "Yanis Ferrand", items: "Lot EX Deoxys (24 cartes)", total: "217,40 €", date: "21 août", status: "Expédiée" },
+  { ref: "GRK-2834", client: "Marion Chevalier", items: "Aquapolis reverse x6", total: "154,00 €", date: "21 août", status: "Remboursée" }
+];
+
+const STATUS_FG = {
+  "À expédier": C.lime,
+  "Payée": C.lime,
+  "Vérification": C.violet,
+  "Expédiée": C.blue,
+  "Impayée": C.red,
+  "Remboursée": C.dim
+};
+
+const CARD_NAMES = ["Bulbizarre", "Herbizarre", "Florizarre", "Salamèche", "Reptincel", "Dracaufeu", "Carapuce", "Carabaffe", "Tortank", "Chenipan", "Papilusion", "Aspicot", "Dardargnan", "Roucool", "Roucoups", "Rattata", "Rattatac", "Piafabec", "Abo", "Arbok", "Pikachu", "Raichu", "Sabelette", "Sablaireau", "Nidoran", "Nidorina", "Nidoqueen", "Mélofée", "Goupix", "Feunard", "Rondoudou", "Nosferapti", "Mystherbe", "Ortide", "Rafflesia", "Paras", "Parasect", "Mimitoss", "Aéromite", "Taupiqueur", "Triopikeur", "Miaouss", "Persian", "Psykokwak", "Akwakwak", "Férosinge", "Colossinge", "Caninos", "Ptitard", "Abra", "Kadabra", "Alakazam", "Machoc", "Machopeur", "Mackogneur", "Chétiflor", "Boustiflor", "Empiflor", "Tentacool", "Tentacruel", "Racaillou", "Gravalanch", "Grolem", "Ponyta", "Galopa", "Ramoloss", "Flagadoss", "Magnéti", "Magnéton", "Canarticho", "Doduo", "Dodrio", "Otaria", "Lamantine", "Tadmorv", "Grotadmorv", "Kokiyas", "Crustabri", "Fantominus", "Spectrum", "Ectoplasma", "Onix", "Soporifik", "Hypnomade", "Krabby", "Krabboss", "Voltorbe", "Électrode", "Noeunoeuf", "Noadkoko", "Osselait", "Ossatueur", "Kicklee", "Tygnon", "Excelangue", "Smogo", "Smogogo", "Rhinocorne", "Rhinoféros", "Leveinard", "Saquedeneu", "Kangourex", "Hypotrempe", "Hypocéan", "Poissirène", "Poissoroy", "Stari", "Staross", "M. Mime", "Insécateur", "Lippoutou", "Élektek", "Magmar", "Scarabrute", "Tauros", "Magicarpe", "Léviator", "Lokhlass", "Métamorph", "Évoli", "Aquali", "Voltali", "Pyroli", "Porygon", "Amonita", "Amonistar", "Kabuto", "Kabutops", "Ptéra", "Ronflex", "Artikodin", "Électhor", "Sulfura", "Minidraco", "Draco", "Dracolosse", "Mewtwo", "Mew"];
+const RARITIES = ["Commune", "Peu commune", "Rare", "Rare Holo"];
+const KINDS = ["Pokémon", "Dresseur", "Énergie"];
+const SET_CACHE = {};
+
+function buildVariants(code) {
+  if (SET_CACHE[code]) return SET_CACHE[code];
+  const raw = SETS.filter(function (x) { return x.code === code; })[0];
+  const n = raw ? Math.max(raw.have, 6) : 12;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const kind = i % 17 === 4 ? KINDS[2] : (i % 4 === 3 ? KINDS[1] : KINDS[0]);
+    const rarity = RARITIES[i % 4];
+    const num = String(i + 1).padStart(3, "0");
+    const name = kind === KINDS[2] ? "Énergie " + ["Plante", "Feu", "Eau", "Psy"][i % 4] : (kind === KINDS[1] ? ["Potion", "Machine à Booster", "Professeur Chen", "Rappel"][i % 4] : CARD_NAMES[i % CARD_NAMES.length]);
+    const types = ["Normale"];
+    if (i % 3 !== 0) types.push("Reverse");
+    if (rarity === "Rare Holo" && i % 5 === 0) types.push("Holo");
+    types.forEach(function (t, vi) {
+      out.push({
+        id: code + "-" + num + "-" + t,
+        cardId: code + "-" + num,
+        num: num, name: name, kind: kind, rarity: rarity, variant: t,
+        hasVisual: (i * 3 + vi) % 7 !== 3,
+        stock: (i % 11 === 0 && vi === 0) ? 2 : 0
+      });
+    });
+  }
+  SET_CACHE[code] = out;
+  return out;
+}
+
+const VTYPE_STATS = [
+  { label: "Normale", n: 17237 },
+  { label: "Reverse", n: 7017 },
+  { label: "Holo", n: 6051 },
+  { label: "1ère édition", n: 676 },
+  { label: "Pokéball", n: 8 },
+  { label: "Ball Copain", n: 2 },
+  { label: "Ball Love", n: 2 },
+  { label: "Ball Sombre", n: 1 },
+  { label: "Ball Rapide", n: 1 },
+  { label: "Masterball", n: 0 },
+  { label: "Ball Rocket", n: 0 }
+];
+
+const STOCK_ROWS = [
+  { num: "004", name: "Salamèche", set: "BASE1", variant: "Normale", grade: "Excellent", qty: 3 },
+  { num: "006", name: "Dracaufeu", set: "BASE1", variant: "Holo", grade: "Bon", qty: 1 },
+  { num: "025", name: "Pikachu", set: "BASE1", variant: "Normale", grade: "Neuf", qty: 6 },
+  { num: "058", name: "Caninos", set: "BASE2", variant: "Reverse", grade: "Excellent", qty: 2 },
+  { num: "015", name: "Dardargnan", set: "BASE3", variant: "Holo", grade: "Moyen", qty: 1 },
+  { num: "112", name: "Rhinoféros", set: "BASE5", variant: "Normale", grade: "Excellent", qty: 4 },
+  { num: "017", name: "Roucool", set: "NEO1", variant: "Reverse", grade: "Neuf", qty: 2 },
+  { num: "149", name: "Dracolosse", set: "NEO1", variant: "Holo", grade: "Excellent", qty: 1 },
+  { num: "003", name: "Florizarre", set: "ECARD1", variant: "Normale", grade: "Bon", qty: 2 },
+  { num: "094", name: "Ectoplasma", set: "EX1", variant: "Holo", grade: "Neuf", qty: 1 },
+  { num: "065", name: "Alakazam", set: "EX1", variant: "Reverse", grade: "Excellent", qty: 3 },
+  { num: "143", name: "Ronflex", set: "NP", variant: "Normale", grade: "Bon", qty: 2 }
+];
+
+const IMPORT_RUNS = [
+  { file: "pokemontcg-sets-full.json", date: "23 août 14:02", source: "API pokemontcg.io", created: 0, updated: 200, skipped: 0, blocked: 0, state: "Terminé" },
+  { file: "visuels-ecard-lot3.zip", date: "21 août 09:47", source: "Dépôt manuel", created: 164, updated: 0, skipped: 12, blocked: 0, state: "Terminé" },
+  { file: "pokemontcg-cards-full.json", date: "18 août 22:15", source: "API pokemontcg.io", created: 21891, updated: 0, skipped: 0, blocked: 0, state: "Terminé" },
+  { file: "stock-inventaire.csv", date: "12 août 11:30", source: "Import boutique", created: 1641, updated: 0, skipped: 38, blocked: 0, state: "38 lignes ignorées" }
+];
+
+const EMPTY_SCREENS = {
+  clients: {
+    word: "AUCUN CLIENT",
+    lead: "Le fichier client est vide : la boutique n'a pas encore ouvert à la vente.",
+    reason: "Un client n'existe qu'à partir d'une commande. Cet écran ne se remplira donc pas avant que les prix soient saisis et le catalogue publié — dans cet ordre, pas autrement.",
+    action: "Saisir les prix",
+    actionNote: "point de départ de toute la chaîne",
+    target: "listings",
+    rows: [
+      { label: "Identité et contact", note: "Nom, e-mail, adresse de livraison — alimentés par la commande, jamais saisis à la main." },
+      { label: "Historique d'achat", note: "Commandes, montants, cartes achetées. Sert à reconnaître un habitué." },
+      { label: "Encours", note: "Commandes impayées ou en attente d'expédition rattachées au client." },
+      { label: "Note libre", note: "Le seul champ vraiment manuel : préférences, litiges, arrangements." }
+    ]
+  },
+  checks: {
+    word: "RIEN À VÉRIFIER",
+    lead: "Aucun lot en attente de contrôle, parce qu'il n'y a aucune commande à contrôler.",
+    reason: "La vérification est le dernier filtre avant l'expédition : on confronte l'état annoncé de la carte à la carte réelle. Sans commande, elle n'a rien à mordre.",
+    action: "Voir le stock",
+    actionNote: "1 641 exemplaires inventoriés",
+    target: "listings",
+    rows: [
+      { label: "Lot à contrôler", note: "Une commande = un lot. Les cartes s'affichent dans l'ordre de rangement, pas dans l'ordre du panier." },
+      { label: "Confrontation état", note: "État annoncé face à l'état constaté. Un écart bloque l'expédition et prévient le client." },
+      { label: "Authentification", note: "Case à cocher par carte au-delà d'un seuil de valeur, avec photo obligatoire." },
+      { label: "Bon d'expédition", note: "Généré seulement quand toutes les cartes du lot sont validées." }
+    ]
+  },
+  buyback: {
+    word: "AUCUNE OFFRE",
+    lead: "Aucune offre de rachat en cours : le module n'a jamais servi.",
+    reason: "Le rachat suppose une grille de prix pour estimer ce qu'on propose au vendeur. Cette grille est exactement ce qui manque aujourd'hui — les 1 641 exemplaires en stock n'ont pas de valeur saisie.",
+    action: "Saisir les prix",
+    actionNote: "sans grille, pas d'estimation",
+    target: "listings",
+    rows: [
+      { label: "Lot proposé", note: "Ce que le vendeur apporte : sets, cartes, état déclaré. Saisi par photo ou liste." },
+      { label: "Estimation automatique", note: "Croise la grille de prix avec l'état déclaré. Un pourcentage de reprise s'applique." },
+      { label: "Contre-proposition", note: "Ajustement manuel ligne par ligne, avec la raison écrite pour le vendeur." },
+      { label: "Entrée en stock", note: "L'offre acceptée crée directement les exemplaires — sans nouvelle saisie." }
+    ]
+  },
+  sealed: {
+    word: "AUCUN SCELLÉ",
+    lead: "Aucun produit scellé enregistré : displays, coffrets et boosters ne sont pas encore inventoriés.",
+    reason: "Le scellé ne passe pas par le catalogue de cartes : il n'a ni numéro, ni rareté, ni variante. C'est un objet à part, avec son propre inventaire et sa propre unité — la boîte.",
+    action: "Ajouter un produit",
+    actionNote: "saisie manuelle, aucune API",
+    target: "sealed",
+    rows: [
+      { label: "Produit et set d'origine", note: "Rattaché à un set du catalogue pour hériter du logo et de la date." },
+      { label: "Type de conditionnement", note: "Display, coffret, booster, tri-pack. Détermine la quantité de cartes contenues." },
+      { label: "État du scellé", note: "Scellé d'usine, resellé, coin abîmé. Une mention fausse ici est un litige garanti." },
+      { label: "Provenance", note: "Achat, rachat, lot. Traçabilité indispensable sur les produits à forte valeur." }
+    ]
+  },
+  orders: {
+    word: "AUCUNE COMMANDE",
+    lead: "Aucune commande enregistrée depuis l'ouverture du back-office.",
+    reason: "Rien n'est vendable : les 1 641 exemplaires en stock n'ont pas de prix. La première commande ne peut pas exister avant la première grille tarifaire.",
+    action: "Saisir les prix",
+    actionNote: "1 641 exemplaires à évaluer",
+    target: "listings",
+    rows: [
+      { label: "Référence et statut", note: "Payée, à expédier, expédiée, litige. Le statut pilote la file de travail du dashboard." },
+      { label: "Contenu du panier", note: "Variante exacte, pas seulement la carte : la Reverse et la Normale sont deux lignes." },
+      { label: "Vérification", note: "Contrôle obligatoire avant expédition, avec confrontation de l'état annoncé." },
+      { label: "Expédition", note: "Numéro de suivi et bon d'envoi générés depuis la commande validée." }
+    ]
+  }
+};
+
+const GAMES = [
+  { key: "Pokémon", cards: 21891, stock: 1641, sealed: 0 },
+  { key: "One Piece", cards: 0, stock: 0, sealed: 0 }
+];
+
+const SEALED_CATS = [
+  { label: "Booster", note: "Unité de vente la plus fréquente. Le rattachement à l'extension détermine le contenu annoncé." },
+  { label: "Display", note: "36 boosters. Le prix suit le marché du scellé, pas la somme des cartes." },
+  { label: "Coffret", note: "Contenu hétérogène : à décrire produit par produit, aucune API ne le fait." },
+  { label: "Tin", note: "Boîte métal. Le scellé abîmé se négocie, il ne se refuse pas." },
+  { label: "Autre", note: "Tri-pack, blister, promo. La catégorie sert le filtre, pas la fiche." }
+];
+
+const SEALED_FIELDS = [
+  { key: "name", label: "Nom du produit", placeholder: "Display Épée & Bouclier · Destinées Radieuses", help: "Ce que le client lit. Aucune API ne le fournit : ce texte est la fiche produit." },
+  { key: "ref", label: "Référence interne", placeholder: "GRK-SC-001", help: "Sert au rangement physique. Le changer ne casse rien côté client." }
+];
+
+const STRIPE_EMPTY = "repeating-linear-gradient(135deg, #13131c 0 5px, #171722 5px 10px)";
+const STRIPE_OK = "repeating-linear-gradient(135deg, #1b1b26 0 7px, #20202c 7px 14px)";
+
+class Component extends DCLogic {
+  state = {
+    screen: "dashboard", range: "6 mois", filter: "Tous", orderFilter: "Toutes", query: "",
+    panelCode: null, edits: {}, locks: {}, allowed: {}, panelError: "", savedAt: "",
+    vSet: "BASE1", vSel: null, vDel: false,
+    vF: { kind: "Tout", rarity: "Tout", variant: "Tout", visual: "Tout", lock: "Tout" },
+    prices: {}, liFilter: "Tous", chartMode: "Visuels",
+    fbGame: "Pokémon", fbExt: "Toutes", slCat: "Toutes", slAvail: "Toutes",
+    sealedOpen: false, sealedDraft: {}, sealedAvail: true
+  };
+
+  componentDidMount() {
+    const self = this;
+    this.onKey = function (e) {
+      const st = self.state;
+      if (st.sealedOpen) {
+        if (e.key === "Escape") self.setState({ sealedOpen: false });
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); self.savePanel(); }
+        return;
+      }
+      if (st.panelCode) {
+        if (e.key === "Escape") { self.setState({ panelCode: null, panelError: "" }); }
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); self.savePanel(); }
+        return;
+      }
+      if (st.screen !== "variants") return;
+      const tag = (e.target && e.target.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const ids = self.tileIds || [];
+      if (e.key === "Escape") { self.setState({ vSel: null, vDel: false }); return; }
+      if (e.key.toLowerCase() === "l" && st.vSel) {
+        e.preventDefault();
+        const next = Object.assign({}, st.locks);
+        const k = "var:" + st.vSel;
+        if (next[k]) { delete next[k]; } else { next[k] = true; }
+        self.setState({ locks: next });
+        return;
+      }
+      let cols = 8;
+      if (self.grid) {
+        const tpl = window.getComputedStyle(self.grid).gridTemplateColumns;
+        const n = tpl ? tpl.split(" ").filter(function (t) { return t && t !== "0px"; }).length : 0;
+        if (n) cols = n;
+      }
+      const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key];
+      if (step === undefined || !ids.length) return;
+      e.preventDefault();
+      const cur = ids.indexOf(st.vSel);
+      const next = Math.min(Math.max((cur === -1 ? 0 : cur + step), 0), ids.length - 1);
+      self.setState({ vSel: ids[next], vDel: false });
+    };
+    window.addEventListener("keydown", this.onKey);
+  }
+
+  componentWillUnmount() { window.removeEventListener("keydown", this.onKey); }
+
+  savePanel() {
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+    this.setState({ savedAt: hh, panelError: "" });
+  }
+
+  go(screen) {
+    const self = this;
+    return function () { self.setState({ screen: screen, panelCode: null }); };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const self = this;
+    const accent = this.props.accentColor || C.lime;
+    const page = PAGES[s.screen] || PAGES.dashboard;
+    const dense = this.props.denseTables !== false;
+
+    const navGroups = NAV.map(function (g) {
+      return {
+        num: g.num,
+        label: g.label,
+        items: g.items.map(function (it) {
+          const active = it.id === s.screen;
+          return {
+            label: it.label,
+            go: self.go(it.id),
+            bg: active ? C.limeDim : "transparent",
+            fg: active ? accent : "#bdb8b0",
+            weight: active ? 600 : 400,
+            dot: active ? accent : "rgba(255,255,255,0.14)",
+            badge: it.badge || "",
+            badgeFg: it.badge ? C.dim : "transparent"
+          };
+        })
+      };
+    });
+
+    const SERIES = ["Base", "Neo", "e-cards", "EX", "POP", "Autre"];
+    const serieAgg = SERIES.map(function (name) {
+      const rows = SETS.filter(function (x) { return x.serie === name || (name === "Autre" && x.serie === "Épée & Bouclier"); });
+      const cards = rows.reduce(function (a, x) { return a + x.have; }, 0);
+      const expected = rows.reduce(function (a, x) { return a + x.total; }, 0);
+      const variants = Math.round(cards * 1.4);
+      const withVisual = Math.round(variants * 0.862);
+      return { name: name, cards: cards, expected: expected, variants: variants, withVisual: withVisual, sets: rows.length };
+    }).filter(function (a) { return a.sets > 0; });
+
+    const modeDef = {
+      "Visuels": { get: function (a) { return a.variants ? Math.round((a.withVisual / a.variants) * 100) : 0; }, fmt: function (n) { return n + " %"; }, title: "Couverture visuelle par série" },
+      "Cartes": { get: function (a) { return a.cards; }, fmt: function (n) { return String(n); }, title: "Cartes rattachées par série" },
+      "Sets": { get: function (a) { return a.sets; }, fmt: function (n) { return String(n); }, title: "Sets par série" }
+    };
+    const mode = modeDef[s.chartMode] || modeDef["Visuels"];
+    const vals = serieAgg.map(mode.get);
+    const barMax = Math.max.apply(null, vals.concat([1]));
+    const bars = serieAgg.map(function (a, i) {
+      const top = vals[i] === barMax;
+      return {
+        label: a.name,
+        amount: mode.fmt(vals[i]),
+        h: Math.max(Math.round((vals[i] / barMax) * 100), 2),
+        fill: top ? accent : "rgba(200,240,96,0.22)",
+        labelFg: top ? accent : C.dim
+      };
+    });
+
+    const ranges = ["Visuels", "Cartes", "Sets"].map(function (r) {
+      const on = r === s.chartMode;
+      return {
+        label: r,
+        go: function () { self.setState({ chartMode: r }); },
+        bg: on ? C.limeDim : "transparent",
+        border: on ? "rgba(200,240,96,0.35)" : "rgba(255,255,255,0.08)",
+        fg: on ? accent : C.dim
+      };
+    });
+
+    const chip = function (label, count, current, key) {
+      const on = label === current;
+      const setter = {};
+      return {
+        label: label,
+        count: count,
+        go: function () { setter; const patch = {}; patch[key] = label; self.setState(patch); },
+        bg: on ? C.limeDim : "transparent",
+        border: on ? "rgba(200,240,96,0.35)" : "rgba(255,255,255,0.08)",
+        fg: on ? accent : C.muted
+      };
+    };
+
+    const filters = [
+      ["Tous", "200"], ["Complets", "178"], ["Manquants", "15"], ["Sans logo", "79"], ["Sous-blocs", "7"]
+    ].map(function (f) { return chip(f[0], f[1], s.filter, "filter"); });
+
+    const setRows = SETS.map(function (x) {
+      const pct = x.total ? Math.round((x.have / x.total) * 100) : 0;
+      const complete = pct === 100;
+      const empty = x.have === 0;
+      return {
+        code: x.code,
+        name: x.name,
+        serie: x.serie,
+        date: x.date,
+        open: function () { self.setState({ panelCode: x.code, panelError: "", savedAt: "" }); },
+        missing: x.have < x.total,
+        surplus: x.have > x.total,
+        art: x.art,
+        pct: Math.min(pct, 100),
+        ratio: x.have + " / " + x.total,
+        barFill: pct >= 100 ? accent : (empty ? C.red : C.violet),
+        state: pct === 100 ? "Complet" : (pct > 100 ? "+" + (x.have - x.total) + " sous-blocs" : (empty ? "Vide" : "−" + (x.total - x.have))),
+        pillFg: pct === 100 ? accent : (pct > 100 ? C.blue : (empty ? C.red : C.violet))
+      };
+    }).filter(function (r) {
+      if (s.filter === "Complets") return !r.missing && !r.surplus;
+      if (s.filter === "Manquants") return r.missing;
+      if (s.filter === "Sans logo") return r.art !== "logo";
+      if (s.filter === "Sous-blocs") return r.surplus;
+      return true;
+    });
+
+    const orders = ORDERS.map(function (o) {
+      return Object.assign({}, o, { pillFg: STATUS_FG[o.status] || C.muted });
+    });
+
+    const orderFilters = [
+      ["Toutes", "8"], ["À expédier", "2"], ["Payée", "1"], ["Vérification", "1"], ["Impayée", "1"]
+    ].map(function (f) { return chip(f[0], f[1], s.orderFilter, "orderFilter"); });
+
+    const visibleOrders = s.orderFilter === "Toutes"
+      ? orders
+      : orders.filter(function (o) { return o.status === s.orderFilter; });
+
+    const known = { dashboard: 1, catalogue: 1, orders: 1, variants: 1, stats: 1, listings: 1, import: 1, clients: 1, checks: 1, buyback: 1, sealed: 1 };
+
+    let panel = { facts: [], fields: [], assets: [], variantTypes: [] };
+    const raw = s.panelCode ? SETS.filter(function (x) { return x.code === s.panelCode; })[0] : null;
+    if (raw) {
+      const d = setDetail(raw);
+      const idx = String(SETS.indexOf(raw) + 1).padStart(2, "0");
+      const val = function (k) {
+        const e = s.edits[s.panelCode + ":" + k];
+        return e === undefined ? String(raw[k]) : e;
+      };
+      const isLocked = function (k) { return !!s.locks[s.panelCode + ":" + k]; };
+
+      const fields = FIELD_DEFS.map(function (f) {
+        const modified = s.edits[s.panelCode + ":" + f.key] !== undefined;
+        const locked = isLocked(f.key);
+        return {
+          label: f.label,
+          help: f.help,
+          value: val(f.key),
+          modified: modified,
+          source: locked ? "verrouillé" : (modified ? "corrigé à la main" : "valeur API"),
+          sourceFg: locked ? accent : (modified ? C.violet : C.dim),
+          inputBorder: locked ? "rgba(200,240,96,0.28)" : (modified ? "rgba(200,140,255,0.3)" : "rgba(255,255,255,0.08)"),
+          lockLabel: locked ? "verrou" : "libre",
+          lockFg: locked ? accent : C.dim,
+          lockBg: locked ? C.limeDim : "transparent",
+          lockBorder: locked ? "rgba(200,240,96,0.35)" : "rgba(255,255,255,0.08)",
+          lockTitle: locked
+            ? "Verrouillé : les imports ne réécrivent pas ce champ. Relâcher le rend à l'API au prochain import."
+            : "Libre : le prochain import peut réécrire ce champ.",
+          onChange: function (e) {
+            const patch = {}; patch[s.panelCode + ":" + f.key] = e.target.value;
+            self.setState({ edits: Object.assign({}, s.edits, patch), savedAt: "" });
+          },
+          revert: function () {
+            const next = Object.assign({}, s.edits);
+            delete next[s.panelCode + ":" + f.key];
+            self.setState({ edits: next, savedAt: "" });
+          },
+          toggleLock: function () {
+            const next = Object.assign({}, s.locks);
+            const k = s.panelCode + ":" + f.key;
+            if (next[k]) { delete next[k]; } else { next[k] = true; }
+            self.setState({ locks: next });
+          }
+        };
+      });
+
+      const checked = s.allowed[s.panelCode] || [];
+      const counts = {};
+      VARIANT_TYPES.forEach(function (t) {
+        counts[t.key] = t.share ? Math.round(d.cards * t.share) : 0;
+      });
+      const variantTypes = VARIANT_TYPES.map(function (t) {
+        const on = checked.indexOf(t.key) !== -1;
+        return {
+          label: t.label,
+          count: counts[t.key] || "0",
+          countFg: counts[t.key] ? C.muted : "rgba(107,102,95,0.6)",
+          fg: on ? C.text : C.muted,
+          bg: on ? C.limeDim : "transparent",
+          border: on ? "rgba(200,240,96,0.35)" : "rgba(255,255,255,0.07)",
+          boxBg: on ? accent : "transparent",
+          boxBorder: on ? accent : "rgba(255,255,255,0.18)",
+          toggle: function () {
+            const next = on
+              ? checked.filter(function (k) { return k !== t.key; })
+              : checked.concat([t.key]);
+            if (next.length) {
+              const excluded = VARIANT_TYPES.filter(function (v) {
+                return counts[v.key] > 0 && next.indexOf(v.key) === -1;
+              });
+              if (excluded.length) {
+                const names = excluded.map(function (v) { return counts[v.key] + " " + v.label; }).join(", ");
+                self.setState({ panelError: "Restriction refusée : le set contient déjà " + names + ". Déplace ou supprime ces variantes avant d'en interdire le type." });
+                return;
+              }
+            }
+            const nextAll = Object.assign({}, s.allowed);
+            nextAll[s.panelCode] = next;
+            self.setState({ allowed: nextAll, panelError: "" });
+          }
+        };
+      });
+
+      const dirtyCount = Object.keys(s.edits).filter(function (k) {
+        return k.indexOf(s.panelCode + ":") === 0;
+      }).length;
+
+      panel = {
+        index: idx,
+        code: raw.code,
+        name: raw.name,
+        facts: [
+          { label: "Cartes rattachées", value: String(d.cards), fg: C.text },
+          { label: "Variantes", value: String(d.variants), fg: C.text },
+          { label: "Sans visuel", value: String(d.noVisual), fg: d.noVisual ? C.violet : accent },
+          { label: "Champs verrouillés", value: String(d.locked), fg: d.locked ? accent : C.dim }
+        ],
+        gapNote: d.ecart === 0
+          ? "Base et attendu coïncident : " + raw.have + " cartes de part et d'autre. Rien à arbitrer ici."
+          : (d.ecart > 0
+            ? "+" + d.ecart + " cartes au-delà de l'attendu : card_count compte le set officiel sans ses sous-blocs. Set sain, aucune correction à faire."
+            : d.ecart + " cartes par rapport à l'attendu (" + raw.have + " sur " + raw.total + "). À rattacher ou à réviser dans le nombre attendu."),
+        gapFg: d.ecart === 0 ? C.dim : (d.ecart > 0 ? C.blue : C.red),
+        fields: fields,
+        assets: [
+          {
+            label: "Logo",
+            state: raw.art === "logo" ? "Présent · fourni par l'API, remplaçable au prochain import" : "Absent · 79 sets sans logo",
+            stateFg: raw.art === "logo" ? C.muted : C.violet,
+            action: raw.art === "logo" ? "Poser un fichier à la main" : "Déposer un fichier",
+            border: raw.art === "logo" ? "rgba(255,255,255,0.10)" : "rgba(200,140,255,0.28)"
+          },
+          {
+            label: "Symbole",
+            state: raw.art === "none" ? "Absent · 41 sets sans habillage du tout" : "Présent · fourni par l'API",
+            stateFg: raw.art === "none" ? C.violet : C.muted,
+            action: raw.art === "none" ? "Déposer un fichier" : "Poser un fichier à la main",
+            border: raw.art === "none" ? "rgba(200,140,255,0.28)" : "rgba(255,255,255,0.10)"
+          }
+        ],
+        allowedSummary: checked.length ? checked.length + " / 11 autorisés" : "11 / 11 permis",
+        variantTypes: variantTypes,
+        error: s.panelError,
+        hasError: !!s.panelError,
+        dirtyLabel: s.savedAt
+          ? "Enregistré à " + s.savedAt
+          : (dirtyCount ? dirtyCount + (dirtyCount > 1 ? " champs modifiés" : " champ modifié") + " · non enregistré" : "Aucune modification"),
+        dirtyFg: s.savedAt ? accent : (dirtyCount ? C.violet : C.dim),
+        save: function () { self.savePanel(); },
+        reset: function () { self.setState({ panelCode: null, panelError: "" }); }
+      };
+    }
+
+    const all = buildVariants(s.vSet);
+    const vRaw = SETS.filter(function (x) { return x.code === s.vSet; })[0] || SETS[0];
+    const isLockedVar = function (id) { return !!s.locks["var:" + id]; };
+    const count = function (list, pred) { return list.filter(pred).length; };
+
+    const facetDefs = [
+      { key: "kind", label: "Type", opts: ["Pokémon", "Dresseur", "Énergie"], get: function (x) { return x.kind; } },
+      { key: "rarity", label: "Rareté", opts: RARITIES, get: function (x) { return x.rarity; } },
+      { key: "variant", label: "Variante", opts: ["Normale", "Reverse", "Holo"], get: function (x) { return x.variant; } },
+      { key: "visual", label: "Visuel", opts: ["Complet", "Sans"], get: function (x) { return x.hasVisual ? "Complet" : "Sans"; } },
+      { key: "lock", label: "Verrou", opts: ["Verrouillée", "Libre"], get: function (x) { return isLockedVar(x.id) ? "Verrouillée" : "Libre"; } }
+    ];
+
+    const facetRows = facetDefs.map(function (fd) {
+      const opts = ["Tout"].concat(fd.opts).map(function (o) {
+        const on = s.vF[fd.key] === o;
+        const c = o === "Tout" ? all.length : count(all, function (x) { return fd.get(x) === o; });
+        return {
+          label: o,
+          count: String(c),
+          countFg: c ? (on ? accent : C.muted) : "rgba(107,102,95,0.55)",
+          fg: on ? C.text : (c ? C.muted : "rgba(107,102,95,0.7)"),
+          bg: on ? C.limeDim : "transparent",
+          border: on ? "rgba(200,240,96,0.35)" : "rgba(255,255,255,0.07)",
+          go: function () {
+            const nf = Object.assign({}, s.vF); nf[fd.key] = o;
+            self.setState({ vF: nf });
+          }
+        };
+      });
+      return { label: fd.label, options: opts };
+    });
+
+    const shown = all.filter(function (x) {
+      for (let i = 0; i < facetDefs.length; i++) {
+        const fd = facetDefs[i];
+        const want = s.vF[fd.key];
+        if (want !== "Tout" && fd.get(x) !== want) return false;
+      }
+      return true;
+    });
+
+    this.tileIds = shown.map(function (x) { return x.id; });
+    this.tileCols = 8;
+
+    const selVar = s.vSel ? shown.filter(function (x) { return x.id === s.vSel; })[0] : null;
+
+    const tiles = shown.map(function (x) {
+      const locked = isLockedVar(x.id);
+      const isSel = selVar && x.id === selVar.id;
+      const sibling = selVar && !isSel && x.cardId === selVar.cardId;
+      return {
+        num: x.num,
+        name: x.name,
+        variant: x.variant,
+        select: function () { self.setState({ vSel: x.id, vDel: false }); },
+        border: isSel ? accent : (sibling ? "rgba(200,140,255,0.5)" : "rgba(255,255,255,0.07)"),
+        bg: isSel ? "#171722" : "#111119",
+        imgBg: x.hasVisual ? STRIPE_OK : STRIPE_EMPTY,
+        numFg: isSel || sibling ? accent : C.dim,
+        nameFg: isSel ? C.text : "#c9c3ba",
+        typeFg: x.variant === "Normale" ? C.dim : (x.variant === "Reverse" ? C.blue : C.violet),
+        lockDot: locked ? accent : "transparent",
+        flag: x.hasVisual ? "" : "sans visuel",
+        flagBg: x.hasVisual ? "transparent" : "rgba(200,140,255,0.18)",
+        flagFg: x.hasVisual ? "transparent" : C.violet
+      };
+    });
+
+    const vSets = SETS.map(function (x, i) {
+      const on = x.code === s.vSet;
+      const pct = x.total ? Math.min(Math.round((x.have / x.total) * 100), 100) : 0;
+      const lockCount = Object.keys(s.locks).filter(function (k) {
+        return k.indexOf("var:" + x.code + "-") === 0 || k.indexOf("card:" + x.code + "-") === 0;
+      }).length;
+      return {
+        num: String(i + 1).padStart(2, "0"),
+        name: x.name,
+        pct: pct,
+        go: function () { self.setState({ vSet: x.code, vSel: null, vDel: false }); },
+        bg: on ? "rgba(200,240,96,0.07)" : "transparent",
+        edge: on ? accent : "transparent",
+        fg: on ? C.text : "#b3ada5",
+        numFg: on ? accent : C.dim,
+        barFill: pct === 100 ? "rgba(200,240,96,0.5)" : C.violet,
+        lockLabel: lockCount ? lockCount + " verr." : "—",
+        lockFg: lockCount ? accent : "rgba(107,102,95,0.6)"
+      };
+    });
+
+    let sel = {};
+    if (selVar) {
+      const sibs = all.filter(function (x) { return x.cardId === selVar.cardId; });
+      const others = sibs.filter(function (x) { return x.id !== selVar.id; });
+      const locked = isLockedVar(selVar.id);
+      const manualVisual = selVar.hasVisual && selVar.num.charCodeAt(2) % 2 === 0;
+      const cardFieldDefs = [
+        { key: "name", label: "Nom de la carte", value: selVar.name },
+        { key: "num", label: "Numéro", value: selVar.num },
+        { key: "rarity", label: "Rareté", value: selVar.rarity }
+      ];
+      sel = {
+        num: selVar.num,
+        name: selVar.name,
+        variant: selVar.variant,
+        imgBg: selVar.hasVisual ? STRIPE_OK : STRIPE_EMPTY,
+        siblingNote: others.length
+          ? sibs.length + " variantes sur ce numéro : " + sibs.map(function (x) { return x.variant; }).join(" · ")
+          : "seule variante de ce numéro",
+        typeOptions: ["Normale", "Reverse", "Holo", "1ère édition"].map(function (t) {
+          const on = t === selVar.variant;
+          const taken = sibs.filter(function (x) { return x.variant === t; }).length > 0 && !on;
+          return {
+            label: t,
+            bg: on ? C.limeDim : "transparent",
+            border: on ? "rgba(200,240,96,0.35)" : "rgba(255,255,255,0.08)",
+            fg: on ? accent : (taken ? "rgba(107,102,95,0.6)" : C.muted),
+            go: function () { }
+          };
+        }),
+        visualState: selVar.hasVisual ? (manualVisual ? "Visuel posé à la main" : "Visuel fourni par l'API") : "Aucun visuel",
+        visualFg: selVar.hasVisual ? (manualVisual ? accent : C.muted) : C.violet,
+        visualBorder: selVar.hasVisual ? (manualVisual ? "rgba(200,240,96,0.28)" : "rgba(255,255,255,0.10)") : "rgba(200,140,255,0.3)",
+        visualNote: selVar.hasVisual
+          ? (manualVisual
+            ? "Jamais écrasé par un import. Le visuel API reste disponible en dessous si tu relâches celui-ci."
+            : "Remplaçable au prochain import. Un fichier déposé ici prend la place manuelle et devient définitif.")
+          : "Une des 4 286 variantes sans visuel. L'upload alimente toujours l'emplacement manuel.",
+        visualAction: selVar.hasVisual ? (manualVisual ? "Relâcher · revenir au visuel API" : "Déposer un fichier") : "Déposer un fichier",
+        toggleLock: function () {
+          const next = Object.assign({}, s.locks);
+          const k = "var:" + selVar.id;
+          if (next[k]) { delete next[k]; } else { next[k] = true; }
+          self.setState({ locks: next });
+        },
+        lockLabel: locked ? "Variante verrouillée · L" : "Variante libre · L",
+        lockFg: locked ? accent : C.dim,
+        lockBg: locked ? C.limeDim : "transparent",
+        lockBorder: locked ? "rgba(200,240,96,0.32)" : "rgba(255,255,255,0.08)",
+        lockNote: locked
+          ? "Les imports ne réécrivent pas ces champs. Relâcher les rend à l'API au prochain import."
+          : "Le prochain import peut réécrire ces champs sans prévenir.",
+        idle: !s.vDel,
+        deleting: s.vDel,
+        hasStock: selVar.stock > 0,
+        canDelete: selVar.stock === 0,
+        delTitle: selVar.stock ? "Suppression refusée" : "Supprimer " + selVar.num + " " + selVar.variant,
+        delBody: selVar.stock
+          ? selVar.stock + " exemplaires physiques sont rattachés à cette variante. Ils doivent aller quelque part : choisis une destination, sinon la suppression reste bloquée."
+          : "Aucun exemplaire en stock sur cette variante. La suppression retire la vignette et son visuel ; les autres variantes du numéro " + selVar.num + " ne bougent pas.",
+        delFg: selVar.stock ? C.red : C.muted,
+        delBorder: selVar.stock ? "rgba(255,122,104,0.4)" : "rgba(255,255,255,0.10)",
+        delBg: selVar.stock ? "rgba(255,122,104,0.07)" : "#13131c",
+        moveTargets: others.map(function (x) { return { tag: x.variant, label: x.num + " " + x.name }; }),
+        askDelete: function () { self.setState({ vDel: true }); },
+        cancelDelete: function () { self.setState({ vDel: false }); },
+        cardWarning: others.length
+          ? "Ces champs appartiennent à la carte. Corriger depuis la " + selVar.variant + " change aussi " + others.map(function (x) { return "la " + x.variant; }).join(" et ") + "."
+          : "Ces champs appartiennent à la carte. Ce numéro n'a qu'une variante, la correction ne touche donc qu'elle.",
+        cardFields: cardFieldDefs.map(function (f) {
+          const ek = "card:" + selVar.cardId + ":" + f.key;
+          const edited = s.edits[ek] !== undefined;
+          const clocked = !!s.locks[ek];
+          return {
+            label: f.label,
+            value: edited ? s.edits[ek] : f.value,
+            border: clocked ? "rgba(200,240,96,0.28)" : (edited ? "rgba(200,140,255,0.3)" : "rgba(255,255,255,0.08)"),
+            lockLabel: clocked ? "verrou" : "libre",
+            lockFg: clocked ? accent : C.dim,
+            lockBg: clocked ? C.limeDim : "transparent",
+            lockBorder: clocked ? "rgba(200,240,96,0.35)" : "rgba(255,255,255,0.08)",
+            onChange: function (e) {
+              const patch = {}; patch[ek] = e.target.value;
+              self.setState({ edits: Object.assign({}, s.edits, patch) });
+            },
+            toggleLock: function () {
+              const next = Object.assign({}, s.locks);
+              if (next[ek]) { delete next[ek]; } else { next[ek] = true; }
+              self.setState({ locks: next });
+            }
+          };
+        })
+      };
+    }
+
+    const anyFacet = facetDefs.some(function (fd) { return s.vF[fd.key] !== "Tout"; });
+
+    const vtMax = 17237;
+    const st = {
+      variantTypes: VTYPE_STATS.map(function (t) {
+        const zero = t.n === 0;
+        return {
+          label: t.label,
+          value: t.n ? t.n.toLocaleString("fr-FR") : "0",
+          share: t.n ? (t.n / 30995 * 100).toFixed(1).replace(".", ",") + " %" : "—",
+          pct: t.n ? Math.max((t.n / vtMax) * 100, 0.6) : 0,
+          fill: t.label === "Reverse" ? C.blue : (t.label === "Holo" ? C.violet : accent),
+          labelFg: zero ? "rgba(107,102,95,0.7)" : C.muted,
+          valueFg: zero ? "rgba(107,102,95,0.7)" : C.text
+        };
+      }),
+      blocks: [
+        {
+          num: "02 /", title: "Couverture visuelle",
+          note: "Le cas partiel ne touche que 14 cartes sur 21 891 : introuvable à l'œil, donc signalé à part et jamais confondu avec l'absence totale.",
+          rows: [
+            { label: "Toutes variantes illustrées", note: "rien à faire", value: "18 473", fg: accent, dot: accent },
+            { label: "Aucun visuel", note: "3 404 cartes · chantier principal", value: "3 404", fg: C.red, dot: C.red },
+            { label: "Partiellement illustrées", note: "14 cartes · à traiter en premier", value: "14", fg: C.violet, dot: C.violet },
+            { label: "Variantes sans visuel", note: "13,8 % des 30 995", value: "4 286", fg: C.violet, dot: C.violet }
+          ]
+        },
+        {
+          num: "03 /", title: "État des 200 sets",
+          note: "Les 7 sets en surplus sont sains : card_count compte le set officiel sans ses sous-blocs. Les peindre en rouge ferait crier au loup.",
+          rows: [
+            { label: "Complets", note: "base = attendu", value: "178", fg: accent, dot: accent },
+            { label: "Cartes manquantes", note: "à rattacher ou réviser", value: "15", fg: C.red, dot: C.red },
+            { label: "Surplus de sous-blocs", note: "normal, aucune action", value: "7", fg: C.blue, dot: C.blue },
+            { label: "Plus gros set", note: "≈ 420 variantes à afficher", value: "299", fg: C.text, dot: C.dim }
+          ]
+        },
+        {
+          num: "04 /", title: "Habillage et verrous",
+          note: "Zéro verrou aujourd'hui : le nettoyage n'a pas commencé. Ce chiffre est la vraie mesure d'avancement du chantier catalogue.",
+          rows: [
+            { label: "Logo présent", note: "fourni par l'API", value: "121", fg: accent, dot: accent },
+            { label: "Symbole seul", note: "logo à déposer", value: "38", fg: C.violet, dot: C.violet },
+            { label: "Aucun habillage", note: "logo et symbole absents", value: "41", fg: C.red, dot: C.red },
+            { label: "Champs verrouillés", note: "corrections protégées des imports", value: "0", fg: C.dim, dot: C.dim }
+          ]
+        }
+      ]
+    };
+
+    const priced = Object.keys(s.prices).filter(function (k) { return s.prices[k] !== ""; }).length;
+    const liFilters = [
+      ["Tous", "1 641"], ["Sans prix", String(1641 - priced)], ["Avec prix", String(priced)], ["Non publiés", "1 641"]
+    ].map(function (f) { return chip(f[0], f[1], s.liFilter, "liFilter"); });
+
+    const liRows = STOCK_ROWS.filter(function (r) {
+      const key = r.set + "-" + r.num + "-" + r.variant;
+      const has = s.prices[key] !== undefined && s.prices[key] !== "";
+      if (s.liFilter === "Sans prix") return !has;
+      if (s.liFilter === "Avec prix") return has;
+      return true;
+    }).map(function (r) {
+      const key = r.set + "-" + r.num + "-" + r.variant;
+      const val = s.prices[key] === undefined ? "" : s.prices[key];
+      const has = val !== "";
+      return {
+        num: r.num, name: r.name, set: r.set, variant: r.variant, grade: r.grade, qty: String(r.qty),
+        variantFg: r.variant === "Normale" ? C.dim : (r.variant === "Reverse" ? C.blue : C.violet),
+        price: val,
+        priceBg: has ? "rgba(200,240,96,0.08)" : "#13131c",
+        priceBorder: has ? "rgba(200,240,96,0.3)" : "rgba(255,255,255,0.08)",
+        priceFg: has ? accent : C.muted,
+        pub: has ? "Prête" : "Bloquée",
+        pubFg: has ? accent : C.dim,
+        onPrice: function (e) {
+          const patch = {}; patch[key] = e.target.value;
+          self.setState({ prices: Object.assign({}, s.prices, patch) });
+        }
+      };
+    });
+
+    const li = {
+      kpis: [
+        { label: "Exemplaires en stock", value: "1 641", sub: "inventoriés, non vendables", fg: C.text },
+        { label: "Avec prix", value: String(priced), sub: priced ? "prêts à publier" : "aucun pour l'instant", fg: priced ? accent : C.dim },
+        { label: "À évaluer", value: (1641 - priced).toLocaleString("fr-FR"), sub: "chantier ouvert", fg: C.red },
+        { label: "Publiés en boutique", value: "0", sub: "publication non lancée", fg: C.dim }
+      ],
+      progress: priced ? priced + " / 1 641 évalués" : "0 / 1 641 évalués",
+      filters: liFilters,
+      rows: liRows,
+      footer: liRows.length + " des 12 exemplaires de démonstration · le stock réel en compte 1 641"
+    };
+
+    const lockTotal = Object.keys(s.locks).length;
+    const im = {
+      protectedCount: String(lockTotal),
+      protectedFg: lockTotal ? accent : C.dim,
+      protectedNote: lockTotal
+        ? "champs verrouillés que le prochain import ne réécrira pas. Relâcher un verrou rend le champ à l'API dès l'exécution suivante."
+        : "Aucun champ verrouillé : le prochain import peut réécrire n'importe quelle correction manuelle. Verrouille depuis la fiche du set ou l'éditeur de variantes.",
+      runs: IMPORT_RUNS.map(function (r) {
+        return {
+          file: r.file, date: r.date, source: r.source,
+          state: r.state,
+          stateFg: r.state === "Terminé" ? accent : C.violet,
+          metrics: [
+            { label: "créés", value: r.created.toLocaleString("fr-FR"), fg: r.created ? C.text : C.dim },
+            { label: "mis à jour", value: r.updated.toLocaleString("fr-FR"), fg: r.updated ? C.text : C.dim },
+            { label: "ignorés", value: String(r.skipped), fg: r.skipped ? C.violet : C.dim },
+            { label: "protégés", value: String(r.blocked), fg: r.blocked ? accent : C.dim }
+          ]
+        };
+      })
+    };
+
+    const FB_SCREENS = { listings: 1, sealed: 1, buyback: 1, checks: 1, orders: 1, wtb: 1, consignment: 1 };
+    const hasFilterBar = !!FB_SCREENS[s.screen];
+
+    const fbChip = function (label, count, current, key, live) {
+      const on = label === current;
+      return {
+        label: label,
+        count: count === null ? "" : String(count),
+        countFg: count ? (on ? accent : C.muted) : "rgba(107,102,95,0.55)",
+        fg: on ? C.text : (count || !live ? C.muted : "rgba(107,102,95,0.7)"),
+        bg: on ? C.limeDim : "transparent",
+        border: on ? "rgba(200,240,96,0.35)" : "rgba(255,255,255,0.07)",
+        go: function () {
+          const patch = {}; patch[key] = label;
+          if (key === "fbGame") patch.fbExt = "Toutes";
+          self.setState(patch);
+        }
+      };
+    };
+
+    const scopeOf = function (g) {
+      if (s.screen === "listings") return g.stock;
+      if (s.screen === "sealed") return g.sealed;
+      if (s.screen === "catalogue") return g.cards;
+      return 0;
+    };
+
+    const gameRow = {
+      label: "Jeu",
+      labelFg: C.dim,
+      note: s.fbGame === "One Piece" ? "aucune donnée One Piece" : "",
+      options: GAMES.map(function (g) { return fbChip(g.key, scopeOf(g), s.fbGame, "fbGame", true); })
+    };
+
+    const extSets = s.fbGame === "Pokémon" ? SETS : [];
+    const extCount = function (code) {
+      if (s.screen === "listings") return STOCK_ROWS.filter(function (r) { return r.set === code; }).length;
+      return 0;
+    };
+    const extTotal = s.screen === "listings" ? STOCK_ROWS.length : 0;
+    const extOptions = [fbChip("Toutes", extTotal, s.fbExt, "fbExt", true)].concat(
+      extSets.filter(function (x) { return s.screen !== "listings" || extCount(x.code) > 0; })
+        .map(function (x) { return fbChip(x.code, extCount(x.code), s.fbExt, "fbExt", true); })
+    );
+    const extRow = {
+      label: "Extension",
+      labelFg: C.dim,
+      note: extOptions.length > 1 ? "" : "dépend du jeu",
+      options: extOptions
+    };
+
+    const ownRows = [];
+    if (s.screen === "listings") {
+      ownRows.push({
+        label: "Prix", labelFg: C.dim, note: "1 641 au total",
+        options: [
+          fbChip("Tous", 12, s.liFilter, "liFilter", true),
+          fbChip("Sans prix", 12 - Object.keys(s.prices).filter(function (k) { return s.prices[k] !== ""; }).length, s.liFilter, "liFilter", true),
+          fbChip("Avec prix", Object.keys(s.prices).filter(function (k) { return s.prices[k] !== ""; }).length, s.liFilter, "liFilter", true)
+        ]
+      });
+    }
+    if (s.screen === "sealed") {
+      ownRows.push({
+        label: "Catégorie", labelFg: C.dim, note: "",
+        options: [fbChip("Toutes", 0, s.slCat, "slCat", true)].concat(
+          SEALED_CATS.map(function (c) { return fbChip(c.label, 0, s.slCat, "slCat", true); })
+        )
+      });
+      ownRows.push({
+        label: "Dispo", labelFg: C.dim, note: "",
+        options: ["Toutes", "En vente", "Désactivés"].map(function (o) { return fbChip(o, 0, s.slAvail, "slAvail", true); })
+      });
+    }
+
+    const fb = { rows: [gameRow, extRow].concat(ownRows) };
+
+    const SHOP_CTX = {
+      catalogue: { label: "Voir le catalogue public", arrow: "↗" },
+      variants: { label: "Voir « " + (vRaw ? vRaw.name : "") + " »", arrow: "↗" },
+      listings: { label: "Voir les annonces en ligne", arrow: "↗" },
+      sealed: { label: "Voir les scellés en ligne", arrow: "↗" }
+    };
+    const shopCtx = SHOP_CTX[s.screen]
+      ? Object.assign({ fg: "#bdb8b0", dot: "rgba(255,255,255,0.14)" }, SHOP_CTX[s.screen])
+      : { label: "Aucun objet en cours", arrow: "—", fg: "rgba(107,102,95,0.7)", dot: "rgba(255,255,255,0.07)" };
+
+    const sl = {
+      kpis: [
+        { label: "Produits scellés", value: "0", sub: "aucun enregistré", fg: C.dim },
+        { label: "En vente", value: "0", sub: "visibles en boutique", fg: C.dim },
+        { label: "Désactivés", value: "0", sub: "conservés hors vente", fg: C.dim },
+        { label: "Valeur du scellé", value: "—", sub: "aucun prix saisi", fg: C.dim }
+      ],
+      hasRows: false,
+      empty: true,
+      rows: [],
+      categories: SEALED_CATS.map(function (c, i) {
+        return { num: String(i + 1).padStart(2, "0"), label: c.label, note: c.note };
+      }),
+      create: function () { self.setState({ sealedOpen: true }); }
+    };
+
+    const sd = s.sealedDraft;
+    const dv = function (k) { return sd[k] === undefined ? "" : sd[k]; };
+    const setDraft = function (k) {
+      return function (e) {
+        const patch = {}; patch[k] = e.target.value;
+        self.setState({ sealedDraft: Object.assign({}, sd, patch), savedAt: "" });
+      };
+    };
+    const draftCount = Object.keys(sd).filter(function (k) { return sd[k] !== ""; }).length;
+    const sp = {
+      tag: "Nouveau",
+      title: dv("name") || "Produit sans nom",
+      publicLabel: "Page publique après enregistrement",
+      publicFg: C.dim,
+      photoNote: "1 principale + 3 secondaires",
+      photos: [
+        { label: "Principale · vue client", border: "rgba(200,240,96,0.32)", bg: "rgba(200,240,96,0.05)", fg: accent },
+        { label: "Dos", border: "rgba(255,255,255,0.10)", bg: "#0e0e15", fg: C.dim },
+        { label: "Détail", border: "rgba(255,255,255,0.10)", bg: "#0e0e15", fg: C.dim },
+        { label: "Défaut", border: "rgba(255,255,255,0.10)", bg: "#0e0e15", fg: C.dim }
+      ],
+      fields: SEALED_FIELDS.map(function (f) {
+        return { label: f.label, placeholder: f.placeholder, help: f.help, value: dv(f.key), onChange: setDraft(f.key) };
+      }),
+      pickers: [
+        {
+          label: "Jeu et extension",
+          help: "Le rattachement fait hériter le logo et la date du set. Sans lui, le produit n'apparaît dans aucun filtre.",
+          options: ["Pokémon", "One Piece"].map(function (g) {
+            const on = dv("game") === g;
+            return {
+              label: g, bg: on ? C.limeDim : "transparent",
+              border: on ? "rgba(200,240,96,0.35)" : "rgba(255,255,255,0.08)",
+              fg: on ? accent : C.muted,
+              go: function () { self.setState({ sealedDraft: Object.assign({}, sd, { game: g }), savedAt: "" }); }
+            };
+          })
+        },
+        {
+          label: "Catégorie",
+          help: "Détermine le contenu annoncé au client. Un display vendu comme booster est un litige immédiat.",
+          options: SEALED_CATS.map(function (c) {
+            const on = dv("cat") === c.label;
+            return {
+              label: c.label, bg: on ? C.limeDim : "transparent",
+              border: on ? "rgba(200,240,96,0.35)" : "rgba(255,255,255,0.08)",
+              fg: on ? accent : C.muted,
+              go: function () { self.setState({ sealedDraft: Object.assign({}, sd, { cat: c.label }), savedAt: "" }); }
+            };
+          })
+        },
+        {
+          label: "État du scellé",
+          help: "Un scellé abîmé se vend, mais il se déclare. La mention fausse ici est le litige le plus coûteux du back-office.",
+          options: ["Neuf", "Abîmé"].map(function (o) {
+            const on = dv("cond") === o;
+            return {
+              label: o, bg: on ? (o === "Abîmé" ? "rgba(255,122,104,0.12)" : C.limeDim) : "transparent",
+              border: on ? (o === "Abîmé" ? "rgba(255,122,104,0.4)" : "rgba(200,240,96,0.35)") : "rgba(255,255,255,0.08)",
+              fg: on ? (o === "Abîmé" ? C.red : accent) : C.muted,
+              go: function () { self.setState({ sealedDraft: Object.assign({}, sd, { cond: o }), savedAt: "" }); }
+            };
+          })
+        }
+      ],
+      money: [
+        { label: "Prix de vente", placeholder: "0,00 €", value: dv("price"), onChange: setDraft("price") },
+        { label: "Quantité", placeholder: "0", value: dv("qty"), onChange: setDraft("qty") }
+      ],
+      availLabel: s.sealedAvail ? "En vente" : "Désactivé",
+      availNote: s.sealedAvail
+        ? "Visible en boutique dès l'enregistrement, si le prix et la quantité sont renseignés."
+        : "Conservé en base, retiré de la boutique. Rien n'est supprimé : le stock et l'historique restent.",
+      availFg: s.sealedAvail ? accent : C.muted,
+      availBg: s.sealedAvail ? "rgba(200,240,96,0.06)" : "transparent",
+      availBorder: s.sealedAvail ? "rgba(200,240,96,0.3)" : "rgba(255,255,255,0.08)",
+      availBox: s.sealedAvail ? accent : "rgba(255,255,255,0.18)",
+      availBoxBg: s.sealedAvail ? accent : "transparent",
+      toggleAvail: function () { self.setState({ sealedAvail: !s.sealedAvail }); },
+      dirtyLabel: s.savedAt ? "Enregistré à " + s.savedAt : (draftCount ? draftCount + " champ" + (draftCount > 1 ? "s" : "") + " renseigné" + (draftCount > 1 ? "s" : "") : "Fiche vide"),
+      dirtyFg: s.savedAt ? accent : (draftCount ? C.violet : C.dim),
+      save: function () { self.savePanel(); },
+      close: function () { self.setState({ sealedOpen: false }); }
+    };
+
+    const PRIMARY = {
+      sealed: function () { self.setState({ sealedOpen: true }); },
+      clients: self.go("listings"),
+      checks: self.go("listings"),
+      buyback: self.go("listings"),
+      orders: self.go("listings"),
+      catalogue: self.go("variants"),
+      dashboard: self.go("import"),
+      variants: self.go("catalogue")
+    };
+
+    const demo = this.props.demoData === true;
+    const esDef = EMPTY_SCREENS[s.screen];
+    const es = esDef ? Object.assign({}, esDef, {
+      rows: esDef.rows.map(function (r, i) { return Object.assign({}, r, { num: String(i + 1).padStart(2, "0") }); }),
+      go: self.go(esDef.target)
+    }) : { rows: [] };
+
+    const v = {
+      gridRef: function (el) { self.grid = el; },
+      sets: vSets,
+      setsProgress: "0 / 200 nettoyés",
+      setNum: String(SETS.indexOf(vRaw) + 1).padStart(2, "0"),
+      setCode: vRaw.code,
+      setName: vRaw.name,
+      openSheet: function () { self.setState({ panelCode: vRaw.code, panelError: "", savedAt: "" }); },
+      facetRows: facetRows,
+      shownLabel: shown.length === all.length
+        ? all.length + " variantes · " + count(all, function (x) { return !x.hasVisual; }) + " sans visuel"
+        : shown.length + " sur " + all.length + " variantes",
+      filtered: anyFacet,
+      clearFacets: function () { self.setState({ vF: { kind: "Tout", rarity: "Tout", variant: "Tout", visual: "Tout", lock: "Tout" } }); },
+      tiles: tiles,
+      empty: shown.length === 0,
+      hasSel: !!selVar,
+      noSel: !selVar,
+      sel: sel
+    };
+
+    return {
+      v: v, st: st, li: li, im: im, es: es, fb: fb, sl: sl, sp: sp,
+      hasFilterBar: hasFilterBar,
+      shopCtx: shopCtx,
+      isSealed: s.screen === "sealed",
+      sealedPanel: s.sealedOpen,
+      primaryGo: PRIMARY[s.screen] || function () { },
+      chartTitle: mode.title,
+      isStats: s.screen === "stats",
+      isListings: s.screen === "listings",
+      isImport: s.screen === "import",
+      isEmptyScreen: !!esDef && s.screen !== "sealed" && !(s.screen === "orders" && demo),
+      commerceEmpty: !demo,
+      commerceLive: demo,
+      commerceSteps: [
+        { step: "01", label: "Saisir les prix des 1 641 exemplaires", state: "0 fait", fg: C.red },
+        { step: "02", label: "Publier les annonces en boutique", state: "bloqué par 01", fg: C.dim },
+        { step: "03", label: "Première commande, premier client", state: "en attente", fg: C.dim }
+      ],
+      goListings: this.go("listings"),
+      isVariants: s.screen === "variants",
+      panelOpen: !!raw,
+      panel: panel,
+      closePanel: function () { self.setState({ panelCode: null, panelError: "" }); },
+      openVariants: function () { self.setState({ screen: "variants", panelCode: null }); },
+      navGroups: navGroups,
+      pageTitle: page.title,
+      eyebrow: page.eyebrow,
+      primaryAction: page.action,
+      placeholderWord: page.word,
+      query: s.query,
+      onQuery: function (e) { self.setState({ query: e.target.value }); },
+      isDashboard: s.screen === "dashboard",
+      isCatalogue: s.screen === "catalogue",
+      isOrders: s.screen === "orders" && demo,
+      isPlaceholder: !known[s.screen],
+      goDashboard: this.go("dashboard"),
+      goOrders: this.go("orders"),
+
+      kpis: [
+        { label: "Sets à nettoyer", value: "200", delta: "0 fait", deltaFg: C.red, valueFg: C.text, sub: "Du plus ancien au plus récent" },
+        { label: "Variantes sans visuel", value: "4 286", delta: "13,8 %", deltaFg: C.violet, valueFg: C.text, sub: "Sur 30 995 variantes" },
+        { label: "Sets en écart", value: "15", delta: "+7 sains", deltaFg: C.blue, valueFg: C.text, sub: "Cartes manquantes à rattacher" },
+        { label: "Exemplaires sans prix", value: "1 641", delta: "100 %", deltaFg: C.red, valueFg: C.text, sub: "Rien n'est vendable" }
+      ],
+      ranges: ranges,
+      bars: bars,
+      queueCount: "4 files",
+      queue: [
+        { count: "14", title: "Cartes partiellement illustrées", sub: "Invisibles à l'œil · à traiter d'abord", tintFg: C.violet, go: this.go("variants") },
+        { count: "15", title: "Sets avec cartes manquantes", sub: "Rattacher ou réviser l'attendu", tintFg: C.red, go: this.go("catalogue") },
+        { count: "41", title: "Sets sans habillage", sub: "Ni logo ni symbole", tintFg: C.blue, go: this.go("catalogue") },
+        { count: "0", title: "Verrous posés", sub: "Le nettoyage n'a pas commencé", tintFg: C.dim, go: this.go("import") }
+      ],
+      recentOrders: orders.slice(0, 5),
+
+      filters: filters,
+      setsSummary: setRows.length + " sets affichés",
+      sets: setRows,
+
+      orderStats: [
+        { label: "À expédier", value: "2", fg: accent },
+        { label: "En vérification", value: "1", fg: C.violet },
+        { label: "Impayées", value: "1", fg: C.red },
+        { label: "Encaissé ce mois", value: "3 924 €", fg: C.text }
+      ],
+      orderFilters: orderFilters,
+      visibleOrders: visibleOrders,
+      dense: dense
+    };
+  }
+}
+</script>
+</body>
+</html>

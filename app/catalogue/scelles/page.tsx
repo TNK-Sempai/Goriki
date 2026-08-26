@@ -1,11 +1,15 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import SiteHeader from '@/components/layout/SiteHeader'
 import SiteFooter from '@/components/layout/SiteFooter'
 import PageContainer from '@/components/layout/PageContainer'
 import SealedTile, { type SealedProduct } from '@/components/catalogue/SealedTile'
 import CardCursor from '@/components/motion/CardCursor'
 import Reveal from '@/components/motion/Reveal'
+import { PaginationUrl } from '@/components/ui/Pagination'
 import { createClient } from '@/lib/supabase/server'
+import { decouper, lirePage } from '@/lib/pagination'
+import { resoudreParPage } from '@/lib/pagination.server'
 
 export const metadata = { title: 'Scellés' }
 export const dynamic = 'force-dynamic'
@@ -67,7 +71,7 @@ export default async function ScellesPage({ searchParams }: Props) {
 
   const present = [...new Set((all ?? []).map(r => r.type))].filter(t => t in LABELS)
 
-  const products: SealedProduct[] = (listing.data ?? []).map(p => ({
+  const tous: SealedProduct[] = (listing.data ?? []).map(p => ({
     id: p.id,
     name: p.name,
     meta: [LABELS[p.type] ?? p.type, p.tcg_type === 'autre' ? null : p.tcg_type]
@@ -78,10 +82,19 @@ export default async function ScellesPage({ searchParams }: Props) {
     imageUrl: p.image_url,
   }))
 
+  // Découpage en dernier : `tous` est déjà filtré par type et déjà trié en base.
+  const parPage = await resoudreParPage(sp)
+  const tranche = decouper(tous, lirePage(sp), parPage)
+  const products = tranche.elements
+
   const qs = (patch: Record<string, string>) => {
     const next = new URLSearchParams()
     if (type) next.set('type', type)
     if (sort) next.set('sort', sort)
+    // Le choix « par page » (30/50) survit au changement de filtre — c'est une
+    // préférence d'affichage. La page courante, elle, n'est jamais reportée :
+    // le résultat change de taille, elle n'aurait plus de sens.
+    if (typeof sp.par === 'string') next.set('par', sp.par)
     for (const [k, v] of Object.entries(patch)) {
       if (v) next.set(k, v)
       else next.delete(k)
@@ -139,6 +152,18 @@ export default async function ScellesPage({ searchParams }: Props) {
               ))}
             </Reveal>
           )}
+
+          <Suspense fallback={<div className="mt-8 h-[52px]" />}>
+            <PaginationUrl
+              page={tranche.page}
+              pages={tranche.pages}
+              total={tranche.total}
+              parPage={parPage}
+              premier={tranche.premier}
+              dernier={tranche.dernier}
+              unite="produit"
+            />
+          </Suspense>
         </PageContainer>
       </main>
 

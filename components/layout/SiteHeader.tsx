@@ -73,7 +73,9 @@ export default function SiteHeader() {
           </nav>
 
           <div className="ml-auto flex items-center gap-2.5 lg:ml-0">
-            <form action="/catalogue" className="relative hidden xl:block">
+            {/* `/catalogue` est une page d'accueil de rayons : elle ne lisait
+                pas `q`, et toute recherche y tombait dans le vide. */}
+            <form action="/recherche" className="relative hidden xl:block">
               <input
                 type="search"
                 name="q"

@@ -239,17 +239,17 @@ export default function ImportOnePiecePage() {
   const disabled = apiUnavailable || !!loading
 
   return (
-    <div style={{ maxWidth: '560px' }}>
-      <div className="admin-header-row">
+    <div className="gk-corps" style={{ maxWidth: '560px' }}>
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">Import One Piece</div>
-          <div className="admin-sub">Sélectionne un set et importe les cartes depuis Poneglyphe</div>
+          <div className="gk-titre">Import One Piece</div>
+          <div className="gk-eyebrow-texte">Sélectionne un set et importe les cartes depuis Poneglyphe</div>
         </div>
       </div>
 
       {apiUnavailable && (
-        <div className="admin-alert" style={{ marginBottom: '16px' }}>
-          <div className="admin-alert-dot" />
+        <div className="gk-vide" style={{ marginBottom: '16px' }}>
+          <div className="gk-pastille" />
           Source Poneglyphe injoignable — réessayer dans un instant
         </div>
       )}
@@ -321,12 +321,12 @@ export default function ImportOnePiecePage() {
         {loadingSets ? (
           <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Chargement des sets…</div>
         ) : fetchError && sets.length === 0 ? (
-          <div className="admin-alert"><div className="admin-alert-dot" />{fetchError}</div>
+          <div className="gk-vide"><div className="gk-pastille" />{fetchError}</div>
         ) : (
           <select
             value={selectedSet}
             onChange={(e) => setSelectedSet(e.target.value)}
-            className="admin-input"
+            className="gk-input"
             disabled={disabled}
           >
             <option value="">-- Choisir un set --</option>
@@ -341,14 +341,14 @@ export default function ImportOnePiecePage() {
         <button
           onClick={handleImport}
           disabled={!selectedSet || disabled}
-          className="btn btn-primary btn-sm"
+          className="gk-btn" data-primaire="true"
           style={{ marginTop: '12px', width: '100%' }}
         >
           {loading === 'single' ? 'Import en cours...' : "Lancer l'import"}
         </button>
       </div>
 
-      <div className="admin-sep">Log d&apos;import <div className="admin-sep-line" /></div>
+      <div className="gk-sep">Log d&apos;import <div className="gk-sep-line" /></div>
       <ImportLogPanel logs={logs} loading={loading !== null} stats={statRows} errors={errorRows} />
     </div>
   )

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRef, useState, useSyncExternalStore } from 'react'
-import { formatPrice } from '@/lib/utils'
+import { prixOuEpuise } from '@/lib/utils'
 import { shineGradient, rarityTier } from '@/lib/rarity'
 
 /**
@@ -147,7 +147,7 @@ export default function HeroDeck({ cards }: { cards: DeckCard[] }) {
           className="pointer-events-none absolute bottom-[6%] z-10 rounded-[10px] bg-[#FBF8F2] px-4 py-2.5 shadow-[0_18px_34px_-16px_rgba(26,22,17,0.5)]"
           style={{ transform: `translate3d(${px * 16}px, ${py * 10}px, 0)` }}
         >
-          <span className="text-[15px] font-semibold text-ink">{formatPrice(hero.price)}</span>
+          <span className="text-[15px] font-semibold text-ink">{prixOuEpuise(hero.price)}</span>
           <span className="data ml-2 text-[9px] text-ink-55">{hero.ref}</span>
         </div>
       )}

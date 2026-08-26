@@ -86,49 +86,49 @@ export default function ProduitsPage() {
   const labelStyle: React.CSSProperties = { display: 'block', fontSize: '8px', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'rgba(238,228,204,0.25)', marginBottom: '5px' }
 
   return (
-    <div>
-      <div className="admin-header-row">
+    <div className="gk-corps">
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">Produits scellés</div>
-          <div className="admin-sub">Boosters, displays, ETBs, accessoires</div>
+          <div className="gk-titre">Produits scellés</div>
+          <div className="gk-eyebrow-texte">Boosters, displays, ETBs, accessoires</div>
         </div>
-        <button onClick={openCreate} className="btn btn-primary btn-sm">+ Ajouter</button>
+        <button onClick={openCreate} className="gk-btn" data-primaire="true">+ Ajouter</button>
       </div>
 
       {/* Formulaire create/edit */}
       {showForm && (
         <div style={{ background: 'var(--surface-1)', border: '1px solid rgba(212,144,12,0.08)', borderRadius: '3px', padding: '16px', marginBottom: '16px', maxWidth: '480px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <span className="admin-title">{editing ? 'Modifier' : 'Nouveau produit'}</span>
+            <span className="gk-titre">{editing ? 'Modifier' : 'Nouveau produit'}</span>
             <button onClick={closeForm} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}><X size={14} /></button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={labelStyle}>TCG</label>
-                <select value={formBrut.tcg_type} onChange={e => setForm(f => ({ ...f, tcg_type: e.target.value }))} className="admin-input">
+                <select value={formBrut.tcg_type} onChange={e => setForm(f => ({ ...f, tcg_type: e.target.value }))} className="gk-input">
                   {TCG_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
                 <label style={labelStyle}>Type</label>
-                <select value={formBrut.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="admin-input">
+                <select value={formBrut.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="gk-input">
                   {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
             </div>
             <div>
               <label style={labelStyle}>Nom</label>
-              <input value={formBrut.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="admin-input" placeholder="Booster Écarlate et Violet..." />
+              <input value={formBrut.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="gk-input" placeholder="Booster Écarlate et Violet..." />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={labelStyle}>Prix €</label>
-                <input type="number" min="0" step="0.01" value={formBrut.price} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))} className="admin-input" />
+                <input type="number" min="0" step="0.01" value={formBrut.price} onChange={e => setForm(f => ({ ...f, price: parseFloat(e.target.value) || 0 }))} className="gk-input" />
               </div>
               <div>
                 <label style={labelStyle}>Quantité</label>
-                <input type="number" min="0" value={formBrut.quantity} onChange={e => setForm(f => ({ ...f, quantity: parseInt(e.target.value) || 0 }))} className="admin-input" />
+                <input type="number" min="0" value={formBrut.quantity} onChange={e => setForm(f => ({ ...f, quantity: parseInt(e.target.value) || 0 }))} className="gk-input" />
               </div>
             </div>
             <div>
@@ -150,7 +150,7 @@ export default function ProduitsPage() {
                         ...f,
                         image_urls: f.image_urls.map((u, k) => (k === i ? e.target.value : u)),
                       }))}
-                      className="admin-input"
+                      className="gk-input"
                       placeholder="https://..."
                     />
                     <button
@@ -180,22 +180,22 @@ export default function ProduitsPage() {
               <input type="checkbox" id="active" checked={formBrut.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} style={{ width: '14px', height: '14px', accentColor: 'var(--amber)' }} />
               <label htmlFor="active" style={{ fontSize: '11px', color: 'var(--muted)' }}>Produit actif</label>
             </div>
-            <button onClick={handleSave} disabled={saving || !formBrut.name} className="btn btn-primary btn-sm">
+            <button onClick={handleSave} disabled={saving || !formBrut.name} className="gk-btn" data-primaire="true">
               {saving ? 'Sauvegarde...' : 'Enregistrer'}
             </button>
           </div>
         </div>
       )}
 
-      <div className="admin-table">
-        <div className="admin-col-heads" style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 60px 70px 60px 60px' }}>
-          <span className="admin-col-head">Nom</span>
-          <span className="admin-col-head">TCG</span>
-          <span className="admin-col-head">Type</span>
-          <span className="admin-col-head">Prix</span>
-          <span className="admin-col-head">Qté</span>
-          <span className="admin-col-head">Statut</span>
-          <span className="admin-col-head"></span>
+      <div className="gk-panneau">
+        <div className="gk-heads" style={{ display: 'grid', gridTemplateColumns: '1fr 70px 80px 60px 70px 60px 60px' }}>
+          <span className="gk-label">Nom</span>
+          <span className="gk-label">TCG</span>
+          <span className="gk-label">Type</span>
+          <span className="gk-label">Prix</span>
+          <span className="gk-label">Qté</span>
+          <span className="gk-label">Statut</span>
+          <span className="gk-label"></span>
         </div>
         {loading ? (
           <div style={{ padding: '24px 14px', fontSize: '11px', color: 'var(--muted)' }}>Chargement…</div>
@@ -206,15 +206,15 @@ export default function ProduitsPage() {
         ) : products.map(p => (
           <div
             key={p.id}
-            className="admin-row"
+            className="gk-row"
             style={{ gridTemplateColumns: '1fr 70px 80px 60px 70px 60px 60px', cursor: 'default' }}
           >
-            <span className="admin-cell">{p.name}</span>
-            <span className="admin-cell"><span className="ab ab-muted">{p.tcg_type}</span></span>
-            <span className="admin-cell muted">{p.type}</span>
-            <span className="admin-cell amber">{p.price?.toFixed(2)} €</span>
-            <span className="admin-cell">{p.quantity}</span>
-            <span className="admin-cell">
+            <span className="gk-cell">{p.name}</span>
+            <span className="gk-cell"><span className="ab ab-muted">{p.tcg_type}</span></span>
+            <span className="gk-cell muted">{p.type}</span>
+            <span className="gk-cell amber">{p.price?.toFixed(2)} €</span>
+            <span className="gk-cell">{p.quantity}</span>
+            <span className="gk-cell">
               <span className={`ab ${p.is_active ? 'ab-green' : 'ab-muted'}`}>
                 {p.is_active ? 'Actif' : 'Inactif'}
               </span>

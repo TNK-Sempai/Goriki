@@ -19,10 +19,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Listings (pages produit)
   const { data: pkmListings } = await supabase
-    .from('pokemon_listings')
+    .from('pokemon_card_variants')
     .select('id, updated_at')
-    .eq('is_active', true)
-    .gt('quantity', 0)
     .limit(1000)
 
   const { data: opListings } = await supabase

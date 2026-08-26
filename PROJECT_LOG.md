@@ -155,6 +155,14 @@ Utilities exposées dans `@layer utilities` : `.text-amber`, `.text-amber-light`
 
 | 70 | Galerie des scellés : `image_urls text[]`, et `image_url` devient une colonne **GÉNÉRÉE** valant `image_urls[1]` | KAEL (galerie scellés) | Ni deux colonnes en parallèle (dérive garantie), ni suppression sèche (il faut retoucher tout lecteur, y compris le SQL manuel et les exports). En la rendant dérivée, tout lecteur existant continue de marcher, la dérive devient impossible, et toute écriture sur `image_url` échoue — ce qui force la source de vérité unique |
 
+| 71 | La grille d'un set est clé par **CARTE**, jamais par listing | KAEL (set entier) | `*_cards` contient toujours l'intégralité du set ; partir des listings ferait dépendre l'affichage du stock. Effet secondaire décisif : une carte à deux variantes n'apparaît plus deux fois, et le nombre de tuiles est borné par la taille du set (299 au maximum) au lieu du nombre de lignes de stock — ce qui rend la pagination inutile |
+| 72 | Une carte non achetable n'affiche **aucun prix** | KAEL (set entier) | Elle affichait « 0,00 € », ce qui la faisait passer pour gratuite. `price = 0` n'est pas une gratuité, c'est une absence de prix. L'appel à l'action devient « ♡ Je la cherche », et la tuile perd sa card physics : une pièce qu'on ne peut pas acheter ne doit pas se comporter comme une pièce qu'on manipule |
+
+| 73 | Les cartes représentatives d'un set sont choisies par **rareté la moins fréquente DANS CE SET**, pas par une liste ordonnée de raretés | KAEL (tuiles de set) | Il existe 47 libellés de rareté entre les deux univers, et la liste bouge à chaque extension. Le critère retenu est un fait mesurable et auto-entretenu : un set contient une poignée de SEC et des dizaines de communes. Vérifié — le rang 1 d'OP13 et d'EB02 est bien une SEC. Aucune liste à maintenir, aucun univers à traiter à part |
+| 74 | Un visuel **décoratif** ne dépend jamais du stock | KAEL (tuiles de set) | Tuiles de set et tuiles de rayon de la home sont de la décoration : les alimenter depuis les listings en vente les vidait dès qu'un set n'avait pas de stock. Les compteurs, eux, restent branchés sur le stock et disent la vérité (« 87 cartes · 0 dispo ») |
+
+| 75 | Le hero de la home met en avant **2 sets Pokémon + 2 sets One Piece**, chaque paire classée dans SON univers, sans compensation croisée | KAEL (hero nouveautés) | La parité est structurelle, pas un objectif de total : si un univers n'a pas deux sets datés, on montre ce qu'il a. Aucun prix n'est affiché — c'est une vitrine de nouveauté, et le stock reste dit honnêtement (« bientôt » quand il est à zéro) |
+
 ## Composants produits
 | Composant | Path | Agent | Statut |
 |---|---|---|---|
@@ -596,3 +604,787 @@ Nettoyage au passage, dans un fichier déjà ouvert : deux erreurs de lint prée
 
 Validation : produit à 3 puis 4 visuels → galerie « Photo 1…4 » en boutique, éditeur de liste en admin, PATCH en **200** (la colonne générée ne bloque rien) · produit ramené à 1 visuel → comportement identique à avant · texte Inspection vérifié sur les deux types de fiche · vignette du catalogue toujours servie par `image_url` dérivée · `npm run build` exit 0 · `tsc --noEmit` exit 0 · lint 0 problème sur les fichiers touchés · migration 0030 versionnée, md5 vérifié byte-exact.
 Données de recette retirées (produit revenu à son visuel unique, compte supprimé).
+
+### Session 21 — 2026-08-23 (le catalogue montre le set entier, pas le stock)
+
+**Diagnostic — la cause supposée n'était pas la bonne.** Le brief soupçonnait un filtre `quantity > 0` ou l'absence de LEFT JOIN. Vérifié : la requête ne filtrait PAS sur le stock, et **aucune carte n'est orpheline** (0 carte sans listing dans les deux univers — l'import en crée une par carte). Les cartes n'étaient donc pas perdues par un filtre. Trois causes réelles, mesurées :
+
+1. **`.limit(120)`** sur la requête : SV01 rendait 120 tuiles pour 258 cartes. C'est ça, « on ne voit pas le set entier ».
+2. **Aucune distinction de disponibilité** : une carte sans stock ni prix s'affichait exactement comme une carte achetable, avec « 0,00 € » et « ×0 ». Violation directe du garde-fou « aucune carte affichée comme achetable si elle ne l'est pas ».
+3. **Grille clé par listing** : une carte à deux variantes apparaissait deux fois (535 lignes pour 258 cartes sur SV01).
+
+**Correction.** La grille part de `*_cards` (décision 71), rattache les listings, et dérive la disponibilité. Deux états dans `CardTile` : disponible (traitement normal, card physics, prix) et indisponible (opacité 0,62, désaturation, aucun prix, « ♡ Je la cherche », pas de physique). Le tri par prix range les indisponibles en fin, quel que soit le sens.
+
+**Pagination : volontairement aucune.** Le plus gros set du catalogue compte 299 cartes (moyenne 113) ; en clé par carte, une seule page suffit, vignettes en `lazy`. La borne à 400 est une sécurité, pas une troncature.
+
+**Liste des sets** — vérifiée, rien à corriger : elle ne filtre pas sur le stock (30 sets One Piece et 194 Pokémon tous atteignables), et les sets sans stock s'affichent avec « Aucune pièce en vente ». Le dévoilement par 9 est de la progressivité, pas un filtre.
+
+Mesures avant / après :
+
+| | avant | après |
+|---|---|---|
+| SV01 (258 cartes) | 120 tuiles, 120 × « 0,00 € », 0 CTA | 258 tuiles, 0 prix fantôme, 255 CTA |
+| EB02 One Piece (87 cartes) | 87 tuiles, 87 × « 0,00 € », 0 CTA | 87 tuiles, 0 prix fantôme, 87 CTA |
+
+Validation : les deux univers capturés · contraste disponible/indisponible éprouvé en chiffrant temporairement 3 cartes SV01 (6,25 / 10,00 / 13,75 €) — les trois ressortent à pleine opacité avec leur prix, les 255 autres restent visibles en retrait — puis prix et `needs_photo` remis à 0 · `npm run build` exit 0 · `tsc --noEmit` exit 0 · lint 0 problème sur `components/catalogue`.
+Note : le stock en base est passé à 1 641 listings / 5 789 cartes entre-temps (imports menés par l'utilisateur), non touché.
+
+### Session 22 — 2026-08-23 (tuiles de set et visuels de la home indépendants du stock)
+
+Périmètre volontairement distinct de la session 21 : `SetDetail` (grille de cartes DANS un set) n'a pas été touché, et rend toujours ses 258 tuiles après coup.
+
+**1. Tuiles de set.** Cause confirmée dans `lib/catalogue/series.ts` : le tableau `preview` était construit à partir des listings filtrés `is_active && quantity>0 && price>0`. Sans stock vendable — c'est-à-dire presque partout — la tuile n'avait aucun visuel. Les aperçus viennent désormais de `apercus_de_set()` (migration 0031, décision 73), qui lit le CATALOGUE. Les compteurs restent branchés sur le stock.
+
+**2. Scellés — la moitié du diagnostic du brief était fausse.** `/catalogue/scelles` affichait DÉJÀ correctement la photo : vérifié en HTML (`srcSet` vers `/_next/image`), en testant l'optimiseur (200, PNG de 47 ko) et en capture. Aucun bug de ce côté. Le vrai défaut était sur la home : `img: null` **codé en dur** dans le tableau `RAYONS` de `app/page.tsx`, écrit à une époque où `sealed_products` était vide.
+
+**3. Élargissement assumé.** Les cinq tuiles de rayon de la home tiraient toutes leur visuel du stock vendable, pas seulement celle des scellés. Toutes ont reçu un repli catalogue — corriger la seule tuile nommée au brief aurait laissé les quatre autres vides à côté.
+
+**Non traité volontairement** : l'éventail du hero de la home reste un emplacement hachuré. Il porte une pastille de prix et pointe vers des fiches produit : c'est un bloc qui parle de pièces EN VENTE, pas de la décoration. Le remplir avec des cartes non vendables demanderait de décider ce qu'il annonce — décision à trancher, pas à supposer.
+
+Défaut de libellé attrapé au passage : une tuile sans visuel affichait « Aucune pièce en vente », ce qui était devenu trompeur (le stock est déjà dit par le compteur). Elle dit maintenant « Visuels non importés » — car c'est de ça qu'il s'agit.
+
+Mesures avant / après :
+
+| | avant | après |
+|---|---|---|
+| Catalogue One Piece (9 tuiles) | 0 visuel, 9 cases « Aucune pièce en vente » | 114 visuels, 0 case vide |
+| Catalogue Pokémon (9 tuiles) | 0 visuel | 402 visuels, 1 case sans visuel (set sans image en base) |
+| Home, tuiles de rayon | 0 visuel sur 5 | 5 visuels sur 5, dont la vraie photo du booster |
+
+Validation : `npm run build` exit 0 · `tsc --noEmit` exit 0 · lint 0 problème · `SetDetail` non modifié et toujours à 258 tuiles / 258 CTA · migration 0031 versionnée, md5 vérifié byte-exact.
+Signalement ouvert : **72 des 200 sets Pokémon n'ont aucune carte avec `image_url` en base** (dont 6 sans aucune carte) — lacune de l'import TCGdex, pas du code. Ces tuiles resteront sans visuel tant que la source n'est pas complétée.
+
+### Session 23 — 2026-08-23 (hero de la home : vitrine des nouveautés)
+
+Le hero affiche désormais les sets les plus récents de chaque univers, à la place de l'emplacement hachuré. Chaque tuile porte la carte la plus rare du set (`apercus_de_set`, même logique que le catalogue), le badge « Nouveau », le mois de sortie, le lien vers le set, et un stock dit tel quel — « bientôt » quand il vaut zéro. Aucun prix : ce bloc ne promet pas de disponibilité.
+
+**Blocage constaté, en amont du code.** `onepiece_sets.release_date` est NULL sur les 30 sets. Vérifié à la source avant de conclure : `https://tanuki-poneglyph.pages.dev/v1/sets.json` **expose bien un champ `release_date`, mais il est `null` sur les 40 sets** qu'elle renvoie. Ce n'est donc pas une omission de notre import — la donnée n'existe pas en amont.
+
+Conséquence : le garde-fou « ne jamais compenser en piochant dans l'autre univers » ne s'applique pas à un cas limite, il s'applique en permanence. Le hero rend aujourd'hui **2 tuiles Pokémon et 0 One Piece**. C'est le comportement spécifié, appliqué fidèlement — pas une dégradation accidentelle. Trois issues possibles, à trancher par l'utilisateur : renseigner `release_date` côté Poneglyphe (le hero se remplit sans toucher au code), accepter un autre signal d'ordre pour One Piece (ce serait inventer une chronologie), ou rester à 2+0 en attendant.
+
+Validation : sélection vérifiée en base — ME05 (2026-07-17) et ME04 (2026-05-22) sont bien les deux plus récents ; les deux liens répondent 200 · `npm run build` exit 0 · `tsc --noEmit` exit 0 · lint 0 problème.
+Signalement : `components/home/HeroDeck.tsx` devient orphelin (plus aucun import). Non supprimé — le brief ne portait pas sur le nettoyage.
+
+### Session 24 — 2026-08-23 (hero des nouveautés : reprise de l'éventail, une composition à la fois)
+
+La livraison de la session 23 était **rejetée** : deux tuiles encadrées côte à côte, chacune avec bordure, fond et vignette à plat. C'est le traitement produit interdit par la doctrine (« une carte posée bien à plat au centre d'une vignette est le symptôme de l'ancien layout »), et ça n'était pas ce qui était demandé.
+
+`NouveautesHero.tsx` est réécrit en reprenant l'éventail de `HeroDeck` — pas en le réinterprétant. Valeurs reportées telles quelles : `SLOTS` (x −168 / +172 / +4, rot −15° / +12° / −3°, scale 0,80 / 0,84 / 1), perspective 1600, largeurs `min(272px, 46vw)` en tête et `min(232px, 40vw)` en fond, les deux ombres portées, la parallaxe au pointeur (34 px / 22 px pondérés par `depth`). Plus aucune bordure, aucun encadré, aucun fond de tuile.
+
+**Un seul ajout de style, assumé** : `blur(2.5px)` + `opacity 0.85` sur les deux cartes d'arrière-plan. `HeroDeck` les rendait toutes piquées ; la référence verrouillée `reference-home-goriki.png` montre une carte nette devant deux cartes nettement floues. L'ajout rapproche de la référence, il ne s'en écarte pas.
+
+**Une seule composition visible à la fois**, jamais deux côte à côte : les sets défilent en fondu toutes les 5,2 s, avec repères cliquables. Sous `prefers-reduced-motion`, le défilement est neutralisé et le premier set reste affiché.
+
+**Teinte jaune — mesurée, pas supposée.** Aucun filtre n'était en cause : la chaîne complète d'ancêtres de la carte de tête a été inspectée au rendu (`filter`, `backdrop-filter`, `mix-blend-mode`, `opacity`) — **aucune propriété teintante**. La carte de rang 1 de ME05 et ME04 est une **Méga Hyper Rare** (Méga-Darkrai-ex, Méga-Amphinobi-ex), c'est-à-dire le palier de rareté à fond doré. Mesure PIL sur le visuel source : `me05/120/high.webp` → RGB moyen **(222, 185, 15)**, doré ; `me05/003/high.webp` (témoin du même set) → **(168, 189, 122)**, pas jaune. La teinte EST la carte. Rien à corriger.
+
+**Défaut hérité corrigé au passage.** Les décalages de slot de `HeroDeck` sont en px fixes alors que seules les largeurs clampaient en `vw` : à 390 px l'éventail débordait (bord gauche à −56 px). Les décalages passent par `calc(<valeur>px * var(--eventail, 1))`, où `--eventail` vaut 0,58 / 0,78 / **1 à partir de `lg`**. Les bornes mesurées à 1280 et 1440 px sont **identiques au pixel** avant et après (624→1211 et 722→1309) : le desktop est inchangé, seul le mobile est resserré.
+
+Validation au rendu, pas à l'œil seul : 3 cartes dans le conteneur du hero et 0 ailleurs dans le bloc · classe de l'ancienne tuile encadrée (`rounded-panel-lg transition-colors`) absente du hero · défilement observé ME05 → ME04 → ME05 en mouvement autorisé, **figé** sous `prefers-reduced-motion` · aucun débordement horizontal à 390 / 768 / 1280 / 1440 px · `npm run build` exit 0 · `tsc --noEmit` exit 0 · lint 0 problème.
+Signalement toujours ouvert : `components/home/HeroDeck.tsx` reste orphelin — ses valeurs vivent maintenant en double dans `NouveautesHero.tsx`. À fusionner ou supprimer lors d'une mission de nettoyage.
+
+### Session 25 — 2026-08-23 (flèches du hero + mini-éventails sur les tuiles de rayon)
+
+**1. Navigation manuelle du hero.** `NouveautesHero` gagne deux flèches `←` / `→` encadrant les repères de palier, dans le registre sobre des « Voir tout → » du site : glyphe en mono `.data`, pas de bouton plein, pas de pastille. Toute navigation manuelle — flèches comme repères — suspend le défilement pendant `PAUSE_MANUELLE = 12 000` ms, sinon le palier suivant annulait le geste de l'utilisateur 5,2 s plus tard. La pause vaut aussi sous `prefers-reduced-motion` : elle n'y coûte rien puisqu'il n'y a rien à suspendre, et la règle reste la même partout.
+
+**2. Mini-éventails sur les 5 tuiles de rayon.** Aucun nouveau composant : la formule d'éventail déjà en place dans les tuiles de set (`off` × écartement, `off` × rotation, `zIndex: 3 − off`) est reprise à l'échelle de ces tuiles de 132 px. Empilement simple, ni flou ni profondeur 3D — ce n'est pas le hero. La carte de tête **garde exactement** la position et l'inclinaison qu'elle avait (`right: −20px`, `rotate(9deg)`) : les visuels ajoutés viennent derrière elle, donc aucune régression sur ce qui marchait déjà. Le sous-titre passe de `max-w-[62%]` à `56%` pour laisser passer l'éventail élargi.
+
+Sélection des visuels : même logique que partout ailleurs — la carte la plus rare. `apercus_de_set` renvoie 3 rangs par set ; on ne garde désormais que le **`rang = 1`** de chaque set, pour qu'une tuile montre trois cartes prestigieuses de sets DIFFÉRENTS et non trois cartes du même set. Un `Set` de déduplication garantit qu'aucun visuel ne se répète d'une tuile à l'autre — sinon la rangée donnait l'impression d'un seul rayon répété cinq fois.
+
+**Deux manques de données constatés en base, pas contournés.**
+- `sealed_products` ne contient **qu'une seule ligne** dans toute la base (1 visuel). La tuile Scellés affiche donc 1 visuel et non 3. Elle en affichera 3 dès que le rayon sera rempli — la requête passe déjà à `.limit(3)`. Compléter avec des cartes à l'unité aurait mis des singles sous une étiquette « Scellés » : refusé.
+- `consignment_items` compte **0 dépôt actif**. Le visuel de la tuile Dépôt-vente vient donc du catalogue, pas de la communauté — décoration assumée, comme avant cette mission.
+
+Validation au rendu : flèches présentes et étiquetées · clic suivant ME05 → ME04, clic précédent ME04 → ME05 · **pause tenue** à +11 s (2 paliers écoulés sans changement) puis **reprise** à +19 s · sous `prefers-reduced-motion`, la flèche navigue toujours et l'auto-scroll reste muet · tuiles à **3 / 3 / 1 / 3 / 3 visuels**, tous chargés, **13 visuels distincts** sur l'ensemble de la rangée · aucun débordement horizontal · `npm run build` exit 0 · `tsc --noEmit` exit 0 · lint 0 problème.
+
+Note d'outillage : les sondes CDP écrites via heredoc bash corrompent les échappements (`\n`, `\b` deviennent des caractères de contrôle), ce qui produit de faux négatifs — un test a d'abord conclu à tort que les flèches ne naviguaient pas. Les scripts de recette doivent être écrits en fichier, pas en heredoc.
+
+### Session 26 — 2026-08-23 (filtres scellés/dépôt-vente · pseudo ≠ identité · adresse Stripe)
+
+**1a. Scellés — le filtre par type existait déjà.** Vérifié avant de coder : `app/catalogue/scelles/page.tsx` porte les pilules de type depuis la refonte, adossées à `LABELS` qui couvre exactement les 6 valeurs de la contrainte `sealed_products_type_check` (booster · display · etb · tin · coffret · accessoire). Elles sont invisibles parce qu'un garde `present.length > 1` les masque, et que la base ne contient **qu'un seul produit scellé**. Le garde est juste — proposer « Tous / Boosters » sur un unique type serait du bruit — donc rien n'a été touché. Prouvé en semant deux types supplémentaires : les pilules apparaissent, `?type=coffret` et `?type=display` filtrent correctement. Semis retiré, base revenue à 1 produit.
+
+**1b. Dépôt-vente — le manque était réel.** La page n'avait ni tri ni filtre. Ajout dans la grammaire des autres rayons (pilules sur `searchParams`, page serveur) : tri « Plus récentes / Prix ↓ / Prix ↑ » et filtre d'univers. Le tri part en SQL (`asking_price`, `created_at` sont de vraies colonnes) ; le filtre d'univers ne le PEUT pas — `consignment_items.card_id` ne porte aucun discriminant, c'est la table qui résout la carte qui fait foi. Il s'applique donc après résolution. Les contrôles restent affichés même quand le filtre courant ne ramène rien, sinon on ne pourrait plus revenir à « Tous ». Les compteurs de tête suivent le filtre (vérifié : 003/003 sans filtre → 001/001 en One Piece).
+
+**2. Pseudo public ≠ identité — état trouvé AVANT migration.** `profiles` ne portait qu'un seul champ de nom, `full_name`, et il **servait déjà d'identité** : c'est lui qui est imprimé sur la facture PDF (`/api/invoice/[id]`) et employé comme `customerName` dans les e-mails de commande. Le flux de vérification (mission 10) ne capture, lui, **aucun nom** — seulement un document et un statut. Il n'y avait donc pas un « nom légal » à séparer d'un pseudo : il y avait un champ d'identité utilisé sans étiquette, qu'un utilisateur pouvait remplir d'un pseudo sans savoir qu'il renommait sa facture.
+
+Décision : ne rien renommer et ne déplacer aucune donnée — cela aurait cassé la facturation pour un gain cosmétique. Migration 0032 ajoute `display_name` à côté, avec une contrainte de longueur 2–32, et écrit le rôle de chacun en commentaire de colonne. Le formulaire distingue désormais « Pseudo affiché » et « Nom d'identité », chacun avec sa phrase d'explication, plus un lien vers la vérification.
+
+**Verrou en base, pas dans le formulaire.** Sans lui la séparation serait décorative : un compte vérifié pouvait réécrire son `full_name` en un clic et le document contrôlé ne correspondait plus au nom facturé. Trigger `profiles_verrou_identite`, avec dérogation admin pour corriger une saisie. Le statut validé s'appelle **`'verified'`** et non `'approved'` — vérifié dans la contrainte réelle avant d'écrire, sinon le trigger n'aurait jamais déclenché.
+
+Éprouvé sur un compte jetable (créé puis supprimé, jamais celui du propriétaire) : pseudo modifiable sur compte vérifié **OK** · réécriture du nom d'identité sur compte vérifié **refusée**, valeur restée intacte · pseudo d'un caractère **refusé** par la contrainte · nom d'identité toujours modifiable tant que non vérifié **OK**.
+
+**Aucune ouverture publique.** La RLS de `profiles` (« propriétaire ou admin ») n'est pas touchée. Audit des 43 lectures de `profiles` en code : toutes sont soit filtrées `.eq('id', user.id)`, soit derrière un contrôle de rôle. Le jour où l'attribution publique d'un dépôt sera voulue, elle passera par une fonction SECURITY DEFINER ne renvoyant que `display_name` — ouvrir la table exposerait `email`, `full_name` et `store_credit` du même coup.
+
+**3. Adresse Stripe — déjà en place, vérifiée pour de vrai.** `shipping_address_collection` était **déjà actif** sur la Checkout Session. Le maillon fragile était ailleurs : le webhook lit `session.collected_information.shipping_details.address`, et les types du SDK (stripe 22.2.1, API `2026-05-27.dahlia`) confirment que le `Session.shipping_details` racine **n'existe plus** — `collected_information` est le seul chemin, et c'est bien celui employé. Chaîne complète vérifiée : session → webhook → `finalize` (`p_shipping_address`) → `orders.shipping_address` → facture PDF.
+
+Aller-retour réel en mode test : session créée puis relue chez Stripe → collecte d'adresse **ACTIVE**, pays acceptés `BE FR LU NL DE`, champ `collected_information` présent. Session de recette refermée (`expired`), rien laissé derrière.
+
+Validation : `npm run build` exit 0 · `tsc --noEmit` exit 0 · lint 0 problème · migration 0032 versionnée, md5 vérifié **byte-exact** contre `schema_migrations` (528805bd…) · semis de recette retiré, base revenue à 1 scellé / 0 dépôt / 1 profil.
+
+Signalements ouverts :
+- **`allowed_countries` inclut BE, LU, NL, DE** alors que CLAUDE.md pose « Boutique FR uniquement ». Divergence non corrigée : livrer aux pays limitrophes est peut-être voulu, c'est une décision commerciale, pas un bug à trancher seul.
+- **`display_name` n'est pas unique.** Sans contrainte d'unicité, deux membres pourraient porter le même pseudo — sans conséquence tant que rien n'est public, à trancher avant toute attribution publique.
+- **Migration `20260823162026 add_natural_sort_keys_pokemon_cards`** est présente en base mais absente de `supabase/migrations/` : le dossier local n'est pas au complet. Hors périmètre de ce brief.
+- **Un compte `auth.users` de mars 2026 n'a pas de profil** (`contact.lassautomat@gmail.com`). Antérieur à cette mission.
+
+### Session 27 — 2026-08-23 (réconciliation des migrations · switch de variantes · `username` unique)
+
+**1. Repo et base réconciliés.** Comparaison systématique des 35 entrées de `supabase_migrations.schema_migrations` au dossier local, md5 par md5 — et pas seulement des 3 entrées annoncées. Résultat : les 32 fichiers existants étaient tous conformes, exactement 3 manquaient, aucun fichier local n'était orphelin, aucun divergent. Les 3 ont été matérialisés **byte-exact** (`add_pokeball_masterball_variant_types`, `add_mega_evolution_special_variant_types`, `add_natural_sort_keys_pokemon_cards`). Aucun commentaire explicatif ajouté dans ces fichiers : il aurait cassé l'égalité md5 qui EST la garantie du miroir. Nouvel audit : **35 fichiers / 35 entrées / 35 conformes**.
+
+**2. Variantes — diagnostic mené avant toute UI.**
+
+Fiabilité des données, mesurée et non supposée :
+| | |
+|---|---|
+| listings Pokémon | 30 995, dont **30 995 avec `variant_type_id`** (aucun orphelin) |
+| cartes à 1 variante | 13 121 |
+| cartes à 2 variantes | 8 436 |
+| cartes à 3 variantes | 334 |
+| types de variantes | 11 (Normale, Reverse, Holo, 1ère édition, 6 Ball) |
+
+**Ce n'était pas une perte de données, c'était un silence d'affichage.** La requête chargeait déjà TOUTES les lignes des cartes visibles (`.in('card_id', …)`) ; c'est le mapping qui n'en retenait qu'une par carte — la moins chère vendable — et laissait tomber les autres sans rien en dire. Le grillage par carte, lui, est un choix assumé de la session 21 (« le catalogue montre le set entier »), à conserver.
+
+**Ce que le switch peut honnêtement changer.** Sur les 8 770 cartes multi-variantes : **14 seulement** ont un `image_api` distinct d'une variante à l'autre — la source ne photographie pas séparément un reverse. **0** ont des prix distincts (0 listing a un prix, tous univers confondus). **1 202** ont des quantités distinctes. Le switch ne promet donc pas un changement d'illustration : il donne accès à la bonne LIGNE de stock et à sa fiche. C'est écrit en tête de `VariantOption`, pour que personne ne le « corrige » plus tard en croyant à un bug.
+
+Mise en œuvre : `CardEntry.variants` porte les versions ordonnées par `sort_order` ; `CardTile` en sélectionne une en état local et en dérive image, prix, état, stock, quantité **et lien**. Le panneau a été restructuré — le cadre et la physique passent sur le `<div>` racine, le `<Link>` ne couvre plus que le contenu — pour que le switch soit un FRÈRE du lien : un `<button>` dans une `<a>` est du HTML invalide et casse la navigation clavier.
+
+Recette au rendu sur SV10 « Rivalités Destinées » : **244 tuiles pour 244 cartes**, 244 numéros distincts — **aucun doublon**, une seule tuile par carte · **165 switchs**, exactement les 165 cartes multi-variantes que la base annonce pour ce set · bascule Normale → Reverse → retour · le clic **ne navigue pas** · **0 bouton imbriqué dans une ancre** · le `href` de la tuile suit la variante affichée (`/f2889ccb…` → `/c07ce9e7…`).
+
+**One Piece intact**, comme demandé : `gereVariantes = universe === 'pokemon'`, tableau vide ailleurs. Vérifié au rendu — 87 tuiles, **0 switch**.
+
+**3. `display_name` → `username`, unique.** « Display » désigne déjà une boîte de boosters sur ce site (`sealed_products.type = 'display'`) : `display_name` s'y lisait « nom du display ». `username` plutôt que `pseudo` parce que toutes les colonnes de `profiles` sont en anglais snake_case — `pseudo` y aurait été la seule française.
+
+Doublons cherchés **avant** de poser la contrainte, en strict ET à la casse près : **aucun** (et aucune valeur renseignée, 1 profil en base). Rien à arbitrer.
+
+L'unicité est **insensible à la casse et aux espaces de bord** (`lower(btrim(username))`) : un index sur la valeur brute aurait laissé coexister « Tanuki » et « tanuki », deux comptes indiscernables à l'œil d'un acheteur — exactement l'usurpation que l'unicité doit empêcher. Index partiel : plusieurs comptes sans pseudo restent possibles. Éprouvé sur deux comptes jetables : A prend « Tanuki », B se voit refuser «  tAnUkI  », et B reste à NULL. Comptes supprimés, base revenue à 1 profil.
+
+Le GRANT UPDATE colonne a survécu au renommage — vérifié : `authenticated` peut écrire `avatar_url`, `full_name`, `username`, et rien d'autre. Le formulaire traduit désormais l'erreur 23505 en « Ce pseudo est déjà pris » plutôt que d'afficher le nom de l'index.
+
+Validation : `npm run build` exit 0 · `tsc --noEmit` exit 0 · lint 0 problème · migration 0033 versionnée, md5 byte-exact (381b9656…) · audit migrations 35/35 · base revenue à la ligne de base après chaque test.
+
+### Session 28 — 2026-08-23 (BG-01 : le fond carte marine ne rendait pas sur One Piece)
+
+**Cause : B, seule.** `OnePieceMapBackground.v3.tsx` n'était référencé nulle part — pas même importé. Le brief supposait « un import non utilisé passe le build sans warning » ; la réalité était plus simple, il n'y avait aucun import. Correction : deux lignes dans `app/catalogue/onepiece/page.tsx` (import + `<OnePieceMapBackground />` dans le JSX). Rien d'autre n'a été touché.
+
+**Causes A et C écartées par la mesure, pas par raisonnement.** `AtmosphereLayer` porte déjà **exactement** la même classe `pointer-events-none fixed inset-0 -z-10` sur cette page, et l'inspection au rendu le donne à 1440×900, `visible=true`. Un `-z-10` s'y peint donc parfaitement : le fond parchemin est posé sur `<body>`, dont l'arrière-plan est propagé au canevas de la page et ne recouvre pas ses propres enfants. Le correctif z-index proposé (`z-0` + `z-10` sur le contenu) aurait donc soigné un mal inexistant, tout en faisant passer la carte AU-DESSUS de la couche atmosphère. **Non appliqué.** Cause C écartée de même : aucun ancêtre de `<main>` ne porte `transform`, `filter`, `backdrop-filter`, `perspective`, `contain` ou `will-change` — Lenis interpole le scroll natif ici, il n'enveloppe rien dans un conteneur transformé.
+
+**⚠️ Conflit à arbitrer — et ce n'est PAS celui que le brief anticipait.**
+
+Le brief attendait deux boussoles. Il y en a **une**. Le `<rect fill={SEA} />` de la ligne 86 est **hors** du groupe `<g opacity={opacity}>` : il est donc opaque à 100 %, quelle que soit la valeur d'`opacity`. Peint après `AtmosphereLayer` (ordre DOM), il **masque intégralement** la rose des vents du système d'univers ET le dégradé parchemin du site, sur toute la surface de cette page.
+
+Mesuré par échantillonnage de pixels, trois états comparés :
+| point | Pokémon (témoin) | One Piece + carte | One Piece, carte masquée |
+|---|---|---|---|
+| 60,95 | rgb(230,220,203) | rgb(226,213,185) | rgb(230,220,203) |
+| 1180,250 | rgb(240,237,233) | rgb(226,213,185) | rgb(221,215,206) |
+| 1390,120 | rgb(220,214,205) | rgb(238,230,212) | rgb(220,214,205) |
+
+Chaque point revient exactement à sa valeur témoin dès qu'on masque la carte : l'occlusion est démontrée, pas supposée.
+
+Conséquence doctrinale : CLAUDE.md impose deux cartographies distinctes montées sur tout le parcours public, et pose que « le fond ne porte que le motif d'univers et le gradient radial ». En l'état, la carte marine **remplace** le motif d'univers One Piece au lieu de s'y ajouter. Rien n'a été supprimé ni modifié de moi-même : ni la géographie, ni la palette, ni la rose du SVG, ni `opacity = 0.4`, ni `AtmosphereLayer`. **Trois issues possibles, à trancher par RYUU** : rendre le rect de mer transparent ou le passer dans le groupe d'opacité (le fond du site réapparaît sous la carte) ; retirer `AtmosphereLayer` de cette route (la carte devient la cartographie One Piece) ; ou masquer la rose du SVG et garder celle du système.
+
+**Validation mesurée.** Carte visible en sépia pâle derrière la grille · fond **fixe** au scroll (top des deux couches : 0,0 avant et après un scroll de 900 px) · tuiles au premier plan et cliquables (l'élément au centre d'une tuile lui appartient) · aucune modification d'apparence des vignettes · `tsc --noEmit` exit 0 · lint 0 problème · `npm run build` exit 0.
+
+**Sur la lisibilité de « 87 CARTES · 0 DISPO ».** Première mesure fausse de ma part : elle ignorait l'alpha du texte (`rgba(26,22,17,0.6)`) et annonçait 13,83:1. Recalculée avec la composition réelle sur le fond peint : **4,30:1 avec la carte**, contre 4,21:1 sans la carte et 4,24:1 sur Pokémon. La carte ne dégrade donc pas ce texte — elle l'améliore marginalement. En revanche ce libellé est **déjà sous le seuil AA (4,5:1) partout sur le site**, carte ou non : constat site-wide, antérieur à ce brief, non traité ici.
+
+### Session 29 — 2026-08-23 (fond One Piece étendu · pagination 30/50 généralisée)
+
+**1a. Fix du rect de mer.** Le `<rect fill={SEA}>` est passé DANS le groupe `<g opacity={opacity}>`. Hors de lui il était opaque à 100 % quelle que soit la valeur d'`opacity` et recouvrait le parchemin et le dégradé radial du site. Mesure avant/après aux mêmes points : avec la carte opaque, les trois échantillons donnaient tous la même valeur plate `rgb(226,213,185)` ; ils donnent maintenant `rgb(222,207,181)`, `rgb(216,204,182)` et `rgb(227,220,208)` — trois valeurs distinctes, c'est-à-dire le dégradé du site qui transparaît. Ni la géographie, ni la palette, ni la rose, ni `opacity = 0.4` n'ont été touchées.
+
+**1b. Extension par un LAYOUT, pas page par page.** `app/catalogue/onepiece/layout.tsx` monte la carte pour les TROIS routes One Piece — index des sets, séries, détail de set. Le montage direct posé au brief précédent dans `page.tsx` a été retiré (il aurait doublé la carte). Un montage page par page laisserait une route sans motif dès qu'on en ajoute une, alors que l'exclusion d'`AtmosphereLayer`, elle, s'appliquerait quand même : le layout et l'exclusion partagent désormais le même préfixe et ne peuvent pas diverger.
+
+**1c. Double rose évitée.** `/catalogue/onepiece` ajouté à `EXCLUDED` dans `AtmosphereLayer`. Vérifié au rendu sur six routes — les trois One Piece : carte 1 / canvas 0 ; Pokémon, home, dépôt-vente : carte 0 / canvas 1. **Une seule rose partout**, et la couche reste active hors One Piece.
+
+**2. Pagination — le pattern annoncé n'existait pas.** Le brief demandait de reprendre « le pattern déjà construit côté admin/Poneglyphe ce soir ». Recherche exhaustive du dépôt : **aucun composant de pagination, aucun `perPage`/`pageSize`/`PAGE_SIZE`, aucun `localStorage`, nulle part** — ni dans `app/admin/**`, ni ailleurs. Le seul mécanisme approchant était le bouton « Voir tous les sets » de `SetsIndex`, qui déplie tout d'un coup. Rien n'a donc été « repris » : le composant est neuf, écrit dans la grammaire du site (pilules `.pill`, mono `.data`, comme la barre d'outils de set).
+
+**Mémoire par COOKIE, pas `localStorage`.** Ces grilles sont rendues côté serveur : le serveur lit un cookie, pas `localStorage`. Avec `localStorage` chaque arrivée sur une page aurait rendu 30 puis re-rendu à 50 — un clignotement systématique. Priorité : URL (`?par=50`, partageable) > cookie (la mémoire) > défaut 30.
+
+**Un seul composant, deux pilotages.** `<PaginationUrl>` pour les grilles serveur pilotées par l'URL ; `<Pagination>` piloté par callback pour `SetsIndex`, dont les filtres sont en état local et qu'il aurait fallu réécrire pour les porter dans l'URL — hors périmètre, et le garde-fou interdisait de casser les filtres existants. Même rendu visuel dans les deux cas. Le cookie est écrit à un seul endroit et relu via `useSyncExternalStore`, ce qui évite à la fois la divergence d'hydratation et le `setState` dans un effet.
+
+`lib/pagination.ts` a dû être scindé : il importait `next/headers` alors que des composants CLIENTS l'importent. `resoudreParPage` vit désormais dans `lib/pagination.server.ts`.
+
+**Pages où la pagination a été ajoutée** (4 grilles, 6 routes) :
+| grille | routes | volume réel |
+|---|---|---|
+| `SetDetail` | `/catalogue/pokemon/[set]`, `/catalogue/onepiece/[set]` | jusqu'à 299 cartes ; 143 des 200 sets Pokémon dépassent 30, 137 dépassent 50 |
+| `SetsIndex` | `/catalogue/pokemon`, `/catalogue/onepiece` | 200 sets Pokémon, 30 One Piece |
+| Scellés | `/catalogue/scelles` | 1 produit aujourd'hui — la barre reste masquée sous 30 |
+| Dépôt-vente | `/depot-vente` | 0 pièce aujourd'hui — idem |
+
+**Garde-fou tenu : la pagination est la DERNIÈRE opération.** Elle découpe un résultat déjà filtré et déjà trié, jamais l'inverse. Corollaire nécessaire : tout changement de filtre, de tri ou de recherche **remet en page 1** (`next.delete('page')` dans `SetToolbar`, `setPage(1)` dans `SetsIndex`, `page` jamais reporté dans les `qs()` des rayons) — sans quoi filtrer depuis la page 7 d'un set de 299 cartes atterrissait sur une page inexistante. Le choix `par`, lui, est conservé : c'est une préférence d'affichage, pas un filtre.
+
+Recette au rendu (SV10, 244 cartes) : page 1 → 30 tuiles, « 1–30 sur 244 » · page 3 → « 61–90 » · `?par=50` → 50 tuiles · `?par=50&page=5` → 44 tuiles, « 201–244 » · `?page=99` → ramené à la page 9, pas de grille vide · filtre rareté → total 244 → 85, page remise à 1. Mémoire : clic sur « 50 » écrit le cookie, puis un set de l'AUTRE univers ouvert **sans `?par`** s'affiche à 50, et l'index des 194 sets Pokémon aussi. Compteurs de dépôt-vente et libellé de `SetDetail` corrigés pour annoncer la tranche, pas le total.
+
+Validation : `tsc --noEmit` exit 0 · lint 0 problème · `npm run build` exit 0.
+
+Signalement (hors périmètre, non traité) : **le champ de recherche du header poste `q` vers `/catalogue`, qui ne lit pas ce paramètre** — `app/catalogue/page.tsx` n'est qu'une page d'accueil de rayons avec des compteurs. La recherche globale du site ne renvoie donc aucun résultat. Il n'y a pas de page de résultats à paginer parce qu'il n'y a pas de recherche : c'est une fonctionnalité à construire, pas une pagination à ajouter.
+
+### Session 30 — 2026-08-23 (recherche globale : la fonctionnalité derrière le champ du header)
+
+**Le champ existait sur toutes les pages et postait vers `/catalogue`, qui ne lit pas `q`.** Route `/recherche` créée ; `SiteHeader` change d'`action` — une ligne, apparence intacte.
+
+**Accents — le point dur, traité en base.** `unaccent` et `pg_trgm` activées dans le schéma `extensions` (aucune n'était installée ; `fuzzystrmatch` volontairement laissée de côté, aucun besoin établi). Volumes vérifiés avant de coder : **4 111 cartes Pokémon, 157 One Piece et 80 sets** portent un nom accentué.
+
+**Wrapper IMMUTABLE plutôt que colonne maintenue par trigger.** `unaccent()` est STABLE et refusée dans un index ; les deux voies étaient ouvertes. Le wrapper l'emporte parce qu'il **ne peut pas dériver** : c'est Postgres qui calcule l'expression indexée, donc aucun chemin d'écriture — import en masse, MCP — ne peut la contourner. Une colonne aurait demandé cinq triggers, un backfill de 23 843 lignes, et se serait désynchronisée au premier chemin oublié. La dictionnaire est épinglée (`'extensions.unaccent'::regdictionary`) : sans ça, déclarer IMMUTABLE serait faux.
+
+**`search_catalogue(terme, limite)`** — rangs 0 référence exacte / 1 égalité / 2 préfixe / 3 contenu / 4 similarité, et à rang égal **le stock devant**. Fonction STABLE et non SECURITY DEFINER : le catalogue est déjà en lecture publique, elle n'ouvre rien de plus.
+
+**Collision trouvée en base, non supposée : `SV10` est À LA FOIS un code de set (Rivalités Destinées) et un numéro de carte (set SMA).** D'où le code de set au rang 0 et le numéro de carte au rang 1 — sans cette hiérarchie la carte remontait avant le set. `SV10 197`, `sv10-197` et `SV10197` sont traités comme un même besoin via un terme « recollé ».
+
+**⚠️ Défaut que j'ai introduit en 0034, mesuré puis corrigé en 0035.** Le prédicat des cartes portait un OR dont la dernière branche traversait DEUX tables (`s.code || c.number`). Un OR multi-tables ne peut pas devenir condition d'index : le planificateur le dégrade en Join Filter. Plan constaté sur « dracaufeu » : **Seq Scan sur les 21 891 cartes, 21 755 lignes rejetées après jointure, 514 ms** — au-dessus du seuil de 300 ms posé par le brief. Les mêmes prédicats de nom SEULS donnaient **12 ms en Bitmap Index Scan** : l'index et la normalisation étaient bons, c'est la forme de la requête qui les rendait inutilisables. La branche « référence » est devenue un membre UNION ALL amorcé par les sets (200 lignes), et les branches de nom sont redevenues mono-table.
+
+Plan après correction, branche principale : `Bitmap Index Scan on idx_pokemon_cards_nom_trgm` (deux fois) + `idx_pokemon_cards_numero_norm`, **8,6 ms, aucun seq scan sur les cartes**. Fonction complète : **173 ms** contre 514 avant.
+
+Note : la 0034 posait `SET pg_trgm.similarity_threshold = 0.4` sur la fonction. Ce SET n'était accepté que parce que l'extension était créée dans la même transaction ; une fois pg_trgm chargée, le paramètre est refusé au rôle de migration. La 0035 s'en remet au seuil par défaut (0,3), sur la branche floue qui est de toute façon la dernière du classement.
+
+**Page de résultats.** Deux vues sur une seule route : groupée (chaque groupe plafonné à 6) et par type (`?type=`), cette dernière **paginée avec le composant existant**, pas un second. `q` vide ou à moins de 2 caractères : **aucune requête lancée**, invite affichée.
+
+**Piège évité sur les « voir tout ».** Ils pointent vers `/recherche?q=…&type=…`, PAS vers `/catalogue/pokemon?q=…` : `SetsIndex` garde sa recherche en état local et ignore `q` dans l'URL — ce lien aurait été mort, exactement le défaut que cette mission corrige.
+
+**Défaut attrapé à la recette.** La vue groupée rendait les groupes dans l'ordre de déclaration : sur « SV10 », la base classait bien le set en rang 0, mais la page affichait « Cartes Pokémon » au-dessus. Les groupes sont désormais ordonnés par leur meilleur rang — l'affichage suit le classement de la base au lieu de le contredire.
+
+Recette au rendu, les 8 cas du brief plus 2 : `salameche` → Salamèche · `energie obscurite` → Énergie obscurité · `ecarlate` → Écarlate et Violet · `SV10` → **Sets Pokémon en tête, Rivalités Destinées** (2 résultats, pas 244) · `SV10 197` → Motisma, résultat unique · `TG12` → 8 cartes · `dracaufeu` → Dracaufeu · `xyzzy` → état vide avec portes de sortie · `a` et terme vide → invite, aucune requête. Vue par type : 30 vignettes, « 1–30 sur 136 cartes », pagination présente. `action` du formulaire header = `/recherche`.
+
+**« En stock d'abord » prouvé par semis.** 0 listing n'ayant de prix, le critère était juste mais invérifiable. Un prix (12,50 €, qté 2) posé sur un Dracaufeu : il passe en **position 1** devant les autres au même rang. Ligne restaurée à 0.00 / 0 — base revenue à 0 listing avec prix, 1 641 avec stock.
+
+Validation : `tsc --noEmit` exit 0 · lint 0 problème · `npm run build` exit 0 · migrations 0034 et 0035 versionnées, md5 vérifiés **byte-exact** (a89ec61d…, 854b05d9…). Une fonction de service temporaire a servi au dump des fichiers locaux, puis a été supprimée (vérifié : 0 reste).
+
+Signalement : le classement « stock d'abord » restera sans effet visible tant qu'aucun listing n'aura de prix — **0 sur 30 995 aujourd'hui**.
+
+### Session 31 — 2026-08-23 (BG-02 : fond Poké Ball sur les routes Pokémon)
+
+Même patron que #BG-01. `app/catalogue/pokemon/layout.tsx` monte `PokemonBallBackground` pour les TROIS routes — index, séries, détail de set — et `/catalogue/pokemon` rejoint `EXCLUDED` dans `AtmosphereLayer`. Layout et exclusion partagent le même préfixe : ils ne peuvent pas diverger. Aucun montage direct en page, aucun doublon possible.
+
+Le composant portait déjà `z-0` et **aucun rectangle de fond** : les deux pièges du brief étaient évités à la source. Rien n'a été touché dans le SVG — ni géométrie, ni couleurs, ni `opacity = 0.3`, ni `saturation = 0.55`.
+
+**Une différence de mécanisme avec One Piece, assumée mais à connaître.** La carte marine est en `-z-10` et se glisse sous un contenu resté en flux normal. Ce fond-ci est en `z-0` : à cette profondeur, un `fixed` se peint AU-DESSUS du contenu statique, non positionné. Le contenu doit donc remonter — d'où le `relative z-10` posé dans le layout plutôt que dans chaque page. Deux mécanismes font désormais le même travail selon l'univers. À noter que la raison invoquée pour écarter `-z-10` (« invisible sous le parchemin ») avait été **mesurée fausse** en #BG-01 : le parchemin est porté par `<body>`, dont l'arrière-plan est propagé au canevas de la page et ne recouvre pas ses propres enfants. Les deux voies marchent ; on en a maintenant une par univers.
+
+**Anti-doublon : aucun conflit.** Vérifié en code et au rendu — la « Poké Ball décorative préexistante » était `AtmosphereCanvas.drawPokeball()`, c'est-à-dire `AtmosphereLayer` lui-même, désormais exclu de ce préfixe. Le seul autre `<svg>` de ces écrans est la loupe du champ de recherche. Il n'y a donc pas deux Poké Balls à arbitrer : l'ancienne a cédé la place à la nouvelle, exactement comme la rose des vents en #BG-01.
+
+**Conséquence doctrinale à signaler.** Les deux rayons d'univers sont maintenant exclus d'`AtmosphereLayer`. La signature motion n°5 de CLAUDE.md — le morph croisé d'`AtmosphereCanvas` entre rose des vents et Pokéball — ne joue donc plus sur les routes où les univers diffèrent réellement ; le canvas ne subsiste que sur les écrans neutres (home, dépôt-vente, scellés, rachat, compte). Chaque univers a désormais son fond dessiné dédié, plus riche que le canvas. C'est un gain visuel, mais c'est un point de doctrine verrouillée qui a changé : à acter ou à corriger, pas à laisser passer en silence.
+
+Recette au rendu, sept routes : PKM index / séries / détail → **fond Poké Ball 1 (5 balls), carte marine 0, canvas 0** · OP index / détail → **carte marine 1, Poké Ball 0, canvas 0** (inchangées) · home et dépôt-vente → **canvas 1** (couche toujours active hors rayons d'univers). Fond **fixe** au scroll (top 0 → 0 après 1 200 px) · vignettes au premier plan et cliquables · aucun débordement horizontal.
+
+Lisibilité du texte le plus fragile : « 1–30 sur 244 cartes · 0 disponible à l'achat » mesuré avec composition alpha réelle à **4,32:1** sur fond `rgb(232,225,216)`, contre 4,24:1 relevé sur cette même page avant le fond (session 28). Le motif ne dégrade pas ce texte. Il reste sous le seuil AA 4,5:1 — constat site-wide antérieur, hors périmètre.
+
+Validation : `tsc --noEmit` exit 0 (après régénération des types de routes par le build — l'erreur `LayoutRoutes` initiale est un artefact de `.next/types` périmé, déjà rencontré au layout One Piece) · lint 0 problème · `npm run build` exit 0.
+
+Note d'outillage : deux faux négatifs de mes propres sondes CDP sur cette recette — un sélecteur `div` qui attrapait un ANCÊTRE du fond au lieu du conteneur `fixed` (d'où un « il défile » erroné), et un `elementFromPoint` visant hors viewport après scroll. Cibler le conteneur par `getComputedStyle(el).position === 'fixed'` et ne tester que des éléments visibles à l'écran.
+
+### Session 32 — 2026-08-23 (LOGO-01 : validation des visuels de set + affichage du logo)
+
+**Volet 1 — `--cible=cartes|sets|tout`, un seul script, un seul rapport.** `validate-card-images.ts` teste désormais aussi `pokemon_sets.image_url` (logo) et `symbol_url` (symbole). Toute la logique de sûreté est conservée telle quelle : dry-run par défaut, `--apply` obligatoire, seuls 404/403/410 nullifiés, timeout et 5xx classés indéterminés, `SEUIL_ABANDON` actif, écriture par lots, cache d'URL partagé.
+
+Deux points de conception qui ne vont pas de soi :
+- **Une requête d'UPDATE par colonne.** Logo et symbole ne peuvent pas être groupés dans le même `update` : un set peut avoir un logo mort et un symbole valide, et écrire `{image_url: null, symbol_url: null}` effacerait le symbole encore bon.
+- **Aucun univers exclu en dur.** Le brief demandait de ne pas traiter `onepiece_sets` (0 URL). Plutôt qu'une exclusion codée, le filtre `image_url ou symbol_url non nul` le fait sortir naturellement vide — et le jour où l'import en fournira, il sera testé sans rien changer.
+
+**Rapport dry-run sur les sets — rien à appliquer.** 274 visuels testés (121 logos + 153 symboles), **274 valides, 0 mort, 0 indéterminé, en 2,8 s**. Tous les statuts à 200. `--apply` n'a donc pas lieu d'être et n'a pas été lancé. One Piece : 0 visuel à tester, comme prévu.
+
+Non-régression vérifiée : `--cible=cartes --set=ME05` → 105 cartes testées, 0 visuel de set — comportement historique reproduit à l'identique ; le défaut `tout` sur le même set → 105 + 2 = 107. Compteurs base identiques avant et après le dry-run (121 logos / 153 symboles / 18 472 cartes PKM / 1 721 OP).
+
+**Volet 2 — `SetVisual`, chaîne de repli logo → symbole → cadre.**
+
+Le commentaire d'en-tête de `SetDetail` était devenu FAUX : il justifiait l'éventail de cartes par « `*_sets.image_url` est NULL pour la totalité des sets ». C'était vrai à l'époque du portage, ce ne l'est plus — 121 sets sur 200 ont un logo. Ce brief défait donc une substitution qui n'avait plus lieu d'être. L'éventail des cartes les plus chères en vente est retiré de ce bloc, et la requête `preview` qui l'alimentait avec lui (elle exigeait `price > 0`, donc ne renvoyait rien : aucun listing n'a de prix).
+
+Le logo est l'**état par défaut**, pas l'état « rupture » : l'affichage n'est plus conditionné au stock, le filtre « Disponibles » répond déjà à cette question.
+
+Points d'implémentation :
+- **`symbol_url` n'existe que sur `pokemon_sets`.** Le demander à `onepiece_sets` faisait échouer la requête entière — la liste de colonnes est donc construite selon l'univers.
+- **Repli au runtime** par `onError`, côté client : la validation serveur réduit le risque d'URL morte, elle ne l'annule pas, le CDN peut tomber après la passe.
+- **Pas de plaque de fond.** Les PNG TCGdex sont transparents ; une plaque claire aiderait un logo sombre mais écraserait un logo clair, et l'inverse. Deux `drop-shadow` — un halo clair serré, une ombre portée douce — décollent le visuel du parchemin sans le recouvrir, quelle que soit sa valeur.
+- **Le symbole n'est pas agrandi** à la taille du logo : 76 px (92 en `lg`), centré.
+
+Recette des cinq cas, au rendu : ME05 → **LOGO** natif 732×210 · SV10 → **LOGO** natif 604×242 · SMP → **SYMBOLE** 92 px · SVP → **CADRE** · B1 (symbole, 0 carte) → **SYMBOLE**. One Piece EB02, témoin sans visuel → **CADRE**, sans erreur. `object-fit: contain` confirmé calculé sur tous les cas. Lisibilité du logo le plus sombre (ME05 « Nuit Noire ») : pixel le plus sombre `rgb(0,0,0)` contre parchemin `rgb(232,225,216)` → **16,19:1**.
+
+Piège de mesure à noter : ma sonde comparait le ratio de la BOÎTE au ratio natif et annonçait « 60,8 % de déformation » sur B1. C'est faux — `object-contain` letterbox sans étirer ; la métrique mesurait le conteneur, pas l'image peinte. Vérifié à l'œil sur capture : aucun étirement.
+
+**Écart assumé avec le brief, à arbitrer.** Le brief demandait le cadre rayé « inchangé ». J'ai changé son libellé, de « aucune pièce en vente » à « visuel non disponible » : ce bloc ne parle plus du tout de stock, et un set de 220 cartes sans logo aurait affiché un message sur la vente qui n'a plus de rapport avec ce qu'il montre. Le traitement visuel du cadre, lui, est inchangé. Une ligne à revenir si l'ancien libellé était voulu.
+
+Validation : `tsc --noEmit` exit 0 · lint 0 problème · `npm run build` exit 0 · aucune écriture en base.
+
+Signalement : les 79 sets sans logo et 47 sans symbole ne sont pas traités ici — la liste des visuels manquants est un sujet séparé, comme posé par le brief.
+
+### Session 33 — 2026-08-24 (ARCHI-01 : séparation variantes / exemplaires, Pokémon)
+
+**Décision structurelle irréversible sur la table centrale, exécutée après validation du plan.** Migrations 0036 (schéma + données) et 0037 (fonctions).
+
+**Renommage en place plutôt que recréation.** `pokemon_listings` → `pokemon_card_variants`, **clés primaires conservées**. La fiche produit `/[slug]` et le sitemap étant indexés dessus, les 30 995 URL publiques restent valides et pointent désormais sur la variante — le bon objet de catalogue : elle existe pour toutes les lignes et survit aux mouvements de stock.
+
+**Résultat mesuré : 30 995 variantes, 1 641 exemplaires, 0 écart** sur la comparaison couple par couple `(carte, variante, quantité)` menée dans les deux sens contre une sauvegarde logique prise avant migration. Chaque exemplaire pend sur SA variante d'origine — aucun rattachement générique.
+
+**Trois découvertes qui ont changé le plan, toutes vérifiées avant d'écrire :**
+- `set_needs_photo` est **partagée avec `onepiece_listings`** : elle est attachée à la nouvelle table, jamais modifiée.
+- Sur les six fonctions citant `pokemon_listings`, **trois seulement** avaient besoin d'être réécrites. `reserve_order_stock`, `restock_order` et `finalize_paid_order` adressent par nom de table et par `id`, en ne touchant que `quantity` / `is_active` / `updated_at` — colonnes que la nouvelle table porte toujours. Le pipeline de commande n'a pas été touché, ce qui est la bonne nouvelle de cette migration.
+- **Aucune FK ne pointait sur `pokemon_listings`** et `order_items` est vide : aucune casse référentielle.
+
+**Contraintes d'unicité, séparées selon ce que chacune protégeait.** L'UNIQUE total sur 4 colonnes n'était total que pour satisfaire l'inférence `ON CONFLICT` de PostgREST : son héritier est `UNIQUE (card_id, variant_type_id)` sur la variante, qui redevient une vraie clé naturelle. L'index partiel `WHERE price < 1.0` portait la règle bulk et suit l'exemplaire tel quel.
+
+**Verrouillage par champ — approche A validée.** `locked_fields text[]` + trigger `BEFORE UPDATE` par table. Le sens de l'échec est orienté : les verrous s'appliquent TOUJOURS, sauf si la transaction lève `goriki.edition_manuelle`. Un CHECK refuse les noms de champs invalides — un verrou mal orthographié ne protégerait rien, en silence. `locked_fields` n'est lui-même jamais verrouillable, sinon le relâchement serait impossible.
+
+Test décisif passé : nom verrouillé **survit** à l'import · rareté non verrouillée **bien mise à jour** dans le même UPDATE · après relâchement la valeur API **revient** · image manuelle **survit** et l'emporte · nom de champ invalide **refusé**.
+
+**Images : colonne générée, conformément à l'arbitrage.** `image_url` devient `coalesce(image_manuelle, image_api)` sur `pokemon_cards` ET `pokemon_card_variants`. Les 18 fichiers continuent de lire `image_url` : **zéro `coalesce` applicatif**, et la provenance devient structurelle. Contrôle : 0 carte sur 21 891 sert un `image_url` différent d'avant migration.
+
+Conséquence à connaître : `image_url` refuse désormais toute écriture. Deux écrivains ont dû être repointés — `lib/import/pokemon.ts` (écrit `image_api`) et `scripts/validate-card-images.ts`, ce dernier avec une **asymétrie assumée** : `image_api` côté Pokémon, `image_url` côté One Piece, dont la table n'est pas migrée.
+
+**Suppression de variante — `ON DELETE RESTRICT`, jamais de CASCADE.** Fonction `supprimer_variante(variante, cible?)` avec ses trois cas. Éprouvé : variante sans exemplaire supprimée · variante avec stock sans cible **refusée**, stock intact après le refus · avec cible, exemplaires **déplacés et renumérotés** · DELETE direct **bloqué par la FK** · retour à 1 641 exemplaires.
+
+**Volet 3 — chaîne de repli du visuel de variante.** `image_url` de la variante → `image_url` de la carte **avec le label en surimpression** → placeholder. Le niveau 2 concerne **4 286 variantes sur 30 995**, un affichage sur sept : le bandeau est un dégradé encre posé en BAS (le sujet de la carte occupe le haut) et tient sur illustration claire comme sombre, là où une étiquette d'une seule teinte disparaîtrait sur l'une des deux. Composant `VariantVisual` pour les surfaces neuves ; sur `CardTile` le bandeau est ajouté sans toucher à la parallaxe existante.
+
+**Adaptation applicative.** Un module `lib/catalogue/variantes.ts` absorbe la différence de schéma entre les deux univers et rend une forme unique, pour que `SetDetail` n'ait pas à connaître deux modèles. Fichiers repointés : `SetDetail`, `series.ts`, `[slug]`, `page.tsx` (home), `api/catalogue`, `sitemap`, `wishlist`, les deux `want-to-buy`, `import/pokemon.ts`, `import-stock-xlsx.ts`, `validate-card-images.ts`, `CardTile`.
+
+Point sensible traité : **ce qu'on met au panier est un EXEMPLAIRE**, pas la variante — c'est lui que le checkout réserve et décrémente. L'URL porte la variante, le panier porte l'exemplaire.
+
+Validation : `tsc --noEmit` exit 0 · lint 0 erreur sur les fichiers touchés · `npm run build` exit 0 · `search_catalogue` rend les **8 cas de recette à l'identique** · API PostgREST après `NOTIFY pgrst` : 30 995 / 1 641 / 21 891 · rendu sans erreur sur home, index PKM, détail SV10 (30 tuiles, 27 switchs), détail OP témoin, recherche, dépôt-vente, rachat, panier, scellés, want-to-buy, catalogue · `/api/catalogue` renvoie 1 641 résultats paginés.
+
+**Signalements ouverts :**
+- **`app/api/listings/route.ts` est cassé pour Pokémon** — il lit `card_id`, `variant_type_id` et `image_api` sur l'exemplaire. C'est l'API de l'écran d'ADMINISTRATION, que le brief place explicitement hors périmètre (« il viendra après, sur le nouveau schéma »). Non touché, à traiter dans ce brief-là.
+- Les tables `_sauvegarde_archi01_listings` et `_sauvegarde_archi01_cards` sont **conservées** le temps de ta validation. Elles sont dans `public` : RLS activée et droits révoqués pour `anon`/`authenticated` — sans quoi PostgREST les aurait exposées. À supprimer sur ton feu vert.
+- `pokemon_variant_types.set_id` reste NULL sur les 11 types : `variantes_autorisees()` et son trigger sont en place mais laissent tout passer tant qu'aucun set n'est scopé. La saisie est le travail de nettoyage à venir.
+- Le lint du dépôt entier remonte **12 erreurs préexistantes** dans des fichiers jamais touchés par cette mission (`admin/clients`, `admin/commandes`, `cart/*`, `HeroCarousel`) — `no-explicit-any` et `set-state-in-effect`. Révélées parce que j'ai linté tout le dépôt pour la première fois ; antérieures à ARCHI-01.
+
+### Session 34 — 2026-08-24 (ADMIN-01 : écrans de nettoyage du catalogue Pokémon)
+
+Deux écrans neufs — `/admin/catalogue` (200 sets) et `/admin/catalogue/[setId]` (cartes d'un set) — plus les actions serveur. Migrations 0038 et 0039.
+
+**Aucun style introduit.** Tout est bâti sur le système admin existant : `.admin-table`, `.admin-row`, `.admin-cell`, `.admin-col-heads`, `.admin-kpi-*`, `.admin-mini-input`, `.ab-*`. La contrainte était explicite et elle a été tenue — aucune règle CSS ajoutée, aucun token créé.
+
+**Tout passe par des RPC, jamais par un `.update()` direct.** Le trigger de verrou refuse toute écriture sur un champ verrouillé sauf si la transaction lève `goriki.edition_manuelle` — ce qu'une requête PostgREST ne peut pas faire, chacune vivant dans sa propre transaction. Les RPC le lèvent en interne. La garde `is_admin()` est dans chaque fonction ; l'action serveur la double pour rendre une erreur lisible, mais c'est celle de la base qui compte.
+
+**⚠️ Défaut de sécurité trouvé et corrigé dans ma propre 0038 (migration 0039).** `set_config(..., is_local => true)` porte sur la TRANSACTION, pas sur l'appel. Une fois qu'une RPC avait levé le drapeau, **tout écrit ultérieur dans la même transaction contournait les verrous**. Révélé par le test : appeler `admin_corriger_carte` puis, dans la même transaction, un UPDATE simulant l'import — l'UPDATE passait et écrasait la correction. En production PostgREST isole chaque requête, donc le trou ne s'ouvrait pas par ce chemin ; mais un futur script ou un batch groupant plusieurs opérations aurait fait sauter des verrous en silence. Chaque RPC repose désormais le drapeau à `off` avant de rendre la main. Re-testé : le verrou tient **dans la transaction même de la RPC**, et un champ non verrouillé y reste modifiable.
+
+**Deuxième correction d'un défaut de conception, celui de la 0036.** J'y avais prévu de restreindre les types de variantes par `pokemon_variant_types.set_id`. C'est un piège : les 11 types sont GLOBAUX et partagés — poser un `set_id` sur la ligne « REVERSE » l'aurait retirée de tous les autres sets, et les 30 995 variantes existantes pointent sur ces lignes. Remplacé par une table d'autorisation `pokemon_set_variant_types` : elle restreint sans rien déplacer, et un set sans ligne garde les 11 types. `admin_definir_types_set` **refuse** une restriction qui exclurait des variantes déjà saisies, plutôt que de mettre la base dans un état que son propre contrôle rejette.
+
+**Ce qui rend l'outil utilisable, dans l'ordre du brief.** Densité : une carte = une ligne, les variantes se déplient sous la ligne et non dans une colonne — à 299 lignes, une colonne de plus coûte une lecture. Clavier : Entrée valide, **Tab enregistre AVANT de céder le focus**, Échap annule la saisie. Sans rupture : `useTransition` + `revalidatePath`, ni rechargement ni perte de position. Avancement : jauge par set et trois compteurs globaux visibles en permanence. Annulation : un « ↶ » rend la valeur d'avant la dernière correction.
+
+L'ordre par défaut de l'écran 1 est **chronologique ascendant** — l'ordre de travail annoncé — et le filtre par défaut est « à faire » : en rouvrant l'écran on veut la prochaine tâche, pas un inventaire.
+
+**Honnêteté sur l'état d'un champ.** Le brief demandait « valeur API, valeur corrigée, verrouillé ou non ». Le modèle retenu en ARCHI-01 (approche A, une seule colonne) ne conserve PAS la valeur d'origine après correction : l'API reprend la main au ré-import après relâchement. L'écran affiche donc ce qui est vrai — « corrigé » (✎, ocre) ou « api » (gris) — sans prétendre montrer une valeur qu'on n'a plus. Pour les IMAGES c'est différent : `image_api` et `image_manuelle` coexistent, et la vignette dit laquelle est servie.
+
+**Visuel de variante.** `uploadVariantVisual` → `Goriki/pokemon/variantes`, puis `admin_poser_visuel_variante` qui écrit dans `image_manuelle`. Jamais `image_api` : la colonne `image_url` étant générée en `coalesce(image_manuelle, image_api)`, la pose l'emporte immédiatement et survit à un import complet, l'import n'écrivant que la source API.
+
+**Suppression de variante.** L'écran tente d'abord la suppression franche ; si la base refuse pour cause de stock, l'erreur est affichée **et** le choix d'une variante cible est proposé. Rien n'est détruit en silence — 1 641 exemplaires sont concernés.
+
+Tests RPC (session admin simulée) : avancement lisible → **200 sets** · correction écrite ET verrouillée · **import ne peut plus écraser** · relâchement rend le champ à l'API · champ hors liste blanche **refusé** · restriction excluant des variantes saisies **refusée** · restriction cohérente acceptée · liste vide = 11 types globaux · base revenue à sa ligne de base (0 carte divergente, 0 verrou résiduel, 30 995 variantes, 1 641 exemplaires).
+
+Garde de route vérifiée : `/admin/catalogue` non authentifié → **307**.
+
+Volumétrie du cas le plus lourd, chargé d'un coup et sans pagination : SWSHP, **299 cartes / 299 variantes**, et ME02.5 avec **295 cartes / 484 variantes / 93 exemplaires**.
+
+Validation : `tsc --noEmit` exit 0 · lint 0 problème sur les fichiers touchés · `npm run build` exit 0.
+
+Signalements :
+- **`app/api/listings/route.ts` reste cassé pour Pokémon** (signalé en session 33). Il sert l'ancien écran `/admin/listings`, distinct de celui-ci. À reprendre sur le nouveau schéma.
+- Les deux tables `_sauvegarde_archi01_*` sont **toujours en place**, RLS active et droits révoqués. À supprimer sur ton feu vert.
+- La correction du drapeau (0039) vaut aussi pour toute RPC future qui lèverait `goriki.edition_manuelle` : le reposer avant de rendre la main est désormais la règle.
+
+### Session 35 — 2026-08-24 (ADMIN-01 v2 : écrans catalogue sur les patrons PonéglypheAPI)
+
+La v2 remplace la direction visuelle de la v1. Les écrans de la session 34 (bâtis sur la DA `.admin-*`, comme le brief v1 l'exigeait) sont **retirés** au profit des six patrons PonéglypheAPI. `CatalogueSets.tsx`, `CatalogueCartes.tsx`, `ChampCorrigeable.tsx` et la route `[setId]` supprimés — pas laissés orphelins.
+
+**Chiffres du brief vérifiés en base avant de coder, tous exacts** : 200 sets, dont **178 complets**, **15 avec des cartes manquantes (796 au total)** et **7 avec un surplus de sous-blocs (337)**. Les quinze codes et les quinze écarts annoncés correspondent un à un (B1 −226, JUMBO −160, B2 −155, B1A −69…), de même que les sept positifs (+30 sur SWSH9/10/11/12, +70 sur SWSH12.5, +122 sur SWSH4.5, +25 sur CEL25).
+
+**La distinction des deux natures d'écart est structurelle, pas cosmétique.** `etatDeLEcart()` rend `complet` / `manquant` / `sous-blocs`, et la colonne ÉTAT les peint différemment : rouge pour un manque réel, gris pour un surplus de sous-blocs annoté « +N sous-blocs ». Peindre les deux pareil ferait crier au loup sur sept sets sains — et une colonne d'alerte qui se trompe cesse d'être lue, c'est-à-dire qu'on perd l'outil le plus utile de l'écran.
+
+**Les six patrons, transposés :**
+1. Navigation numérotée `01 / ÉDITEUR` · `02 / SETS`, compteurs permanents **21 891 cartes · 200 sets · 30 995 variantes**. Pas de rubrique CLEANUP, non demandée ; le tableau de bord général reste à `/admin`.
+2. Vue sets : table dense, colonnes SET · NOM · SÉRIE · SORTIE · BASE/ATTENDU · ÉTAT, tri chronologique croissant, facettes d'état en compteurs.
+3. Compteur de verrous en ligne (`6🔒`) sur le nom du set — une quantité vérifiable, meilleure qu'un pourcentage.
+4. Panneau latéral : la liste reste en place derrière. Bloc CONTENU RÉEL en tête, puis les champs, **chacun avec un texte d'aide décrivant sa conséquence** — « Le changer casse les liens déjà partagés » plutôt qu'une définition.
+5. Vue éditeur en trois colonnes : sets numérotés `01…200` avec `n / attendu` et cadenas · grille avec facettes **en compteurs affichés, pas en menus** · éditeur de carte à droite, badge VERROUILLÉE accompagné de sa conséquence en clair.
+6. Actions groupées : ajouter/supprimer une variante, poser un visuel, relâcher un champ, enregistrer. Pagination via le composant existant, avec son sélecteur par page.
+
+Les compteurs de facettes sont calculés sur le **set entier**, jamais sur la page affichée : sinon ils ne diraient plus rien de l'anomalie cherchée — voir « REVERSE 44 » sur un set de 120 est précisément ce qui révèle qu'il en manque.
+
+**DA scopée.** Un bloc `.pgl-*` ajouté dans `styles/components.css`, sous le même `@layer components`, avec ses propres variables (`#09090e`, `#c8f060`, mono, capitales). Il ne touche à aucune classe `.admin-*` : le reste du dashboard garde sa direction. C'est la seule extension de style de cette mission.
+
+**Point technique du brief traité en premier : `app/api/listings/route.ts` réparé, pas retiré.** Il sert l'écran de STOCK ET PRIX, distinct du nettoyage de catalogue, donc toujours utile. Sa branche Pokémon passe par `pokemon_card_variants` (l'exemplaire n'a plus `card_id`, `variant_type_id` ni `image_api`), le tri par `referencedTable`, et `copiesOf` regroupe désormais par `variant_id`. La branche One Piece est inchangée, son schéma n'ayant pas bougé.
+
+Migration 0040 : `admin_pokemon_sets_nettoyage()` expose désormais `locked_fields` et non plus seulement leur nombre — le panneau doit savoir QUEL champ porte le cadenas pour proposer son relâchement au bon endroit.
+
+Validation : `tsc --noEmit` exit 0 · lint **0 problème** sur tous les fichiers touchés · `npm run build` exit 0 · gardes de route vérifiées, `/admin/catalogue` et `/admin/catalogue/editeur` renvoient **307** sans session admin.
+
+Signalement : les tables `_sauvegarde_archi01_*` sont **toujours en place** (RLS active, droits révoqués), en attente de ton feu vert pour suppression. C'est le troisième rappel.
+
+### Session 36 — 2026-08-24 (ADMIN-02 : cinq défauts sur les écrans catalogue)
+
+**Chiffres du brief vérifiés en base avant correction, tous exacts** : 121 sets avec logo / 38 symbole seul / 41 sans rien · cartes 18 473 complètes / 3 404 sans aucun visuel / **14 partielles**, 4 286 variantes sans visuel. Les 14 cartes partielles listées au brief correspondent une à une (11 sur ME02.5, 2 sur SV08.5, 1 sur SV10.5W), toutes à 3 variantes dont 1 sans visuel.
+
+**1. Défilement — cause structurelle identifiée et supprimée.** `.pgl` portait un `min-height` à l'intérieur d'un `<main>` de hauteur indéfinie : ni l'un ni l'autre ne portait franchement le défilement, d'où la molette inerte avant clic. `.pgl` a désormais une hauteur **définie** (`calc(100vh - 52px)`), en colonne flex, et le défilement est confié à un `.pgl-scroll` explicite (`flex: 1; min-height: 0; overflow-y: auto`), focalisable (`tabIndex={0}`) pour que flèches, Page suiv., Début et Fin fonctionnent. `overscroll-behavior: contain` évite de quitter l'outil en molettant une liste arrivée en butée. Les trois colonnes de la vue éditeur passent sur le même mécanisme : leur `minHeight: 0` manquant était la raison pour laquelle elles n'étaient jamais de vrais scrollers.
+
+**2. Présence d'un logo, visible par ligne.** Colonne étroite `VISUEL` avec un glyphe — `◆` logo, `◇` symbole seul, `·` rien — et son `title`. Pas de vignette dans la table, qui aurait détruit la densité. Facette `SANS LOGO 79` ajoutée au bandeau à côté de `CARTES MANQUANTES 15` et `SOUS-BLOCS 7`. Traitement volontairement neutre, sans rouge : les 17 sets qui portent du stock ont tous leur logo, l'indicateur sert à savoir quoi aller chercher, pas à alarmer — le rouge reste réservé aux cartes réellement manquantes.
+
+Les deux colonnes `image_url` / `symbol_url` sont lues **à part** dans la page (200 lignes, deux colonnes) plutôt qu'ajoutées à la RPC d'agrégation : le schéma et les RPC étaient hors périmètre.
+
+**3. Panneau — voie retenue : la table se CONTRACTE.** Deux gabarits de colonnes ; panneau ouvert, on abandonne `NOM` puis `SÉRIE`, jamais `BASE / ATTENDU` ni `ÉTAT`. Raison : ce sont les deux colonnes qui justifient l'écran, et le `CODE` qui reste suffit à identifier la ligne. L'autre voie — affiner le panneau — aurait rendu illisibles les textes d'aide, qui sont précisément ce qui évite les fausses manœuvres.
+
+**4. État de visuel par carte, trois cas.** `visuelDeLaCarte()` rend `complet` / `partiel` / `aucun`. La vignette porte `◐` orange pour le partiel et `○` rouge pour l'absence totale ; rien pour le cas complet, qui est la norme. Facette `VISUEL` avec ses trois compteurs — **c'est elle qui rend les 14 cartes partielles atteignables** : 14 sur 21 891 est invisible à l'œil nu et ne serait jamais trouvé autrement. Carte ouverte, chaque variante annonce désormais explicitement sa provenance : « visuel manuel » (l'import ne l'écrase pas), « visuel api » (un import peut le remplacer), ou « sans visuel ».
+
+**5. Coquille.** La source contenait bien l'espace ; c'est un repli de ligne JSX qui l'avalait. Rendu explicite par `{' '}`, ce qui la met à l'abri d'un reformatage.
+
+Validation : `tsc --noEmit` exit 0 · lint 0 problème sur les fichiers touchés · `npm run build` exit 0 · gardes de route toujours à 307.
+
+Note d'outillage, troisième occurrence : les remplacements multi-lignes passés en `node -e` dans bash se font corrompre par l'échappement (attributs JSX déquotés, backticks et `·` mangés). Il a fallu réparer `VueEditeur.tsx` deux fois. **Pour toute édition JSX multi-ligne, passer par l'outil d'édition, jamais par un script shell.**
+
+Réserve inchangée depuis la session 35 : je n'ai pas de session admin authentifiée dans le navigateur de test, donc **le rendu réel de ces cinq correctifs n'est pas vérifié à l'écran**. Types, lint, build et gardes le sont. Le point 1 en particulier est un raisonnement structurel sur la cause — à confirmer à l'usage.
+
+### Session 37 — 2026-08-03 → ADMIN-03 (grille au niveau variante + cause réelle du défilement)
+
+**1. Défilement — cause trouvée, et ce n'était aucun des correctifs précédents.**
+
+`LenisProvider` est monté dans le layout RACINE, avec `smoothWheel: true` et **aucune exclusion de route**. Il enveloppe `{children}`, donc `/admin` aussi. Lenis pose un écouteur `wheel` sur `window`, appelle `preventDefault()` et pilote lui-même `window.scrollTo` : **aucun conteneur interne en `overflow: auto` ne reçoit jamais la molette**. D'où l'obligation d'attraper la barre de défilement.
+
+Mécanisme confirmé à la mesure, pas déduit : `DOMDebugger.getEventListeners` sur `window` d'une page publique remonte 4 écouteurs `wheel`, dont **un non-passif** — précisément celui qui peut `preventDefault()`.
+
+Les deux correctifs précédents (`min-height: 0`, `.pgl-scroll` focalisable) étaient corrects mais traitaient une cause secondaire. Ils n'avaient aucune chance d'aboutir tant que Lenis mangeait l'événement en amont.
+
+**Correction, alignée sur la doctrine existante.** CLAUDE.md réserve Lenis au « fond commun de toute page PUBLIQUE », et `AtmosphereLayer` exclut déjà `/admin` pour une raison de même nature. `LenisProvider` reçoit donc son cinquième guard : `EXCLUS = ['/admin']`, avec `pathname` en dépendance de l'effet — entrer dans l'admin DÉTRUIT l'instance, en sortir la recrée. Sans cette dépendance, le lissage survivrait à la navigation et continuerait d'avaler la molette.
+
+Second volet : la vue SETS n'a plus de conteneur défilant du tout — c'est le DOCUMENT qui porte le défilement, donc la molette agit depuis n'importe quel point de la page, bandeau de facettes compris. `.pgl` garde un `min-height` pour que le fond sombre remplisse l'écran, ce qui ne crée aucun piège puisque plus rien n'est en `overflow: hidden`. La vue ÉDITEUR conserve ses trois colonnes indépendantes via `.pgl-fixe` : là, le défilement séparé est le but, et il fonctionne maintenant que Lenis ne l'intercepte plus.
+
+Non-régression vérifiée : Lenis reste **actif sur toutes les pages publiques** (classe `lenis` présente sur `<html>` en home, catalogue et login).
+
+**2. La grille passe au niveau VARIANTE — c'était le point de fond, mal compris jusqu'ici.**
+
+Les deux briefs précédents avaient ajouté des indicateurs SUR LA CARTE disant si ses variantes avaient un visuel. Ce n'était pas la demande. L'unité de travail est la variante : une Normale et une Reverse sont deux objets distincts — visuel propre, verrou propre, existence propre. Une carte n'est qu'un regroupement.
+
+`VueEditeur` est réécrite autour d'une liste APLATIE carte → variantes. Un set typique passe de 120 vignettes à 168. Chaque vignette porte le visuel de la variante, le numéro, le nom, **le type de variante en clair**, et l'état de verrou. Le rattachement entre sœurs se lit au numéro commun suivi de `·N`, sans qu'aucune ne soit subordonnée à l'autre.
+
+Répartition vérifiée en base avant de coder, conforme au brief : Normale 17 237, Reverse 7 017, Holo 6 051, 1ère édition 676, Pokéball 8, Ball Copain 2, Ball Love 2, Ball Sombre 1, Ball Rapide 1, Masterball 0, Ball Rocket 0.
+
+**C'est ce que ça permet qui compte** : lire « NORMALE 120 · REVERSE 44 » sur un set de 120 cartes et voir immédiatement qu'il manque 76 Reverse. Une grille par carte, si bien instrumentée soit-elle, ne montre jamais ça.
+
+**Deux portées distinguées sans ambiguïté dans l'éditeur.** « Cette variante » — visuel, suppression, sœurs, ajout. « La carte entière » — nom, numéro, rareté, type, catégorie, attribut, avec un avertissement explicite : corriger le nom depuis la Reverse le change aussi sur ses N autres variantes, et le message de confirmation le rappelle après coup.
+
+Les sœurs d'une carte sont atteignables depuis l'éditeur sans repasser par la grille, chacune signalant si elle est sans visuel.
+
+Validation : `tsc --noEmit` exit 0 · lint 0 problème · `npm run build` exit 0 · pages publiques à 200 · Lenis actif côté public, désactivé sur `/admin`.
+
+Réserve : le rendu des écrans admin reste non vérifié à l'œil, faute de session authentifiée dans le navigateur de test. La cause du défilement, elle, est cette fois **mesurée** et non plus supposée.
+
+### Session 38 — 2026-08-24 → BG-03 (fond d'univers sur la fiche de carte)
+
+**Le trou était structurel, pas un oubli.** Les fonds étaient montés sur `app/catalogue/pokemon/layout.tsx` et son homologue One Piece, qui couvrent index, séries et détail de set. La fiche produit, elle, n'est sous aucun de ces préfixes : depuis ARCHI-01 elle est indexée sur l'id de la variante, **à la racine** (`/{uuid}`, 30 995 routes Pokémon + les listings One Piece + les scellés). Aucun layout de préfixe ne pouvait l'atteindre, et le raisonnement par préfixe d'`AtmosphereLayer` non plus.
+
+**Trois schémas répondent à la même forme d'URL** — variante Pokémon, listing One Piece, produit scellé — et le chemin ne dit pas lequel. Seule la base tranche. D'où la forme retenue.
+
+**1. `app/[slug]/layout.tsx`** résout le slug et monte le fond correspondant : Poké Ball, carte marine, ou `AtmosphereBackdrop` pour un scellé — qui n'a pas de cartographie à lui et ne devait pas se retrouver nu. Montage en layout uniquement, jamais dans la page : le patron des deux rayons est respecté à la lettre.
+
+**2. `getListing` extraite dans `lib/catalogue/fiche.ts`, mémoïsée par `cache()`.** Le layout doit connaître l'univers avant de choisir, donc il résout le même slug que la page et que `generateMetadata`. La déduplication de React fait qu'un seul aller-retour Supabase les sert tous les trois — **le montage du fond ne coûte pas une requête, il en supprime une** : `generateMetadata` + page en faisaient deux avant. Sur la route la plus fréquentée du site, ce n'est pas un détail.
+
+**3. `AtmosphereLayer` scindée en deux.** `AtmosphereBackdrop` (le canvas, sans filtrage) et `AtmosphereLayer` (le filtrage par route, monté dans le layout racine). L'exclusion par préfixe reste inchangée pour les rayons ; s'y ajoute un test sur la **forme** de la route fiche (`/{uuid}` en segment unique), puisqu'il n'y a pas de préfixe à exclure. Les autres routes racine — `/panier`, `/login`, `/recherche`… — sont des segments statiques que Next fait gagner sur `[slug]` et qu'aucun UUID n'imite.
+
+**`relative z-10` sur le contenu de la fiche**, comme sur le layout Pokémon. Il est indispensable au motif Poké Ball, en `z-0` : à cette profondeur un `fixed` se peindrait au-dessus d'un contenu resté en flux normal. La carte marine, en `-z-10`, passerait sans — le même conteneur pour les deux évite d'avoir à se souvenir laquelle est laquelle. Divergence de profondeur entre les deux fonds **laissée telle quelle** : elle est validée et documentée dans le layout Pokémon depuis BG-01.
+
+**Vérification faite sur le serveur de production local, page par page, en comptant les instances dans le HTML rendu** (hors charge utile RSC, qui répète les mêmes chaînes) :
+
+| Route | Poké Ball | Carte marine | Canvas | `relative z-10` |
+|---|---|---|---|---|
+| fiche Pokémon `/{uuid}` | **1** | 0 | 0 | 1 |
+| fiche One Piece `/{uuid}` | 0 | **1** | 0 | 1 |
+| fiche scellé `/{uuid}` | 0 | 0 | **1** | 1 |
+| `/catalogue/pokemon`, `/series`, `/[set]` | **1** | 0 | 0 | 1 |
+| `/catalogue/onepiece`, `/series`, `/[set]` | 0 | **1** | 0 | 0 |
+| `/`, `/catalogue`, `/catalogue/scelles`, `/recherche`, `/panier` | 0 | 0 | **1** | 0 |
+
+Aucune route d'univers ne reste nue, aucune page ne porte deux fonds, et le canvas ne coexiste jamais avec un motif dessiné. Les fonds sont en `fixed` : ils ne défilent pas.
+
+**Signalement de lisibilité — le fond Poké Ball passe sous AA sur le texte secondaire de la colonne d'achat.** Rien changé, comme demandé.
+
+Mesure, sur un écran de 1440 px : le `preserveAspectRatio="slice"` place la balle bleue (cx 628, r 118) autour de x ≈ 1397 avec un rayon de 277 px, donc **sa bande noire traverse la colonne de droite**, qui va jusqu'à x = 1344. Sous cette bande — `#2c2823` à 30 %, par-dessus le parchemin et son dégradé radial sombre à 7 % qui est justement centré au même endroit — le contraste du `text-ink-70` en 13 px tombe de **5,5:1 à 4,0:1**, sous le seuil AA de 4,5. Concerné : la ligne de disponibilité, les lignes de la fiche technique (`Type`, `Attribut`, `Version`…) et les eyebrows. Le grand visuel, lui, est à l'abri : `ScanStage` et `InspectionPanel` sont en `.glass` (crème à 50 %, `blur(20px)`), qui neutralise le motif.
+
+Côté One Piece, même calcul, aucun problème : la teinte la plus sombre de la carte est `#a38a5e` à 40 %, ce qui laisse le même texte à 4,7:1.
+
+Trois issues possibles si tu veux corriger, aucune appliquée : baisser l'opacité du fond Poké Ball **sur la seule fiche** (le composant prend déjà une prop `opacity`) ; poser un `.glass-light` derrière la colonne d'achat, ce qui la rapprocherait des panneaux voisins ; ou décaler la géométrie pour vider le quart haut-droit. La première est la moins invasive, mais elle rompt l'uniformité d'opacité entre les écrans — d'où le signalement plutôt que la décision.
+
+**Conséquence assumée, à connaître.** Un UUID inconnu (`/{uuid}` sans ligne en base) rend un 404 **sans aucun fond** : `notFound()` court-circuite le layout du segment, et `AtmosphereLayer` s'est déjà retirée sur la forme de la route. La page 404 s'affiche donc sur le parchemin nu. C'est le prix du retrait sans clignotement sur les 30 995 pages réelles — l'alternative (faire remonter l'information du serveur au canvas côté client) aurait fait apparaître puis disparaître le canvas à l'hydratation, sur la page la plus vue du site. Réparable par un `app/[slug]/not-found.tsx`, ce qui suppose d'écrire une page 404 propre au segment : hors périmètre de ce brief.
+
+Validation : `tsc --noEmit` exit 0 · `npm run build` exit 0 · lint **0 problème sur les quatre fichiers touchés** (`app/[slug]/layout.tsx`, `app/[slug]/page.tsx`, `lib/catalogue/fiche.ts`, `components/atmosphere/AtmosphereLayer.tsx`). Le dépôt porte par ailleurs 13 erreurs et 6 avertissements de lint **préexistants**, tous dans des fichiers non touchés ici (`hooks/useCart.ts`, `components/cart/*`, `components/ui/ThemeToggle.tsx`, écrans admin…) — dette antérieure à ce brief, non traitée.
+
+### Session 37 bis — 2026-08-24 (correctif du guard Lenis : dépendance sur la frontière, pas sur le chemin)
+
+Le guard livré plus haut mettait `pathname` en dépendance de l'effet. Conséquence non voulue : l'instance Lenis était **détruite et reconstruite à chaque navigation**, y compris publique → publique. Le lissage repartait de zéro à chaque page — ce qui se ressent comme une transition brutale.
+
+Corrigé : l'effet dépend d'un booléen dérivé `estAdmin = EXCLUS.some(p => pathname.startsWith(p))`. L'instance n'est donc touchée qu'au **franchissement réel de la frontière** — détruite en entrant dans `/admin`, recréée en sortant. Une navigation publique → publique ne la touche plus.
+
+**Mesuré, et le test a été prouvé discriminant.** Un `MutationObserver` compte les mutations de l'attribut `class` de `<html>` pendant une navigation côté client — `destroy()` retire la classe `lenis`, `new Lenis()` la remet, une recréation laisse donc une trace :
+
+| dépendance de l'effet | mutations pendant `/` → `/catalogue/pokemon` |
+|---|---|
+| `[pathname]` (version livrée) | **2** — destruction puis recréation |
+| `[estAdmin]` (corrigée) | **0** — instance conservée |
+
+La version fautive a été remise en place le temps de la mesure, puis le correctif restauré : un test qui passe ne vaut que s'il sait échouer.
+
+Validation : `tsc --noEmit` exit 0 · lint 0 problème · `npm run build` exit 0.
+
+### Session 38 — 2026-08-24 (refonte complète du back-office, d'un seul bloc)
+
+Source : `docs/design-reference/Goriki Admin.dc (2).html` — noter que le nom réel du fichier diffère de celui du brief (`Goriki_Admin_dc__2_.html`). Périmètre : toutes les routes `/admin`. Hors périmètre et non touchés : site public, schéma de base, RPC existantes, fonds décoratifs.
+
+**Ce qui a été construit.** `styles/admin.css` porte le système `gk-*` traduit de la maquette (`#09090e` / `#c8f060`), et remplace les deux vocabulaires antérieurs `.admin-*` et `.pgl-*`. `app/admin/layout.tsx` charge les quatre polices de la maquette **scopées à l'admin** (Bebas Neue, DM Mono, DM Serif Display, Instrument Sans — elles ne partent pas sur les pages publiques), lit les compteurs réels et monte le rail. `components/admin/Rail.tsx` : trois groupes numérotés, onze destinations, badges alimentés par la base et non écrits en dur. `components/admin/Topbar.tsx` : sourcil chiffré + titre Bebas + action.
+
+Onze écrans vérifiés au rendu, pas seulement au build.
+
+**Décision — les jetons du site public sont réécrits DANS `.gk`, pas remplacés fichier par fichier.** Une quinzaine d'écrans référençaient encore `--amber`, `--muted`, `--surface-1` en style inline, et 39 badges portaient la famille `.ab-*` avec l'ambre public codé en dur : c'est ce qui faisait ressortir en orange la pastille active des commandes au milieu d'un écran passé au vert-citron. Les redéfinir sur `.gk` fait tout basculer d'un coup, laisse le site public intact, et concentre en un seul endroit le point où les deux palettes se rencontrent. Même raisonnement pour les ascenseurs : `globals.css` peint le pouce en ambre plein, corrigé dans `.gk` (`@layer components` passe après `@layer base`, l'emport est acquis sans course à la spécificité) plutôt que dans le fichier public.
+
+**Défaut introduit par ma propre migration en masse, trouvé et corrigé.** La conversion `admin-* → gk-*` avait renommé `--radius-admin-sm` **jusque dans ses usages** sans son point de définition : `--radius-gk-sm` était référencé onze fois et défini nulle part, donc onze `border-radius` retombaient silencieusement à zéro. Un build vert ne le voit pas — une variable CSS absente ne casse rien, elle s'évapore.
+
+**`.gk-main` passe en `overflow-y: auto`, et non `hidden`.** Un écran qui oublierait son conteneur `.gk-corps` serait autrement tronqué en silence, sans même une barre pour s'en apercevoir. Corollaire : `.gk-corps` n'est plus un scroller mais un simple conteneur à padding, et les trois colonnes de l'éditeur ont leur classe propre `.gk-colonne` — elles avaient hérité de `.gk-corps` à la migration, avec son padding de page qui n'a aucun sens sur une colonne.
+
+**Les quatorze en-têtes d'écran restent en JSX, rendues collantes par CSS.** Leur titre est souvent une expression (un nom de client, un set précédé de son lien de retour) : les convertir en props de `<Topbar>` aurait demandé quatorze chirurgies JSX pour un résultat identique à l'écran. `.gk-entete-ecran` est donc `position: sticky` calquée sur `.gk-topbar`, avec des marges négatives pour que le filet traverse toute la largeur. L'ordre visuel titre/sourcil est inversé par `column-reverse` sous un `:has()` qui cible le cas exact « titre suivi du sourcil, et rien d'autre » — deux écrans glissent un lien de retour avant le titre et gardent leur ordre naturel.
+
+**Un champ de recherche mort a été câblé plutôt que supprimé.** Celui de la topbar postait `?q=` vers `/admin/catalogue`, page qui ne lisait pas `searchParams` : il ne filtrait rien, à dix centimètres du filtre du panneau qui, lui, fonctionne. `/admin/catalogue` lit désormais `?q=` et en amorce le filtre (`qInitial`), et le champ est retiré de l'écran catalogue lui-même — un écran qui porte déjà son filtre n'en reçoit pas un second.
+
+**Mesures au rendu** (Chrome headless, cookie de session admin temporaire créé puis supprimé — 0 compte résiduel) :
+
+| vérification | résultat |
+|---|---|
+| onze écrans | rail présent, titre en Bebas Neue, **0 classe `admin-*` restante**, aucun contenu injoignable |
+| molette — corps de page, colonne des sets, grille centrale | **+480 px** pour 4 crans dans les trois cas (événements `Input.dispatchMouseEvent` réels, pas un `scrollTop =`) |
+| Lenis sur `/admin` | aucune classe `lenis` sur `<html>` |
+| `?q=rocket` sur le catalogue | **1 ligne** (Team Rocket) au lieu de 200 ; **un seul** champ de recherche, sur le dashboard |
+| visuels de variantes | 60 `img`, URL TCGdex correcte, 12 chargées en 9 s — **lenteur réseau du headless, pas un défaut** : les vignettes vides des captures ne sont pas un bug |
+
+Trois requêtes `count exact` supprimées de l'éditeur de variantes : leur résultat était destructuré puis jeté à chaque ouverture.
+
+Validation : `tsc --noEmit` exit 0 · `npm run build` exit 0 · lint **0 avertissement** sur le périmètre. Restent **8 erreurs `no-explicit-any` préexistantes** dans `admin/clients` et `admin/commandes`, antérieures à ce brief et non traitées.
+
+**Signalements ouverts.**
+- `components/admin/AdminHeader.tsx` n'est plus référencé nulle part : le rail et la topbar l'ont remplacé. Non supprimé — arbitrage RYUU.
+- Rappel, quatrième signalement : `_sauvegarde_archi01_listings` et `_sauvegarde_archi01_cards` sont toujours en base, en attente du feu vert pour être supprimées.
+
+### Session 39 — 2026-08-24 (#MOTION-01 — transitions : la lenteur d'abord, la douceur ensuite)
+
+Retour d'usage : « déjà que c'est lent parfois, en plus c'est brutal ». **Les deux symptômes n'en faisaient qu'un.**
+
+**Étape 1 — mesures avant, build de PRODUCTION, cibles réelles.** Sonde Chrome headless : `t1` = premier changement visible à l'écran après le clic, `t2` = contenu de destination présent ET pleinement opaque (l'opacité compte : un contenu présent depuis 300 ms mais retenu invisible par une animation aurait échappé à une mesure de simple présence DOM).
+
+| navigation | `t1` premier signe | `t2` contenu visible | `t2 − t1` |
+|---|---|---|---|
+| accueil → catalogue Pokémon | 1505 ms | 1507 ms | **3 ms** |
+| catalogue → fiche de set | 2078 ms | 2079 ms | **1 ms** |
+| fiche de set → fiche de carte | 1004 ms | 1004 ms | **0 ms** |
+
+Lecture : de 1 à 2 secondes pendant lesquelles **rien ne bouge à l'écran**, puis tout apparaît d'un bloc, déjà opaque. Le « lent » et le « brutal » étaient la même absence — aucun état d'attente, aucune apparition.
+
+Décomposition : plancher d'un aller-retour Supabase depuis cette machine ≈ **300 ms** ; les 8 requêtes de l'accueil en parallèle ≈ 923 ms ; payloads RSC de navigation 416 à 1173 ms. `/[slug]` est `ƒ` — les 30 995 fiches sont rendues à chaque requête, `createClient()` faisant `await cookies()`.
+
+**Trois causes trouvées, dont deux contre-intuitives.**
+
+1. **Zéro `loading.tsx` sur tout le site.** Next attend le rendu serveur complet avant de remplacer l'écran.
+2. **Le préchargement tournait à vide.** L'accueil déclenchait **26 requêtes RSC**… et la navigation prenait quand même 1505 ms. Deux raisons, confirmées par la doc de la version installée : `staleTimes.dynamic` vaut **0 par défaut depuis Next 15** (payload jeté à l'arrivée), et pour une route dynamique le préchargement ne descend que « to the nearest segment with a `loading.js` boundary » — sans frontière, il n'y avait rien à précharger. Le site payait le préchargement en requêtes serveur sans jamais en toucher le bénéfice.
+3. **`app/template.tsx` n'animait RIEN.** Son `<AnimatePresence mode="wait" initial={false}>` était neutralisé par sa propre nature : un `template.tsx` est remonté à chaque navigation, donc l'`AnimatePresence` aussi — il ne voyait jamais d'enfant sortir, se montait à neuf avec un enfant en premier montage, que `initial={false}` avait précisément pour effet de ne pas animer. Les deux réglages s'annulaient. Mesuré image par image : aucun état intermédiaire entre le clic et l'arrivée. **Le second piège du brief — l'animation de sortie qui retarde — n'existait donc pas ici**, il n'y avait aucune animation du tout.
+
+**Étape 2 — la lenteur.** Quatre `loading.tsx` (catalogue, les deux segments `[set]`, la fiche produit) sur deux squelettes partagés, aux proportions reprises des composants réels pour que le contenu se pose SUR le squelette au lieu de le déplacer ; `experimental.staleTimes: { dynamic: 30 }`.
+
+Détail qui a coûté une passe de mesure : **une frontière ne se déclenche que sur le segment qui CHANGE.** `app/catalogue/loading.tsx` ne servait pas `catalogue → set`, le segment `/catalogue` ne bougeant pas. Elle a dû descendre au niveau de `[set]`.
+
+**Étape 3 — la douceur.** Un seul mécanisme, en CSS : `main:not(.gk-main) { animation: apparition-page 176ms }` dans `@layer base`. Placé sur `main` et non dans un wrapper, il couvre les DEUX moments — arrivée du squelette, puis remplacement par le contenu réel — qui sont deux sous-arbres distincts avec chacun son `<main>`. Un wrapper au-dessus n'aurait vu passer que le premier. `:not(.gk-main)` n'est pas décoratif : le back-office rend lui aussi `<main className="gk-main">`. `app/template.tsx` est conservé et vidé : son rôle est désormais d'être remonté, ce qui garantit un `<main>` neuf donc le rejeu de l'animation.
+
+**Un quatrième défaut, trouvé en cours de route.** Depuis une liste défilée à 1600 px, cliquer une carte ouvrait sa fiche **à 1118 px** — au milieu du contenu, la carte hors écran. Ce n'est pas un bug de Next mais son comportement documenté (« maintain scroll position […] as long as the Page is visible in the viewport »). Deux hypothèses ont été testées et **rejetées avant** d'écrire le correctif : ce n'était pas Lenis (position identique avec le lissage désactivé), ce n'était pas `scroll-behavior: smooth` (position identique en le forçant à `auto`). Les corriger aurait été traiter deux innocents. Correctif dans `LenisProvider`, qui possède la couche défilement : remise en haut au changement de `pathname`, via `lenis.scrollTo` quand il tourne — écrire `scrollTop` sous ses pieds l'aurait laissé avec une position périmée, rattrapée au premier cran de molette, soit un ressaut. Retour arrière et premier rendu explicitement exclus.
+
+**Mesures après**, mêmes cibles, même sonde :
+
+| navigation | `t1` avant | `t1` après | `t2` avant | `t2` après |
+|---|---|---|---|---|
+| accueil → catalogue Pokémon | 1505 ms | **4 ms** | 1507 ms | **600 ms** |
+| catalogue → fiche de set | 2078 ms | **13 ms** | 2079 ms | **684 ms** |
+| fiche de set → fiche de carte | 1004 ms | **8 ms** | 1004 ms | **612 ms** |
+
+Le retour visuel passe de 1 à 2 secondes à moins de 15 ms. `t2` inclut désormais les 176 ms d'apparition, alors qu'il ne mesurait avant qu'un basculement sec.
+
+**Validations.** Animation lue via `getAnimations()` — l'API du navigateur, pas la feuille de style : `apparition-page`, durée **176 ms**, opacité 0 → 0,81 à 40 ms → 1. Sous `prefers-reduced-motion: reduce`, même animation à **0,01 ms**, opacité 1 dès 40 ms : le test discrimine. Défilement vérifié **dans les deux modes** — arrivée à 0 sans ressaut (min = max = 0), retour arrière restitué à 1600 px. `tsc --noEmit` exit 0 · `npm run build` exit 0 · lint **0 problème sur les 7 fichiers du brief**.
+
+**Signalements.**
+- **View Transitions est disponible** sur cette version (`experimental.viewTransition`, Next 16.2.9), mais expérimental des deux côtés — le drapeau Next et le `<ViewTransition>` de React. La solution CSS retenue tient déjà les contraintes (≤ 300 ms, extinction sous reduced-motion, aucune attente ajoutée) sans dépendre de deux API instables. Non adopté : arbitrage RYUU.
+- **Contrepartie de `staleTimes.dynamic: 30`** : un retour arrière dans les 30 s réaffiche stock et prix tels qu'ils étaient au premier passage.
+- **Levier non tiré, le plus gros restant** : les 30 995 fiches restent rendues à chaque requête parce que `createClient()` fait `await cookies()`. Les rendre cachables suppose un client Supabase sans cookie pour les lectures publiques du catalogue — chantier réel, à cadrer séparément.
+
+### Session 40 — 2026-08-24 (fiche carte : rangée des variantes + cause du « NaN € » et du placeholder)
+
+**Diagnostic — les deux défauts de « Du même set » avaient UNE seule racine.**
+
+La requête Pokémon renvoyait `image_url` et un **tableau** `pokemon_listings`. Le composant `SameSetGrid`, lui, lisait `front_photo_url ?? image_api` et un scalaire `price` — les champs du schéma **One Piece**. Côté Pokémon, aucun de ces trois champs n'existe dans la réponse :
+
+| ce que la requête rend | ce que le composant lisait | résultat à l'écran |
+|---|---|---|
+| `image_url` (renseigné sur 25 508 variantes / 29 210) | `front_photo_url` → `undefined`, `image_api` → `undefined` | placeholder rayé sur **toutes** les vignettes |
+| `pokemon_listings: []` (tableau) | `price` → `undefined` | `formatPrice(undefined)` → **« NaN € »** |
+
+C'est la migration ARCHI-01 qui a déplacé Pokémon vers `pokemon_card_variants` sans mettre à jour le contrat du composant. **TypeScript aurait attrapé les deux** : il ne l'a pas fait parce que l'appel était écrit `listings={sameSet as never}`. Le cast est la cause première — pas les noms de champs, mais ce qui a laissé passer leur divergence jusqu'en production, build vert compris.
+
+Correctif de fond plutôt que de surface : `SameSetGrid` est remplacé par `RangeeCartes`, qui expose un type `Vignette` explicite et **ne connaît plus aucun schéma de base**. Les deux univers sont normalisés côté page. Plus de cast à l'appel.
+
+Confirmé en base au passage : **1 641 listings Pokémon, aucun avec un prix > 0**. Le « NaN » n'était donc pas un défaut de calcul, et le « 0,00 € » qu'on aurait obtenu en le « corrigeant » naïvement aurait été tout aussi faux.
+
+**Vocabulaire de prix, généralisé.** Deux fonctions dans `lib/utils.ts`, portant la règle déjà actée (« un prix à 0 est une absence de prix ») :
+- `prixDepuis` → « Épuisé » ou « **À partir de** X,XX € », pour une vignette de CARTE, qui peut avoir plusieurs exemplaires à des prix différents ;
+- `prixOuEpuise` → « Épuisé » ou le montant, pour une pièce unique (scellé, exemplaire déjà choisi).
+
+Appliquées sur **11 sites** : fiche produit (grand prix), tuiles d'accueil, carte en inspection, dépôt-vente, wishlist, scellés (tuile et ligne), `CardTile`, `ProductCard`, `InspectionPanel`, `HeroDeck`. `formatPrice` garde un filet — non-fini → « — » — explicitement documenté comme filet et non comme politique d'affichage.
+
+Effet de bord traité : quatre écrans affichaient dès lors « Épuisé » **deux fois** (le prix + un badge voisin). Le badge ne s'affiche plus que lorsqu'il ajoute quelque chose — une pièce chiffrée mais sans stock. Sur la fiche, le sous-titre passe de « Épuisé pour le moment » à « Aucun exemplaire en vente pour le moment » : il explique au lieu de répéter.
+
+**Note — la fiche principale affichait « 0,00 € »** sur les 29 210 cartes, le brief la croyant correcte. Corrigée en même temps, c'était le même défaut.
+
+**Nouvelle rangée « Existe aussi dans cette variante »**, placée AVANT « Du même set ». Elle réemploie `chargerVariantes` — la fonction qui alimente déjà le switch de variantes des tuiles de catalogue — plutôt que d'en écrire une seconde : deux définitions concurrentes de « qu'est-ce qu'une variante » auraient divergé. Le libellé de VARIANTE y tient la ligne principale, le nom de la carte étant identique sur toute la rangée.
+
+**Validations au rendu**, build de production, DOM réel :
+
+| vérification | résultat |
+|---|---|
+| carte à 2 variantes (Coxyclaque) | rangée **présente**, 1 vignette → `/1400724a…` (l'autre variante), image TCGdex réelle, « #10 · Reverse » |
+| carte à 1 variante (Branette) | rangée **absente** — le test discrimine |
+| « Du même set » | 12 vignettes, **0 placeholder**, images TCGdex réelles, noms corrects |
+| balayage de 11 routes publiques | **0 « NaN »**, **0 « 0,00 € »** |
+| branche « À partir de » | deux prix semés (24,90 € et 12,50 €) → affichage **« À partir de 12,50 € »**, donc le plus bas et non le premier |
+| fiche principale avec un vrai prix | 12,50 € en tête, les deux exemplaires listés, panier actif, 0 NaN |
+
+Données de test retirées : 1 643 → **1 641 listings, 0 avec prix > 0**, état initial retrouvé.
+
+`tsc --noEmit` exit 0 · `npm run build` exit 0 · lint 0 erreur sur le périmètre.
+
+**Deux pièges de mesure notés, tous deux des faux positifs de mes propres sondes.** Chercher « 0,00 » en sous-chaîne signalait le seul produit réellement chiffré du site (« **1**0,00 € ») ; et lire le HTML brut par `curl` fait tomber sur le payload RSC, pas sur le DOM rendu — les deux vérifications ont dû être refaites sur `innerText`.
+
+**Signalement.** La rangée « du même set » côté One Piece ne filtre plus `is_active`/`quantity` : elle montre désormais toutes les cartes du set, vendables ou non, comme le fait déjà Pokémon. C'est un alignement délibéré — deux univers, un seul comportement — mais c'est un changement de comportement visible : arbitrage RYUU si le filtrage doit revenir.
+
+### Session 41 — 2026-08-24 (étiquette de variante : sur le visuel, et sur les tuiles)
+
+**Aucune classe nouvelle.** La planche a déjà `.corner-tag` — « étiquette posée SUR le visuel produit » — en service pour DÉPÔT, ÉPUISÉ et NOUVEAU : 8 px, mono, encre à 88 %, rien de coloré. C'est elle qui est réemployée aux trois endroits, plutôt qu'un badge de plus.
+
+**1. Fiche carte.** Le libellé de variante quitte la colonne de texte pour le visuel. Il y était une pastille parmi l'état et « Scan réel » — noyé entre deux caractéristiques de l'objet vendu, alors qu'il est ce qui distingue cette fiche d'une autre par ailleurs identique. Les deux autres pastilles restent : elles qualifient bien la pièce, pas son identité.
+
+Détail d'ancrage qui comptait : le scan est en `object-contain w-auto`, sa boîte réelle dépend donc du visuel. L'étiquette est posée dans un conteneur `relative` ajusté à l'image ; l'accrocher au panneau de verre l'aurait mise dans la marge, **à côté** de la carte au lieu d'être dessus.
+
+`CardViewer` reçoit la même prop, mais l'étiquette y est posée sur la SCÈNE et non sur la carte : celle-ci pivote en 3D, une étiquette embarquée se retrouverait en miroir au verso. Ce composant reste inatteignable en production (`back_photo_url` NULL partout) — le badge y est pour qu'il n'ait pas à être redécouvert le jour où un verso arrive.
+
+**2. Tuiles « Du même set ».** Deux variantes d'une même carte s'y suivaient avec le MÊME visuel, le MÊME nom et le MÊME numéro : la rangée avait l'air de bégayer, et le doublon apparent se lisait comme un bug. Le libellé est ajouté en `.corner-tag` sur le visuel — à l'endroit même où l'œil compare, donc avant le texte. La requête resélectionne `*_variant_types(label)`, que la réécriture de la session précédente avait laissé tomber.
+
+**Harmonisation faite au passage.** La rangée « Existe aussi dans cette variante » portait le libellé de variante sur sa ligne de TEXTE (choix de la session 40, où elle était seule). Deux rangées voisines désignant la même notion de deux façons différentes se liraient comme deux notions : le libellé passe donc à l'étiquette dans les deux, et la ligne de texte porte le nom de la carte dans les deux.
+
+**Validations au rendu**, build de production, positions mesurées et non supposées :
+
+| vérification | résultat |
+|---|---|
+| position du badge | **dans la boîte de l'image**, 8 px du bord gauche, 8 px du bas |
+| discrétion | badge de **19 px de haut sur une photo de 320 px** de large — une étiquette, pas un bandeau |
+| pastille de variante dans le texte | **absente** (ne restent que « Recto » et « Zoom », les contrôles de `ScanStage`) |
+| « du même set », set EX5 | 12 tuiles, **0 sans libellé** |
+| cas décisif — paires de même nom | « Jirachi » → **Reverse / Holo**, « Mackogneur » → **Normale / Holo** : distinguables |
+| One Piece | fiche 200, badges présents, 0 NaN — la jointure `!inner` sur `onepiece_variant_types` tient |
+
+Le premier set testé (Coxyclaque) ne contenait **aucune paire dans ses 12 premières tuiles** : la vérification y aurait été verte sans rien prouver. Un second set a été cherché en base spécifiquement pour exercer le cas — c'est celui-là qui valide.
+
+`tsc --noEmit` exit 0 · `npm run build` exit 0 · lint 0 erreur.
+
+**Signalement.** La fiche technique du bas de page affiche toujours une ligne « VERSION : Holo ». Elle préexiste et relève d'un autre registre — un relevé, pas une pastille — donc conservée. À dire si le doublon d'information gêne.
+
+### Session 42 — 2026-08-26 (fiche carte : la fiche technique passe en colonne gauche)
+
+Le bloc Type / Attribut / Version pendait sous le panneau Inspection, prolongeant la colonne d'achat de ~190 px pendant que toute la moitié gauche restait vide sous la photo.
+
+**La grille passe à DEUX LIGNES, pas à trois colonnes.** La colonne d'achat occupe les deux lignes (`lg:row-span-2`), la gauche porte le visuel en haut et la fiche technique en dessous (`lg:col-start-1 lg:row-start-2`). Le badge de variante sur la photo n'est pas touché.
+
+**L'ordre du DOM est choisi pour le MOBILE, pas pour le desktop.** En une seule colonne, les enfants de grille s'empilent dans l'ordre d'écriture. Écrire la fiche technique avant la colonne d'achat aurait donné la même mise en page desktop — et poussé le prix et le bouton d'achat sous trois lignes de caractéristiques sur téléphone. Le placement explicite ne sert que le desktop ; le mobile suit le DOM, resté dans l'ordre de lecture utile. Vérifié au rendu : photo → contrôles → prix → Inspection → fiche technique.
+
+**Mesures**, build de production, fiche Tropius ME05 #001 :
+
+| | avant | après |
+|---|---|---|
+| bas de la colonne gauche | 677 px | 840 px |
+| bas de la colonne droite | 869 px | 685 px |
+| écart entre les deux | **192 px** (droite plus longue) | **155 px** (gauche plus longue) |
+| fiche technique en colonne gauche | non | **oui** |
+| hauteur totale de la page | 2 376 px | 2 346 px |
+| mobile — colonnes empilées | oui | oui, ordre de lecture conservé |
+
+**Deux faux positifs de sonde, corrigés en cours de route.** La première version cherchait « une grille à exactement deux enfants » : elle ne trouvait plus rien dès que la fiche technique est devenue un troisième élément de grille. La seconde mesurait le bas des BOÎTES : la colonne d'achat étant en `row-span-2`, sa boîte s'étire jusqu'au bas de la grille et l'écart tombait à `0 px` — un « parfait » entièrement faux. La mesure ne retient plus que les FEUILLES porteuses de contenu. L'état d'avant a été reconstitué et remesuré avec la métrique corrigée, pour que les deux colonnes du tableau soient comparables.
+
+**Résultat honnête : le déséquilibre est réduit, pas supprimé — et il a changé de côté.** 155 px sur une colonne de ~700 px. La différence perçue tient surtout à la nature du vide : il était à gauche sous la photo, à côté de trois lignes de texte flottantes ; il est maintenant à droite, sous le panneau Inspection, dont le bloc de verre ferme visuellement la colonne.
+
+**Signalement — la vraie cause de la longueur de page n'est pas celle-ci.** La rangée « Existe aussi dans cette variante » rend UNE vignette dans une grille de six colonnes : ~370 px de hauteur pour une seule carte, dont cinq sixièmes de vide horizontal. Sur les 2 346 px de la page, c'est le poste le plus coûteux. Hors périmètre de ce brief — à cadrer si la longueur reste gênante.
+
+### Session 43 — 2026-08-26 (refonte de la fiche produit : versions, CTA, engagements)
+
+**Deux vérifications AVANT d'écrire la moindre ligne, comme le brief l'imposait. Les deux ont changé ce qui a été livré.**
+
+**1. Comment reconnaître une pièce de dépôt-vente ?** Résultat contraire à ce qu'on aurait supposé : `pokemon_listings` et `onepiece_listings` ne portent **aucune** colonne de dépôt — ni vendeur, ni propriétaire, ni drapeau ; un exemplaire ne sait pas d'où il vient. `consignment_items` est une table à part, **sans clé étrangère** sur `card_id` ni `variant_type_id` : elle ne déclare même pas son univers (c'est la table de cartes qui répond qui fait office de discriminant, patron déjà établi par `/depot-vente`). Le seul rapprochement possible est donc le couple **(carte, type de variante)** — précisément la clé de cette fiche. Vérifié aussi que `SELECT` sur `variant_type_id` est bien accordé à `anon`, sinon le filtre serait tombé côté visiteur. La table est **vide en production** : le test est donc faux partout, ce qui est le comportement voulu.
+
+**2. Quelles sont les vraies politiques commerciales ?** Le dépôt ne contient **aucune page de CGV, aucun délai d'expédition annoncé, aucune politique de retour**. Le texte de la maquette — « Envoi sous 24h, satisfait ou remboursé 14 jours » — n'a donc **pas** été repris : un engagement affiché est opposable, et rien ne le soutenait. Le paragraphe livré ne reprend que ce que la boutique affirme déjà ailleurs, mot pour mot : les trois garanties du hero et la ligne du pied de page.
+
+**Ce qui a été construit.**
+
+- **« Autres versions de cette carte »** (`components/product/AutresVersions.tsx`), colonne de gauche, sous les contrôles. Liste **verticale** et non grille : ce qui distingue ces lignes n'est pas l'illustration — identique d'une version à l'autre — mais le libellé, la rareté, le stock et le prix. Une grille met en avant ce qui ne différencie pas. La version courante y figure, mise en avant à l'ocre 8 % et **non cliquable** : un lien vers la page où l'on est déjà serait un piège. Elle remplace la rangée pleine largeur « Existe aussi dans cette variante », qui rendait UNE vignette dans six colonnes — 370 px pour une carte, poste le plus coûteux de la page (signalé en session 42).
+- **Colonne de droite** : accroche calée sur le statut réel, prix, mention d'exemplaire et d'état, CTA, tableau technique (Jeu / Extension / Rareté / Version / Type / Attribut / Langue / Authenticité), paragraphe d'engagement. L'encart « Inspection » disparaît.
+- **Bas de page** : « Du même set » devient « Dans la même série », avec sous-titre `[CODE] — [Nom], en stock chez Goriki.` et lien portant le nombre **réel** de cartes du set, compté en base — pas la longueur de la rangée, plafonnée à douze.
+- **Aucun bloc « Marché »** : aucun historique de prix n'existe en base, il n'a pas été construit.
+
+**Deux champs inventés, deux refus documentés.** « Langue » n'est aucune colonne — mais le catalogue vient de TCGdex en `fr` et de Poneglyphe en FR, boutique FR uniquement : la ligne décrit l'impression servie. « Authenticité » n'existe pas davantage, et Goriki ne peut garantir une pièce qu'il ne détient pas : **la ligne ne s'affiche que si un exemplaire est réellement en stock**. Sur une carte épuisée, elle se tait.
+
+**Validations au rendu**, build de production, sur les deux univers :
+
+| cas | résultat |
+|---|---|
+| Pokémon, 2 versions (Tropius ME05 #001) | section **présente**, « 2 versions répertoriées », ligne courante non cliquable, l'autre pointe vers sa fiche |
+| Pokémon, 1 version (Branette EX5) | section **absente** — le test discrimine |
+| One Piece (Luffy ST21-001) | structure identique, aucune divergence par univers |
+| dépôt-vente **semé** sur la variante Normale | marqueur **affiché** sur la Normale, **absent** sur la Reverse de la MÊME carte — le filtre porte bien sur le couple, pas sur la carte seule |
+| carte en stock **semée** (18,90 €, 2 pièces) | « Ajouter au panier », « 2 exemplaires disponibles · Near Mint », et la ligne **Authenticité apparaît** — absente en épuisé |
+| tirets isolés servant de prix | **0** sur toutes les fiches testées · aucun « NaN » |
+| fonds d'univers | Pokéball 42 cercles / 7 chemins · rose des vents 38 / 28 — distincts et intacts |
+| hauteur de page (Tropius) | 2 376 px → **2 180 px** |
+
+Données de test retirées : listings 1 642 → **1 641, 0 avec prix** ; `consignment_items` → **0 ligne**. État initial retrouvé dans les deux cas.
+
+`tsc --noEmit` exit 0 · `npm run build` exit 0 · lint 0 erreur.
+
+**Signalements.**
+- **« Faire une offre » n'a pas été livré.** Aucun mécanisme d'offre n'existe — ni table, ni route, ni page de contact ; `buyback_requests.offer_amount` appartient au flux inverse (Goriki achète). Livrer le bouton aurait été livrer un contrôle mort, ce que la fiche a justement fini de purger (session 40). La **détection**, elle, est faite, testée et discriminante : le jour où une destination existe, le bouton s'y greffe en une ligne. Arbitrage RYUU sur ce que « faire une offre » doit déclencher.
+- **Côté One Piece, la colonne de gauche reste vide sous la photo.** Seule la version `Standard` est importée (filtre obligatoire de `lib/opecards.ts`, CLAUDE.md), donc une carte One Piece n'a qu'une version et la section ne s'affiche jamais. Ce n'est pas un défaut de la section — c'est une conséquence du périmètre d'import.
+- Rappel, cinquième signalement : `_sauvegarde_archi01_listings` et `_sauvegarde_archi01_cards` toujours en base.
+
+### Session 44 — 2026-08-26 (éditeur de variantes : visuel par URL, et aération)
+
+**1. « Coller une URL » vient EN PLUS du téléversement, pas à sa place.**
+
+Nouvelle route `app/api/admin/catalogue/visuel-variante/url/`, SÉPARÉE de la route d'upload — même raisonnement que pour les scans d'exemplaires : les fondre aurait donné une route « visuel-variante » qui parfois téléverse et parfois non. Le flux d'upload n'est pas touché d'une ligne.
+
+L'écriture passe par la **même RPC** que l'upload, `admin_poser_visuel_variante`, qui alimente `image_manuelle` — jamais `image_api`. Deux conséquences voulues : `image_url` étant générée (`coalesce(image_manuelle, image_api)`), la correction l'emporte immédiatement ; et elle **survit à l'import**, qui n'écrit que dans `image_api`. Écrire dans `image_api` aurait fait effacer la correction au prochain import — soit exactement l'inverse du besoin.
+
+**Décision de périmètre, contre-intuitive : on n'accepte PAS « n'importe quelle URL valide ».** Le brief demandait d'élargir, et c'est fait — mais pas jusqu'à ce que le site ne sait pas afficher. `next.config.ts` ne déclare que deux `remotePatterns` : `assets.tcgdex.net` et `res.cloudinary.com`, et **`next/image` refuse tout autre domaine à l'exécution**. Or le visuel d'une variante ne reste pas dans l'éditeur : il ressort dans `ProductCard` (accueil) et dans le panier, qui passent tous deux par `next/image`. Une URL d'un troisième domaine s'afficherait parfaitement dans l'éditeur — qui utilise un `<img>` nu — puis planterait au panier, très loin de l'écran où elle a été collée. Un refus au collage coûte une seconde ; ce bug-là coûte une enquête. Les deux listes se citent l'une l'autre dans les commentaires pour qu'élargir l'une oblige à élargir l'autre.
+
+**Une URL TCGdex sans extension est COMPLÉTÉE, pas refusée** : les URLs TCGdex n'en portent jamais, et le catalogue ajoute `/high.webp` (règle CLAUDE.md). Coller l'adresse nue donnerait une image morte alors que le lien « existe ».
+
+**Correction d'un commentaire par la mesure.** J'avais écrit que le drapeau `goriki.edition_manuelle` posé par la RPC inscrit le champ dans `locked_fields`. **Vérifié en base : c'est faux** — les dix variantes portant un visuel manuel ont toutes `locked_fields` vide, celles posées par téléversement comprises. Ce n'est pas une régression : la protection contre l'import ne vient pas du verrou mais de la colonne elle-même, que l'import n'écrit jamais. Le commentaire dit désormais cela, pour ne pas laisser croire à une seconde garantie inexistante.
+
+**2. Aération de l'éditeur.** La référence Poneglyphe n'étant pas dans le dépôt, la comparaison s'est faite sur la maquette admin qui en dérive, et sur des mesures au rendu :
+
+| | avant | après |
+|---|---|---|
+| écart entre boutons voisins | **5 px** | **8 px** |
+| écart entre blocs `.gk-field` | 13 px | 17 px |
+| `gap` interne d'un `.gk-field` | 4 px | 6 px |
+| padding du panneau d'édition | 14 px | 18 px |
+
+La maquette pose 12 px entre ses contrôles ; on ne va pas jusque-là dans ce panneau, plus dense qu'une barre de facettes — mais on sort du contact. L'écart entre blocs reste nettement supérieur à l'écart interne, sans quoi la colonne se lit comme une seule liste continue.
+
+**Validations**, build de production, session admin temporaire :
+
+| vérification | résultat |
+|---|---|
+| collage d'une URL TCGdex valide | message « Visuel TCGdex corrigé », vignette mise à jour à l'écran |
+| en base | `image_manuelle` = URL collée · `image_api` **intacte** · `image_url` générée = la correction |
+| lien MORT (404 TCGdex) | **refusé**, HTTP 400, « Ce lien ne répond pas (HTTP 404) — le visuel n'a pas été changé » |
+| domaine étranger | refusé, hôtes attendus nommés |
+| Cloudinary d'un tiers | refusé, compte fautif nommé |
+| chaîne non-URL · `http://` | refusés |
+| TCGdex sans extension | **accepté et complété** en `/high.webp` |
+
+Un `router.refresh()` a dû être ajouté : les actions serveur de cet écran revalident elles-mêmes, la route d'API non. Sans lui, la vignette et l'étiquette « visuel manuel » restaient sur l'ancien état alors que la base avait changé — le pire des deux mondes.
+
+Données de test retirées : variante Alakazam BASE1 #1 remise à `image_manuelle = NULL`, **9 variantes à visuel manuel comme avant**. Compte admin de test supprimé, 0 résiduel.
+
+`tsc --noEmit` exit 0 · `npm run build` exit 0 · lint 0 erreur.
+
+**Deux scories rencontrées en cours de route**, toutes deux de moi : un bloc `poserVisuelUrl` mort laissé par une édition interrompue, qui référençait un état inexistant (`tsc` l'a attrapé) ; et un commentaire JSX glissé **entre deux attributs**, ce qui est une erreur de syntaxe — un commentaire ne peut vivre qu'entre éléments.

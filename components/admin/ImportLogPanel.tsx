@@ -33,43 +33,46 @@ export default function ImportLogPanel({ logs, loading, stats, errors }: ImportL
           {stats.map((s, i) => (
             <div
               key={i}
-              className="bg-surface-1 border border-dim rounded-lg px-3 py-2 flex-1 min-w-[100px]"
+              className="gk-kpi" style={{ flex: 1, minWidth: 100 }}
             >
-              <div className="text-[8px] tracking-widest uppercase text-muted">{s.label}</div>
-              <div className="text-sm font-mono text-cream">{s.value}</div>
+              <div className="gk-label">{s.label}</div>
+              <div className="gk-kpi-val" style={{ fontSize: 18 }}>{s.value}</div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="bg-surface-1 border border-dim rounded-lg p-4 font-mono text-xs h-64 overflow-y-auto">
+      <div className="gk-panneau" style={{ padding: 16, fontFamily: 'var(--font-dmmono), monospace', fontSize: 11.5, height: 256, overflowY: 'auto' }}>
         {logs.length === 0 && !loading && (
-          <p className="text-muted">En attente de lancement...</p>
+          <p style={{ color: 'var(--gk-muet)' }}>En attente de lancement...</p>
         )}
         {logs.map((log, i) => (
           <p
             key={i}
-            className={
-              log.startsWith('[ERREUR]') || log.startsWith('[ERR]') ? 'text-red-400' :
-              log.startsWith('[DONE]') || log.startsWith('[OK]') || log.startsWith('[NEW]') ? 'text-green-400' :
-              log.startsWith('[SKIP]')   ? 'text-yellow-400' :
-              log.startsWith('[DB]') || log.startsWith('[SET]') || log.startsWith('[SYNC]') ? 'text-amber' :
-              log.startsWith('[START]') ? 'text-muted' :
-              'text-muted'
-            }
+            /* Couleurs de journal : `text-amber` et `text-muted` étaient les
+               jetons du site public, hors palette du back-office. Le sens des
+               niveaux ne change pas, seule la teinte suit le thème sombre. */
+            style={{
+              color:
+                log.startsWith('[ERREUR]') || log.startsWith('[ERR]') ? 'var(--gk-rouge)' :
+                log.startsWith('[DONE]') || log.startsWith('[OK]') || log.startsWith('[NEW]') ? 'var(--gk-accent)' :
+                log.startsWith('[SKIP]') ? 'var(--gk-violet)' :
+                log.startsWith('[DB]') || log.startsWith('[SET]') || log.startsWith('[SYNC]') ? 'var(--gk-doux)' :
+                'var(--gk-muet)',
+            }}
           >
             {log}
           </p>
         ))}
         {loading && (
-          <p className="text-amber animate-pulse-soft">Traitement en cours...</p>
+          <p className="animate-pulse-soft" style={{ color: 'var(--gk-accent)' }}>Traitement en cours...</p>
         )}
         <div ref={bottomRef} />
       </div>
 
       {errors && errors.length > 0 && (
-        <div className="mt-3 max-h-40 overflow-y-auto border border-dim rounded-lg bg-surface-1 p-3">
-          <div className="text-[8px] tracking-widest uppercase text-red-400 mb-2">
+        <div className="gk-panneau" style={{ marginTop: 12, maxHeight: 160, overflowY: 'auto', padding: 12 }}>
+          <div className="gk-label" style={{ color: 'var(--gk-rouge)', marginBottom: 8 }}>
             Erreurs ({errors.length})
           </div>
           {errors.map((e, i) => (

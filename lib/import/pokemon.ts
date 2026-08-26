@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   fetchSet,
   fetchCard,
+  fetchSerie,
   type TCGdexSet,
   type TCGdexCardBrief,
   type TCGdexCardVariants,
@@ -82,12 +83,75 @@ async function fetchCardWithRetry(id: string) {
   }
 }
 
-// Résout id→code (ex: 'A1' → 'a1') pour les 15 sets TCG Pocket dont l'id API est
+// Résout id→code (ex: 'A1' → 'a1') pour les sets dont l'id API est
 // case-sensitive (le code stocké en base = id.toUpperCase()).
 export function buildCodeToIdMap(sets: TCGdexSet[]): Map<string, string> {
   const map = new Map<string, string>()
   for (const set of sets) map.set(set.id.toUpperCase(), set.id)
   return map
+}
+
+// ─────────────────────────────────────────────────────────────
+// Séries hors périmètre boutique
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * SÉRIES QUE L'IMPORT NE DOIT JAMAIS RAMENER.
+ *
+ * `tcgp` — « Jeu de Cartes à Collectionner Pokémon Pocket » : JEU MOBILE,
+ * CARTES NON PHYSIQUES, HORS PÉRIMÈTRE BOUTIQUE. Ces cartes n'existent que dans
+ * une application ; elles n'ont pas de support carton, ne peuvent être ni
+ * expédiées, ni rachetées, ni gradées, et ne seront donc jamais vendues ici.
+ *
+ * ⚠️ Cette ligne n'est PAS un oubli de nettoyage : la retirer réintroduira ses
+ * 15 sets (A1, A1a, A2, A2a, A2b, A3, A3a, A3b, A4, A4a, B1, B1a, B2, B2a, P-A)
+ * et ~1 785 cartes fantômes au premier import, exactement comme avant la purge
+ * du 24 août 2026. Elles réapparaîtraient aussitôt dans le filtre de séries du
+ * catalogue public, qui est dérivé de la base.
+ *
+ * Le filtrage se fait par SÉRIE, jamais par liste de codes en dur : c'est la
+ * même règle que la détection de série — on interroge les codes réels auprès de
+ * l'API, on ne les suppose pas. Un 16ᵉ set Pocket publié demain sera exclu sans
+ * qu'on touche à ce fichier.
+ */
+export const SERIES_EXCLUES: readonly string[] = ['tcgp']
+
+/**
+ * Ids de sets appartenant à une série exclue, demandés à l'API.
+ *
+ * `GET /sets` ne porte PAS la série (vérifié : il ne renvoie que id, name,
+ * cardCount et les visuels) — on ne peut donc pas filtrer la liste sur place.
+ * On interroge `GET /series/{id}`, qui énumère ses sets, et on compare sur des
+ * ids normalisés en minuscules : l'API mélange les casses (`A1a` vs `a1a`).
+ */
+export async function idsDesSetsExclus(): Promise<Set<string>> {
+  const ids = new Set<string>()
+  for (const serieId of SERIES_EXCLUES) {
+    const serie = await fetchSerie(serieId)
+    for (const set of serie.sets ?? []) ids.add(set.id.toLowerCase())
+  }
+  return ids
+}
+
+/**
+ * Retire les sets hors périmètre AVANT toute écriture — c'est le point de
+ * passage obligé de tout parcours qui importe « tous les sets ».
+ *
+ * Filtrer après coup aurait laissé les lignes se créer puis compté sur une
+ * suppression pour les reprendre : la base aurait été fausse entre les deux, et
+ * un import interrompu au milieu l'aurait laissée fausse pour de bon.
+ */
+export async function filtrerSetsImportables<T extends { id: string }>(
+  sets: T[],
+  log?: LogFn
+): Promise<T[]> {
+  const exclus = await idsDesSetsExclus()
+  const gardes = sets.filter(s => !exclus.has(s.id.toLowerCase()))
+  const retires = sets.length - gardes.length
+  if (retires > 0) {
+    log?.(`[SKIP] ${retires} set(s) écarté(s) — série(s) hors périmètre : ${SERIES_EXCLUES.join(', ')}`)
+  }
+  return gardes
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -171,7 +235,10 @@ async function upsertCards(
       set_id: setRowId,
       number: c.number,
       name_fr: c.name,
-      image_url: c.image,
+      // `image_url` est une colonne générée depuis ARCHI-01 : elle refuse
+      // toute écriture. L'import alimente la source API ; `image_manuelle`
+      // lui est structurellement hors de portée.
+      image_api: c.image,
       rarity: c.rarity,
       card_type: c.category,
       attribute: c.attribute,
@@ -222,21 +289,23 @@ async function insertListings(
   variantTypes: VariantTypeRow[],
   log: LogFn
 ): Promise<number> {
-  const rows: { card_id: string; variant_type_id: string; quantity: number; price: number; image_api: string | null }[] = []
+  // Depuis ARCHI-01, l'import ne crée que des VARIANTES. `quantity` et `price`
+  // appartiennent à l'exemplaire physique, que l'import n'a pas à inventer.
+  const rows: { card_id: string; variant_type_id: string; image_api: string | null }[] = []
 
   for (const card of cards) {
     const cardId = idByNumber.get(card.number)
     if (!cardId) continue
     for (const variantTypeId of pickVariantIds(card.variants, variantTypes)) {
-      rows.push({ card_id: cardId, variant_type_id: variantTypeId, quantity: 0, price: 0, image_api: card.image })
+      rows.push({ card_id: cardId, variant_type_id: variantTypeId, image_api: card.image })
     }
   }
 
   let created = 0
   for (const batch of chunk(rows, 500)) {
     const { data, error } = await supabase
-      .from('pokemon_listings')
-      .upsert(batch, { onConflict: 'card_id,variant_type_id,condition,copy_index', ignoreDuplicates: true })
+      .from('pokemon_card_variants')
+      .upsert(batch, { onConflict: 'card_id,variant_type_id', ignoreDuplicates: true })
       .select('id')
 
     if (error) {
@@ -246,7 +315,7 @@ async function insertListings(
     created += data?.length ?? 0
   }
 
-  log(`[DB] ${created} listing(s) créé(s) (${rows.length} candidat(s))`)
+  log(`[DB] ${created} variante(s) créée(s) (${rows.length} candidat(s))`)
   return created
 }
 
@@ -264,6 +333,18 @@ export async function importPokemonSet(
 
   log(`[TCGdex] Récupération du set ${setId}...`)
   const setData = await fetchSet(setId)
+
+  // Deuxième verrou, et le seul qui couvre l'import UNITAIRE : `filtrerSetsImportables`
+  // ne protège que les parcours qui partent d'une liste. Ici on tient le set complet,
+  // donc sa série — on refuse AVANT le moindre upsert, jamais après.
+  const serieDuSet = setData.serie?.id?.toLowerCase()
+  if (serieDuSet && SERIES_EXCLUES.includes(serieDuSet)) {
+    throw new Error(
+      `Set ${setId} refusé : série « ${setData.serie?.name ?? serieDuSet} » hors périmètre boutique ` +
+      '(jeu mobile, cartes non physiques). Voir SERIES_EXCLUES.'
+    )
+  }
+
   const briefs = setData.cards ?? []
   log(`[TCGdex] Set trouvé : ${setData.name} (${briefs.length} carte(s))`)
 

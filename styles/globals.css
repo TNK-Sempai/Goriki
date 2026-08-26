@@ -198,6 +198,42 @@
       radial-gradient(700px 500px at 50% 100%, rgba(200,134,10,0.07), transparent 60%);
     background-attachment: fixed;
   }
+
+  /* ── Apparition de page — mécanisme UNIQUE du parcours public ────────────
+     Mesuré avant : entre le clic et l'arrivée de la page, l'écran ne changeait
+     pas pendant 1 à 2 s, puis le contenu apparaissait d'un bloc, déjà opaque —
+     0 à 3 ms entre « rien » et « tout ». Le `AnimatePresence` de
+     `app/template.tsx` ne jouait rien (voir l'en-tête de ce fichier).
+
+     La règle vit ICI, sur `main`, et pas dans un wrapper animé, parce qu'elle
+     doit couvrir les DEUX moments de la navigation : l'arrivée du squelette de
+     `loading.tsx`, puis son remplacement par le contenu réel. Ce sont deux
+     sous-arbres distincts, chacun avec son propre `<main>` : une animation CSS
+     rejoue à l'insertion d'un élément, donc elle attrape les deux. Un wrapper
+     placé au-dessus, lui, n'aurait vu passer que le premier.
+
+     176 ms, pas davantage : au-delà de ~300 ms une transition se ressent comme
+     une lenteur ajoutée, ce qui serait exactement le contraire du but.
+
+     Le déplacement est de 6 px seulement, et vertical : assez pour donner le
+     sens de lecture, trop peu pour déclencher un reflow visible ou gêner qui
+     lit vite.
+
+     `main` et non `body` : le fond, l'en-tête et le pied de page ne doivent PAS
+     clignoter d'une page à l'autre — ce qui bouge, c'est le contenu.
+     `:not(.gk-main)` met le back-office hors de portée : il a sa propre
+     grammaire, et il est hors périmètre.
+
+     L'extinction sous `prefers-reduced-motion` n'est pas écrite ici : la règle
+     globale plus bas dans ce fichier ramène TOUTE animation à 0,01 ms. Une
+     seconde extinction locale serait une chance de plus de diverger. */
+  @keyframes apparition-page {
+    from { opacity: 0; transform: translate3d(0, 6px, 0); }
+    to   { opacity: 1; transform: none; }
+  }
+  main:not(.gk-main) {
+    animation: apparition-page 176ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
 }
 
 

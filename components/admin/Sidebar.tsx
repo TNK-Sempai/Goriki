@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, BarChart2, Download, List,
+  LayoutDashboard, BarChart2, Download, List, BookOpen,
   Package, ShoppingBag, Users, RefreshCw, Archive, ShieldCheck,
 } from 'lucide-react'
 
@@ -33,6 +33,7 @@ const NAV: NavSection[] = [
     items: [
       { href: '/admin/import', label: 'Import', icon: Download },
       { href: '/admin/listings', label: 'Listings', icon: List },
+      { href: '/admin/catalogue', label: 'Catalogue', icon: BookOpen },
       { href: '/admin/produits', label: 'Scellés', icon: Package },
     ],
   },

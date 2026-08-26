@@ -45,6 +45,8 @@ export default function SetToolbar({
       const next = new URLSearchParams(params.toString())
       if (query) next.set('q', query)
       else next.delete('q')
+      // Le résultat change de taille : la page courante n'a plus de sens.
+      next.delete('page')
       router.replace(`${pathname}?${next.toString()}`, { scroll: false })
     }, 300)
     return () => clearTimeout(id)
@@ -54,6 +56,11 @@ export default function SetToolbar({
     const next = new URLSearchParams(params.toString())
     if (!value || next.get(key) === value) next.delete(key)
     else next.set(key, value)
+    // Tout changement de filtre ou de tri RENVOIE EN PAGE 1. Sans ça, filtrer
+    // depuis la page 7 d'un set de 299 cartes atterrit sur une page qui n'existe
+    // plus dans le résultat filtré. `par` (30/50), lui, est conservé : c'est une
+    // préférence d'affichage, pas un filtre.
+    next.delete('page')
     router.replace(`${pathname}?${next.toString()}`, { scroll: false })
   }
 

@@ -57,26 +57,41 @@ export async function GET(request: NextRequest) {
   }
 
   if (tcg === 'pokemon') {
+    // ARCHI-01 : l'exemplaire ne porte plus `card_id`, `variant_type_id` ni
+    // `image_api` — il rejoint la carte par sa VARIANTE, qui porte le visuel.
+    // Cette route sert l'écran de STOCK ET PRIX, distinct du nettoyage de
+    // catalogue : elle reste donc utile et n'est pas retirée.
+    //
+    // Pas de `.order(...)` ici, et c'est mesuré : sur SV10, la suite renvoyée
+    // avec `.order('number', { referencedTable: 'pokemon_card_variants.pokemon_cards' })`
+    // est IDENTIQUE à la suite sans aucun tri, et n'est pas croissante. PostgREST
+    // applique ce tri à la ressource INTÉGRÉE, pas aux lignes de premier niveau —
+    // sur un embed to-one, cela ne trie rien. Le tri appartient donc au client,
+    // via `comparerParCarte`, qui s'appuie sur les clés générées demandées ici.
     let query = supabase
       .from('pokemon_listings')
       .select(`
         id, quantity, price, condition, needs_photo, is_active, copy_index,
-        card_id, variant_type_id, front_photo_url, back_photo_url, image_api,
-        pokemon_cards!inner(id, number, name_fr, set_id, rarity),
-        pokemon_variant_types!inner(id, code, label)
+        front_photo_url, back_photo_url,
+        pokemon_card_variants!inner(
+          id, image_url,
+          pokemon_cards!inner(id, number, name_fr, set_id, rarity, sort_prefix, sort_num),
+          pokemon_variant_types!inner(id, code, label)
+        )
       `)
-      .order('pokemon_cards(number)')
 
-    if (setId) query = query.eq('pokemon_cards.set_id', setId)
+    if (setId) query = query.eq('pokemon_card_variants.pokemon_cards.set_id', setId)
     if (listingId) query = query.eq('id', listingId)
     if (copiesOf) {
+      // « Les autres exemplaires de la même variante » : la variante EST la
+      // clé de regroupement depuis la séparation.
       const { data: src } = await supabase
         .from('pokemon_listings')
-        .select('card_id, variant_type_id')
+        .select('variant_id')
         .eq('id', copiesOf)
         .single()
       if (!src) return NextResponse.json([])
-      query = query.eq('card_id', src.card_id).eq('variant_type_id', src.variant_type_id)
+      query = query.eq('variant_id', src.variant_id)
     }
 
     const { data, error } = await query
@@ -93,7 +108,6 @@ export async function GET(request: NextRequest) {
       onepiece_cards!inner(id, number, name_fr, set_id, rarity),
       onepiece_variant_types!inner(id, code, label)
     `)
-    .order('onepiece_cards(number)')
 
   if (setId) query = query.eq('onepiece_cards.set_id', setId)
   if (listingId) query = query.eq('id', listingId)

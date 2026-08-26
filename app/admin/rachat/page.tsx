@@ -20,23 +20,23 @@ export default async function AdminRachatPage() {
   const pending = rows.filter(r => r.status === 'pending')
 
   return (
-    <div>
-      <div className="admin-header-row">
+    <div className="gk-corps">
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">Rachat</div>
-          <div className="admin-sub">{pending.length} DEMANDE{pending.length > 1 ? 'S' : ''} EN ÉTUDE · {rows.length} AU TOTAL</div>
+          <div className="gk-titre">Rachat</div>
+          <div className="gk-eyebrow-texte">{pending.length} DEMANDE{pending.length > 1 ? 'S' : ''} EN ÉTUDE · {rows.length} AU TOTAL</div>
         </div>
       </div>
 
       {rows.length === 0 ? (
-        <div className="admin-cell muted">Aucune demande de rachat.</div>
+        <div className="gk-cell muted">Aucune demande de rachat.</div>
       ) : (
-        <div className="admin-table" style={{ padding: '0 18px' }}>
-          <div className="admin-col-heads" style={{ display: 'grid', gridTemplateColumns: '1fr 120px 110px 90px', gap: '12px', padding: '14px 0' }}>
-            <span className="admin-col-head">Client</span>
-            <span className="admin-col-head">Date</span>
-            <span className="admin-col-head">Lot</span>
-            <span className="admin-col-head">Statut</span>
+        <div className="gk-panneau" style={{ padding: '0 18px' }}>
+          <div className="gk-heads" style={{ display: 'grid', gridTemplateColumns: '1fr 120px 110px 90px', gap: '12px', padding: '14px 0' }}>
+            <span className="gk-label">Client</span>
+            <span className="gk-label">Date</span>
+            <span className="gk-label">Lot</span>
+            <span className="gk-label">Statut</span>
           </div>
           {rows.map(r => (
             <BuybackRow

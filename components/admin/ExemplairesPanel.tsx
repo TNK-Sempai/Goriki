@@ -30,7 +30,10 @@ export interface Exemplaire {
   price: number
   needs_photo: boolean
   front_photo_url: string | null
-  image_api: string | null
+  // Pas d'`image_api` : depuis ARCHI-01 l'exemplaire Pokémon n'en porte plus, la
+  // route ne l'envoie plus, et ce panneau n'affichait de toute façon aucune
+  // vignette. Un champ mort qui décrit une colonne disparue finit par être
+  // recopié dans le prochain écran — voir `lib/admin/listings` pour la vraie forme.
 }
 
 export default function ExemplairesPanel({
@@ -110,13 +113,13 @@ export default function ExemplairesPanel({
       style={{
         background: 'rgba(232,225,216,0.04)',
         border: '1px solid rgba(232,225,216,0.1)',
-        borderRadius: 'var(--radius-admin-sm)',
+        borderRadius: 'var(--radius-gk-sm)',
         padding: '18px',
         marginTop: '16px',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-        <span className="admin-kpi-label" style={{ marginBottom: 0 }}>
+        <span className="gk-kpi-label" style={{ marginBottom: 0 }}>
           Exemplaires physiques ({exemplaires.length})
         </span>
         {multiplePossible ? (
@@ -128,7 +131,7 @@ export default function ExemplairesPanel({
             {ouvert ? 'Annuler' : '+ Ajouter un exemplaire'}
           </button>
         ) : (
-          <span className="admin-cell mono">
+          <span className="gk-cell mono">
             stock fongible sous 1 € — une seule ligne
           </span>
         )}
@@ -145,31 +148,31 @@ export default function ExemplairesPanel({
             padding: '10px',
             background: 'rgba(212,144,12,0.06)',
             border: '1px solid rgba(212,144,12,0.2)',
-            borderRadius: 'var(--radius-admin-sm)',
+            borderRadius: 'var(--radius-gk-sm)',
           }}
         >
-          <select value={etat} onChange={e => setEtat(e.target.value)} className="admin-input" style={{ width: '150px' }}>
+          <select value={etat} onChange={e => setEtat(e.target.value)} className="gk-input" style={{ width: '150px' }}>
             {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <input
             value={prix}
             onChange={e => setPrix(e.target.value)}
             placeholder="Prix € (≥ 1)"
-            className="admin-input"
+            className="gk-input"
             style={{ width: '120px' }}
           />
-          <button onClick={ajouter} disabled={envoi} className="btn btn-primary btn-sm">
+          <button onClick={ajouter} disabled={envoi} className="gk-btn" data-primaire="true">
             {envoi ? 'Création…' : 'Créer l’exemplaire'}
           </button>
-          <span className="admin-cell mono" style={{ flexBasis: '100%' }}>
+          <span className="gk-cell mono" style={{ flexBasis: '100%' }}>
             Quantité 1, sans scan — il apparaîtra aussitôt dans la file « à photographier ».
           </span>
         </div>
       )}
 
       {erreur && (
-        <div className="admin-alert" style={{ marginTop: '12px', marginBottom: 0 }}>
-          <span className="admin-alert-dot" />
+        <div className="gk-vide" style={{ marginTop: '12px', marginBottom: 0 }}>
+          <span className="gk-pastille" />
           {erreur}
         </div>
       )}
@@ -190,25 +193,25 @@ export default function ExemplairesPanel({
                 borderBottom: '1px solid rgba(212,144,12,0.04)',
                 textDecoration: 'none',
                 background: courant ? 'rgba(212,144,12,0.08)' : undefined,
-                borderRadius: 'var(--radius-admin-sm)',
+                borderRadius: 'var(--radius-gk-sm)',
               }}
             >
-              <span className="admin-cell mono" style={{ color: courant ? 'var(--amber)' : undefined }}>
+              <span className="gk-cell mono" style={{ color: courant ? 'var(--amber)' : undefined }}>
                 {e.copy_index === 0 ? 'base' : `n° ${e.copy_index}`}
               </span>
-              <span className="admin-cell">{e.condition}</span>
-              <span className="admin-cell" style={{ textAlign: 'right' }}>
+              <span className="gk-cell">{e.condition}</span>
+              <span className="gk-cell" style={{ textAlign: 'right' }}>
                 {e.price > 0 ? formatPrice(e.price) : <span className="ab ab-amber">sans prix</span>}
               </span>
-              <span className="admin-cell muted" style={{ textAlign: 'right' }}>×{e.quantity}</span>
+              <span className="gk-cell muted" style={{ textAlign: 'right' }}>×{e.quantity}</span>
               <span style={{ textAlign: 'right' }}>
                 {e.front_photo_url
                   ? <span className="ab ab-green">scan</span>
                   : e.needs_photo
                     ? <span className="ab ab-red">à scanner</span>
-                    : <span className="admin-cell muted">—</span>}
+                    : <span className="gk-cell muted">—</span>}
               </span>
-              <span className="admin-cell muted" style={{ textAlign: 'right' }}>
+              <span className="gk-cell muted" style={{ textAlign: 'right' }}>
                 {courant ? 'affiché' : 'voir →'}
               </span>
             </Link>

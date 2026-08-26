@@ -22,22 +22,34 @@ export async function GET(request: NextRequest) {
 
   if (tcg === 'pokemon') {
     let query = supabase
-      .from('pokemon_listings')
+      .from('pokemon_card_variants')
       .select(`
-        id, price, quantity, condition, front_photo_url, image_api, needs_photo,
+        id, image_url,
+        pokemon_listings!inner(id, price, quantity, condition, front_photo_url, needs_photo, is_active),
         pokemon_cards!inner(id, number, name_fr, rarity, card_type, attribute, set_id,
           pokemon_sets!inner(id, code, name_fr)),
         pokemon_variant_types!inner(id, code, label)
       `, { count: 'exact' })
-      .eq('is_active', true)
-      .gt('quantity', 0)
+      // ARCHI-01 : `is_active` et `quantity` ont quitté cette table pour
+      // l'exemplaire. Le filtre porte donc sur la jointure, et `!inner` sur
+      // `pokemon_listings` restreint aux variantes réellement en vente — ce que
+      // faisaient les deux `eq/gt` d'origine.
+      .eq('pokemon_listings.is_active', true)
+      .gt('pokemon_listings.quantity', 0)
 
     if (setId) query = query.eq('pokemon_cards.set_id', setId)
     if (rarity) query = query.eq('pokemon_cards.rarity', rarity)
     if (variantCode) query = query.eq('pokemon_variant_types.code', variantCode)
 
+    // Ordre naturel : `number` est du texte (1, 10, 100, 11…). Colonnes générées
+    // par `add_natural_sort_keys_pokemon_cards` — cf. components/catalogue/SetDetail.tsx.
     const { data, count, error } = await query
-      .order('pokemon_cards(number)')
+      // Tri à travers la jointure : la forme `table(colonne)` ne résout plus
+      // depuis que la racine est la variante. `referencedTable` est la forme
+      // supportée par supabase-js pour ordonner sur une table embarquée.
+      .order('sort_prefix', { referencedTable: 'pokemon_cards' })
+      .order('sort_num', { referencedTable: 'pokemon_cards' })
+      .order('number', { referencedTable: 'pokemon_cards' })
       .range(offset, offset + limit - 1)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

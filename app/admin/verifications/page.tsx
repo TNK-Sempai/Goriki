@@ -17,12 +17,12 @@ export default async function AdminVerificationsPage() {
   const treated = rows.filter(p => p.identity_status !== 'pending')
 
   const table = (list: typeof rows) => (
-    <div className="admin-table" style={{ padding: '0 18px' }}>
-      <div className="admin-col-heads" style={{ display: 'grid', gridTemplateColumns: '1fr 110px 130px 1fr', gap: '12px', padding: '14px 0' }}>
-        <span className="admin-col-head">Client</span>
-        <span className="admin-col-head">Date</span>
-        <span className="admin-col-head">Statut</span>
-        <span className="admin-col-head" style={{ textAlign: 'right' }}>Actions</span>
+    <div className="gk-panneau" style={{ padding: '0 18px' }}>
+      <div className="gk-heads" style={{ display: 'grid', gridTemplateColumns: '1fr 110px 130px 1fr', gap: '12px', padding: '14px 0' }}>
+        <span className="gk-label">Client</span>
+        <span className="gk-label">Date</span>
+        <span className="gk-label">Statut</span>
+        <span className="gk-label" style={{ textAlign: 'right' }}>Actions</span>
       </div>
       {list.map(p => (
         <VerificationRow
@@ -40,22 +40,22 @@ export default async function AdminVerificationsPage() {
   )
 
   return (
-    <div>
-      <div className="admin-header-row">
+    <div className="gk-corps">
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">Vérifications d&apos;identité</div>
-          <div className="admin-sub">{pending.length} EN ATTENTE · {treated.length} TRAITÉE{treated.length > 1 ? 'S' : ''}</div>
+          <div className="gk-titre">Vérifications d&apos;identité</div>
+          <div className="gk-eyebrow-texte">{pending.length} EN ATTENTE · {treated.length} TRAITÉE{treated.length > 1 ? 'S' : ''}</div>
         </div>
       </div>
 
-      <div className="admin-sep">À traiter <div className="admin-sep-line" /></div>
+      <div className="gk-sep">À traiter <div className="gk-sep-line" /></div>
       {pending.length === 0
-        ? <div className="admin-cell muted">Aucune demande en attente.</div>
+        ? <div className="gk-cell muted">Aucune demande en attente.</div>
         : table(pending)}
 
       {treated.length > 0 && (
         <>
-          <div className="admin-sep">Historique <div className="admin-sep-line" /></div>
+          <div className="gk-sep">Historique <div className="gk-sep-line" /></div>
           {table(treated)}
         </>
       )}

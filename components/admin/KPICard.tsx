@@ -7,10 +7,10 @@ interface KPICardProps {
 
 export default function KPICard({ label, value, sub, accent = false }: KPICardProps) {
   return (
-    <div className="admin-kpi">
-      <span className="admin-kpi-label">{label}</span>
-      <span className={`admin-kpi-val${accent ? ' amber' : ''}`}>{value}</span>
-      {sub && <span className="admin-kpi-sub">{sub}</span>}
+    <div className="gk-kpi">
+      <span className="gk-kpi-label">{label}</span>
+      <span className={`gk-kpi-val${accent ? ' amber' : ''}`}>{value}</span>
+      {sub && <span className="gk-kpi-sub">{sub}</span>}
     </div>
   )
 }

@@ -4,6 +4,13 @@ import Link from 'next/link'
 import { useCallback, useEffect, useState, use } from 'react'
 import { Upload } from 'lucide-react'
 import ExemplairesPanel from '@/components/admin/ExemplairesPanel'
+import {
+  carteDuListing,
+  varianteDuListing,
+  visuelDuListing,
+  type ListingAdmin,
+} from '@/lib/admin/listings'
+import { verifierUrlCloudinary } from '@/lib/admin/photo-url'
 
 /**
  * Fiche listing — vrai formulaire de gestion.
@@ -19,24 +26,8 @@ import ExemplairesPanel from '@/components/admin/ExemplairesPanel'
 
 type TCG = 'pokemon' | 'onepiece'
 
-interface Carte { id: string; number: string; name_fr: string; rarity: string | null; set_id: string }
-interface Variante { id: string; code: string; label: string }
-
-interface Listing {
-  id: string
-  quantity: number
-  price: number
-  condition: string
-  is_active: boolean
-  needs_photo: boolean
-  front_photo_url: string | null
-  back_photo_url: string | null
-  image_api: string | null
-  pokemon_cards?: Carte
-  onepiece_cards?: Carte
-  pokemon_variant_types?: Variante
-  onepiece_variant_types?: Variante
-}
+/** Forme décrite une seule fois, dans `lib/admin/listings`. */
+type Listing = ListingAdmin
 
 const CONDITIONS = ['Mint', 'Near Mint', 'Excellent', 'Light Played', 'Moderate Played']
 
@@ -53,6 +44,11 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
   const [isActive, setIsActive] = useState(true)
 
   const [upload, setUpload] = useState<'front' | 'back' | null>(null)
+  /** Champ « coller une URL », ouvert et saisi indépendamment par face. */
+  const [collage, setCollage] = useState<{ front: string | null; back: string | null }>({
+    front: null,
+    back: null,
+  })
   const [enregistrement, setEnregistrement] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null)
 
@@ -144,22 +140,61 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
     setMessage({ ok: true, texte: `Photo ${side === 'front' ? 'recto' : 'verso'} envoyée.` })
   }
 
+  /**
+   * Rattache un scan DÉJÀ sur Cloudinary, sans le renvoyer.
+   *
+   * Chemin volontairement séparé de `televerser` : celui-ci n'envoie aucun
+   * fichier. Quand on a déposé cent scans d'un coup sur Cloudinary, repasser
+   * par le téléversement en créerait cent doublons.
+   */
+  async function rattacherUrl(side: 'front' | 'back', url: string) {
+    setUpload(side)
+    setMessage(null)
+
+    const res = await fetch('/api/admin/listings/photo-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_id: id, side, tcg, url }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setUpload(null)
+
+    if (!res.ok) {
+      setMessage({ ok: false, texte: data.error ?? 'URL non rattachée.' })
+      return
+    }
+
+    // `needs_photo` est relu de la base : c'est le trigger qui l'arbitre, pas
+    // cet écran.
+    setListing(prev => prev ? {
+      ...prev,
+      [side === 'front' ? 'front_photo_url' : 'back_photo_url']: data.url,
+      needs_photo: data.needs_photo ?? prev.needs_photo,
+    } : prev)
+    setCollage(c => ({ ...c, [side]: '' }))
+    setMessage({
+      ok: true,
+      texte: data.avertissement
+        ?? `URL ${side === 'front' ? 'recto' : 'verso'} rattachée — aucun fichier renvoyé.`,
+    })
+  }
+
   if (introuvable) {
     return (
       <div>
-        <div className="admin-alert">
-          <span className="admin-alert-dot" />
+        <div className="gk-vide">
+          <span className="gk-pastille" />
           Aucun listing avec cet identifiant.
         </div>
-        <Link href="/admin/listings" className="admin-table-action">← Tous les sets</Link>
+        <Link href="/admin/listings" className="gk-btn">← Tous les sets</Link>
       </div>
     )
   }
 
   if (!listing) return <p style={{ fontSize: '11px', color: 'var(--muted)' }}>Chargement…</p>
 
-  const carte = listing.pokemon_cards ?? listing.onepiece_cards
-  const variante = listing.pokemon_variant_types ?? listing.onepiece_variant_types
+  const carte = carteDuListing(listing)
+  const variante = varianteDuListing(listing)
   const alerte = Number(quantity) > 0 && Number(price.replace(',', '.')) <= 0
 
   const modifie =
@@ -169,18 +204,18 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
     listing.is_active !== isActive
 
   return (
-    <div>
-      <div className="admin-header-row">
+    <div className="gk-corps">
+      <div className="gk-entete-ecran">
         <div>
           <Link
             href={carte ? `/admin/listings/set/${tcg}/${carte.set_id}` : '/admin/listings'}
-            className="admin-table-action"
+            className="gk-btn"
             style={{ display: 'block', marginBottom: '6px' }}
           >
             ← Retour au set
           </Link>
-          <div className="admin-title">{carte?.name_fr ?? 'Listing'}</div>
-          <div className="admin-sub">
+          <div className="gk-titre">{carte?.name_fr ?? 'Listing'}</div>
+          <div className="gk-eyebrow-texte">
             #{carte?.number} · {variante?.label ?? '—'}
             {carte?.rarity ? ` · ${carte.rarity}` : ''} · {tcg === 'pokemon' ? 'Pokémon' : 'One Piece'}
           </div>
@@ -189,25 +224,25 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
 
       {message && (
         <div
-          className={message.ok ? undefined : 'admin-alert'}
+          className={message.ok ? undefined : 'gk-vide'}
           style={message.ok ? {
             background: 'rgba(74,222,128,0.06)',
             border: '1px solid rgba(74,222,128,0.2)',
-            borderRadius: 'var(--radius-admin-sm)',
+            borderRadius: 'var(--radius-gk-sm)',
             padding: '9px 12px',
             marginBottom: '16px',
             fontSize: '11px',
             color: '#4ade80',
           } : undefined}
         >
-          {!message.ok && <span className="admin-alert-dot" />}
+          {!message.ok && <span className="gk-pastille" />}
           {message.texte}
         </div>
       )}
 
       {alerte && (
-        <div className="admin-alert">
-          <span className="admin-alert-dot" />
+        <div className="gk-vide">
+          <span className="gk-pastille" />
           Du stock, mais aucun prix : cette pièce n&apos;est pas vendable en l&apos;état.
         </div>
       )}
@@ -218,44 +253,44 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
           style={{
             background: 'rgba(232,225,216,0.04)',
             border: '1px solid rgba(232,225,216,0.1)',
-            borderRadius: 'var(--radius-admin-sm)',
+            borderRadius: 'var(--radius-gk-sm)',
             padding: '18px',
           }}
         >
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
             <label>
-              <span className="admin-kpi-label">Stock</span>
+              <span className="gk-kpi-label">Stock</span>
               <input
                 type="number"
                 min={0}
                 value={quantity}
                 onChange={e => setQuantity(e.target.value)}
-                className="admin-input"
+                className="gk-input"
               />
             </label>
 
             <label>
-              <span className="admin-kpi-label">Prix (€)</span>
+              <span className="gk-kpi-label">Prix (€)</span>
               <input
                 type="number"
                 min={0}
                 step="0.01"
                 value={price}
                 onChange={e => setPrice(e.target.value)}
-                className="admin-input"
+                className="gk-input"
                 style={alerte ? { borderColor: 'rgba(212,144,12,0.5)', color: 'var(--amber)' } : undefined}
               />
             </label>
 
             <label>
-              <span className="admin-kpi-label">État</span>
-              <select value={condition} onChange={e => setCondition(e.target.value)} className="admin-input">
+              <span className="gk-kpi-label">État</span>
+              <select value={condition} onChange={e => setCondition(e.target.value)} className="gk-input">
                 {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
 
             <label>
-              <span className="admin-kpi-label">Visibilité boutique</span>
+              <span className="gk-kpi-label">Visibilité boutique</span>
               <button
                 onClick={() => setIsActive(a => !a)}
                 className={`ab ${isActive ? 'ab-green' : 'ab-muted'}`}
@@ -267,7 +302,7 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
           </div>
 
           <div style={{ display: 'flex', gap: '8px', marginTop: '18px', alignItems: 'center' }}>
-            <button onClick={enregistrer} disabled={!modifie || enregistrement} className="btn btn-primary btn-sm">
+            <button onClick={enregistrer} disabled={!modifie || enregistrement} className="gk-btn" data-primaire="true">
               {enregistrement ? 'Enregistrement…' : 'Enregistrer'}
             </button>
             {modifie && (
@@ -287,18 +322,26 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
           style={{
             background: 'rgba(232,225,216,0.04)',
             border: '1px solid rgba(232,225,216,0.1)',
-            borderRadius: 'var(--radius-admin-sm)',
+            borderRadius: 'var(--radius-gk-sm)',
             padding: '18px',
           }}
         >
-          <span className="admin-kpi-label">Scans</span>
+          <span className="gk-kpi-label">Scans</span>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '8px' }}>
             {(['front', 'back'] as const).map(side => {
               const url = side === 'front' ? listing.front_photo_url : listing.back_photo_url
-              const apercu = url ?? (side === 'front' ? listing.image_api : null)
+              // Le recto se rabat sur le visuel de la variante ; le verso n'a
+              // pas d'équivalent d'API — une carte scannée au dos n'existe que
+              // si quelqu'un l'a photographiée.
+              const apercu = url ?? (side === 'front' ? visuelDuListing(listing) : null)
+              // Même fonction que celle appliquée par la route : ce qui est
+              // refusé ici le serait de toute façon au serveur, qui reste
+              // l'autorité. Ici, c'est seulement pour le dire tout de suite.
+              const saisie = collage[side]
+              const verdict = saisie === null ? null : verifierUrlCloudinary(saisie)
               return (
                 <div key={side}>
-                  <span className="admin-cell mono" style={{ display: 'block', marginBottom: '5px' }}>
+                  <span className="gk-cell mono" style={{ display: 'block', marginBottom: '5px' }}>
                     {side === 'front' ? 'Recto' : 'Verso'}
                   </span>
                   {apercu ? (
@@ -351,6 +394,73 @@ export default function ListingPage({ params }: { params: Promise<{ id: string }
                       }}
                     />
                   </label>
+
+                  {/* ── Coller une URL déjà sur Cloudinary ──────────────────
+                      À CÔTÉ du téléversement, jamais à sa place : envoyer un
+                      fichier depuis la fiche reste le bon geste quand on scanne
+                      une pièce isolée. Ce champ sert l'autre cas — les scans
+                      déjà déposés en masse, qu'un second upload dupliquerait. */}
+                  {collage[side] === null ? (
+                    <button
+                      type="button"
+                      className="gk-cell muted"
+                      onClick={() => setCollage(c => ({ ...c, [side]: '' }))}
+                      style={{
+                        marginTop: '4px',
+                        width: '100%',
+                        background: 'none',
+                        border: 0,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        textDecoration: 'underline',
+                        fontSize: '10px',
+                      }}
+                    >
+                      Coller une URL
+                    </button>
+                  ) : (
+                    <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <input
+                        value={collage[side] ?? ''}
+                        onChange={e => setCollage(c => ({ ...c, [side]: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && verdict?.ok) rattacherUrl(side, collage[side] ?? '')
+                          if (e.key === 'Escape') setCollage(c => ({ ...c, [side]: null }))
+                        }}
+                        placeholder="https://res.cloudinary.com/…"
+                        aria-label={`URL du scan ${side === 'front' ? 'recto' : 'verso'}`}
+                        className="gk-input"
+                        style={{ fontSize: '10px' }}
+                        autoFocus
+                      />
+                      {/* Le refus s'affiche pendant la frappe, avant l'envoi :
+                          une URL d'un autre compte Cloudinary se voit tout de
+                          suite, sans aller-retour. */}
+                      {verdict && !verdict.ok && (collage[side] ?? '').trim() !== '' && (
+                        <span style={{ fontSize: '9px', color: 'var(--gk-rouge)' }}>{verdict.raison}</span>
+                      )}
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          type="button"
+                          className="gk-btn"
+                          data-primaire="true"
+                          disabled={upload !== null || !verdict?.ok}
+                          onClick={() => rattacherUrl(side, collage[side] ?? '')}
+                          style={{ flex: 1, fontSize: '10px' }}
+                        >
+                          {upload === side ? 'Liaison…' : 'Rattacher'}
+                        </button>
+                        <button
+                          type="button"
+                          className="gk-btn"
+                          onClick={() => setCollage(c => ({ ...c, [side]: null }))}
+                          style={{ fontSize: '10px' }}
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}

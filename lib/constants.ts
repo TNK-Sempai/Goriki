@@ -2,6 +2,28 @@ export const SITE_NAME = 'Goriki'
 export const SITE_DESCRIPTION = 'Boutique TCG Pokémon & One Piece — Cartes singles, scellés et accessoires'
 export const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
+/**
+ * Frontière du back-office — SOURCE UNIQUE.
+ *
+ * Deux couches du parcours public s'éteignent derrière cette frontière, et pas
+ * par goût : le lissage Lenis et le canvas d'atmosphère. Le lissage n'est pas
+ * un simple effet — il pose sur `window` un écouteur `wheel` NON PASSIF qui
+ * appelle `preventDefault()` et pilote lui-même le défilement du document.
+ *
+ * MESURÉ (24 août 2026, Chrome 151, coquille `gk` réelle, molette dispatchée
+ * par CDP en trois points de l'écran) :
+ *   · 1 écouteur `wheel` non passif sur `window` → .gk-main défile de   0 px
+ *   · 0 écouteur                                 → .gk-main défile de 600 px
+ * Même DOM, même CSS, une seule variable. La coquille du back-office
+ * (`height:100dvh; overflow:hidden` + `.gk-main{overflow-y:auto}`) ne défile
+ * QUE si cette frontière est respectée.
+ *
+ * C'est pourquoi le préfixe est ici et non recopié à côté de chaque usage :
+ * il a déjà été perdu deux fois, et rien dans le CSS de l'admin ne dit tout
+ * haut qu'il en dépend.
+ */
+export const PREFIXE_ADMIN = '/admin'
+
 export const TCG_TYPES = {
   POKEMON: 'pokemon',
   ONEPIECE: 'onepiece',

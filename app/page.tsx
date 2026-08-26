@@ -2,12 +2,12 @@ import Link from 'next/link'
 import SiteHeader from '@/components/layout/SiteHeader'
 import SiteFooter from '@/components/layout/SiteFooter'
 import PageContainer from '@/components/layout/PageContainer'
-import HeroDeck, { type DeckCard } from '@/components/home/HeroDeck'
+import NouveautesHero, { type Nouveaute } from '@/components/home/NouveautesHero'
 import Reveal from '@/components/motion/Reveal'
 import Magnetic from '@/components/motion/Magnetic'
 import CardCursor from '@/components/motion/CardCursor'
 import { createClient } from '@/lib/supabase/server'
-import { formatPrice } from '@/lib/utils'
+import { prixDepuis, prixOuEpuise } from '@/lib/utils'
 import { PHOTO_PRICE_THRESHOLD } from '@/lib/constants'
 
 /**
@@ -40,6 +40,23 @@ interface ListingRow {
   front_photo_url: string | null
   created_at: string
   cards: { name_fr: string; number: string; rarity: string | null } | null
+  /**
+   * Chemin Pokémon depuis ARCHI-01 : l'exemplaire ne connaît plus la carte
+   * directement, il passe par sa variante — qui porte aussi le visuel.
+   * One Piece conserve le chemin direct via `cards`.
+   */
+  pokemon_card_variants?:
+    | {
+        id: string
+        image_url: string | null
+        cards: { name_fr: string; number: string; rarity: string | null } | null
+      }
+    | {
+        id: string
+        image_url: string | null
+        cards: { name_fr: string; number: string; rarity: string | null } | null
+      }[]
+    | null
 }
 
 /** Les jointures Supabase peuvent remonter des tableaux — cf. CLAUDE.md. */
@@ -59,23 +76,29 @@ interface Piece {
 }
 
 function toPiece(row: ListingRow): Piece {
-  const card = flatten(row.cards)
+  const variante = flatten(row.pokemon_card_variants ?? null)
+  const card = flatten(variante?.cards ?? row.cards)
   return {
-    id: row.id,
+    // L'id exposé est celui de la VARIANTE quand elle existe : c'est lui qui
+    // sert d'URL de fiche produit.
+    id: variante?.id ?? row.id,
     name: card?.name_fr ?? 'Carte',
     ref: card?.number ?? '—',
     rarity: card?.rarity ?? null,
     price: row.price,
     quantity: row.quantity,
     condition: row.condition,
-    imageUrl: row.front_photo_url ?? row.image_api,
+    imageUrl: row.front_photo_url ?? variante?.image_url ?? row.image_api,
   }
 }
 
 const SELECT =
   'id, price, quantity, condition, image_api, front_photo_url, created_at, cards:onepiece_cards!inner(name_fr, number, rarity)'
+// Depuis ARCHI-01 : exemplaire → variante → carte. Le visuel vient de la
+// variante (`image_url`, généré), le scan de l'exemplaire quand il existe.
 const SELECT_PKM =
-  'id, price, quantity, condition, image_api, front_photo_url, created_at, cards:pokemon_cards!inner(name_fr, number, rarity)'
+  'id, price, quantity, condition, front_photo_url, created_at, ' +
+  'pokemon_card_variants!inner(id, image_url, cards:pokemon_cards!inner(name_fr, number, rarity))'
 
 /** Garanties du pied de hero — reprises littéralement de la planche. */
 const GARANTIES = [
@@ -87,7 +110,9 @@ const GARANTIES = [
 export default async function HomePage() {
   const supabase = await createClient()
 
-  const [{ data: opTop }, { data: opNew }, { data: pkmNew }, opCards, pkmCards, opDispo, pkmDispo, scelles, depots] =
+  const [{ data: opTop }, { data: opNew }, { data: pkmNew }, opCards, pkmCards, opDispo, pkmDispo, scelles, depots,
+    { data: apercusOp }, { data: apercusPkm }, { data: scelleVisuels },
+    { data: recentsPkm }, { data: recentsOp }] =
     await Promise.all([
       supabase.from('onepiece_listings').select(SELECT).eq('is_active', true).gt('quantity', 0).gt('price', 0).order('price', { ascending: false }).limit(4),
       supabase.from('onepiece_listings').select(SELECT).eq('is_active', true).gt('quantity', 0).gt('price', 0).order('created_at', { ascending: false }).order('price', { ascending: false }).limit(6),
@@ -98,10 +123,28 @@ export default async function HomePage() {
       supabase.from('pokemon_listings').select('id', { count: 'exact', head: true }).eq('is_active', true).gt('quantity', 0).gt('price', 0),
       supabase.from('sealed_products').select('id', { count: 'exact', head: true }).eq('is_active', true).gt('quantity', 0),
       supabase.from('consignment_items').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+      // Visuels de REPLI, tirés du catalogue et non du stock : les tuiles de
+      // rayon sont de la décoration, elles ne doivent pas se vider quand rien
+      // n'est à vendre (fonction `apercus_de_set`, migration 0031).
+      supabase.rpc('apercus_de_set', { p_universe: 'onepiece' }),
+      supabase.rpc('apercus_de_set', { p_universe: 'pokemon' }),
+      // Les visuels du rayon Scellés. Trois demandés, mais la base n'en contient
+      // qu'UN aujourd'hui (une seule ligne dans `sealed_products`) : l'éventail
+      // se réduit à ce qui existe, il ne se complète pas avec des cartes.
+      supabase.from('sealed_products').select('image_url').eq('is_active', true)
+        .gt('quantity', 0).not('image_url', 'is', null).limit(3),
+      // Nouveautés du hero : les 2 sets les plus récents de CHAQUE univers,
+      // classés dans leur propre univers. La parité 2+2 est structurelle — on
+      // ne compense jamais un univers avec l'autre.
+      supabase.from('pokemon_sets').select('id, code, name_fr, release_date')
+        .eq('is_active', true).not('release_date', 'is', null)
+        .order('release_date', { ascending: false }).limit(2),
+      supabase.from('onepiece_sets').select('id, code, name_fr, release_date')
+        .eq('is_active', true).not('release_date', 'is', null)
+        .order('release_date', { ascending: false }).limit(2),
     ])
 
   const top = ((opTop ?? []) as unknown as ListingRow[]).map(toPiece)
-  const deck: DeckCard[] = top.filter(p => p.imageUrl).slice(0, 3).reverse()
 
   // « Derniers arrivages » : les deux univers mêlés, les plus récents d'abord.
   const arrivages = [
@@ -117,12 +160,114 @@ export default async function HomePage() {
 
   const n = (v: number | null | undefined) => (v ?? 0).toLocaleString('fr-FR')
 
+  // Visuels de repli : les cartes les plus rares du catalogue, stock ou non.
+  // On ne garde que le `rang = 1` de chaque set — la rareté la moins fréquente
+  // du set (migration 0031) — pour que l'éventail d'une tuile montre trois
+  // cartes prestigieuses de sets DIFFÉRENTS, et non trois cartes du même set.
+  const plusRares = (rows: unknown) =>
+    ((rows ?? []) as { image_url: string; rang: number }[])
+      .filter(a => Number(a.rang) === 1)
+      .map(a => a.image_url)
+  const replisOp = plusRares(apercusOp)
+  const replisPkm = plusRares(apercusPkm)
+
+
+  // ── Nouveautés du hero ────────────────────────────────────────────────────
+  // Un aperçu par set : la carte la plus rare, comme les tuiles de catalogue.
+  // Jusqu'à trois visuels par set : l'éventail du hero en montre trois, la plus
+  // rare en tête (`rang` croissant).
+  const apercuParSet = new Map<string, string[]>()
+  const tousApercus = [
+    ...((apercusOp ?? []) as { set_id: string; image_url: string; rang: number }[]),
+    ...((apercusPkm ?? []) as { set_id: string; image_url: string; rang: number }[]),
+  ].sort((a, b) => Number(a.rang) - Number(b.rang))
+  for (const a of tousApercus) {
+    const liste = apercuParSet.get(a.set_id)
+    if (liste) { if (liste.length < 3) liste.push(a.image_url) }
+    else apercuParSet.set(a.set_id, [a.image_url])
+  }
+
+  interface SetRecent { id: string; code: string; name_fr: string; release_date: string | null }
+
+  const enNouveaute = (
+    rows: SetRecent[] | null,
+    universe: 'pokemon' | 'onepiece',
+    dispoParSet: Map<string, number>,
+  ): Nouveaute[] =>
+    (rows ?? []).map(r => ({
+      setId: r.id,
+      universe,
+      code: r.code,
+      name: r.name_fr,
+      releaseDate: r.release_date,
+      images: apercuParSet.get(r.id) ?? [],
+      dispo: dispoParSet.get(r.id) ?? 0,
+    }))
+
+  // Stock réel des sets mis en avant — affiché tel quel, zéro compris.
+  const idsMisEnAvant = [
+    ...((recentsPkm ?? []) as SetRecent[]).map(r => r.id),
+    ...((recentsOp ?? []) as SetRecent[]).map(r => r.id),
+  ]
+
+  const dispoPkm = new Map<string, number>()
+  const dispoOp = new Map<string, number>()
+  if (idsMisEnAvant.length > 0) {
+    const [{ data: sPkm }, { data: sOp }] = await Promise.all([
+      supabase.from('pokemon_listings')
+        .select('id, pokemon_cards!inner(set_id)')
+        .eq('is_active', true).gt('quantity', 0).gt('price', 0)
+        .in('pokemon_cards.set_id', ((recentsPkm ?? []) as SetRecent[]).map(r => r.id)),
+      supabase.from('onepiece_listings')
+        .select('id, onepiece_cards!inner(set_id)')
+        .eq('is_active', true).gt('quantity', 0).gt('price', 0)
+        .in('onepiece_cards.set_id', ((recentsOp ?? []) as SetRecent[]).map(r => r.id)),
+    ])
+    const compter = (rows: unknown[] | null, cle: string, cible: Map<string, number>) => {
+      for (const row of (rows ?? []) as Record<string, unknown>[]) {
+        const c = row[cle]
+        const carte = (Array.isArray(c) ? c[0] : c) as { set_id: string } | undefined
+        if (carte) cible.set(carte.set_id, (cible.get(carte.set_id) ?? 0) + 1)
+      }
+    }
+    compter(sPkm, 'pokemon_cards', dispoPkm)
+    compter(sOp, 'onepiece_cards', dispoOp)
+  }
+
+  // Parité 2+2 : Pokémon d'abord, puis One Piece, jamais l'un à la place de l'autre.
+  const nouveautes: Nouveaute[] = [
+    ...enNouveaute(recentsPkm as SetRecent[] | null, 'pokemon', dispoPkm),
+    ...enNouveaute(recentsOp as SetRecent[] | null, 'onepiece', dispoOp),
+  ]
+
+  // Chaque tuile de rayon porte un petit éventail au lieu d'un visuel isolé.
+  // On sert d'abord les visuels RÉELS du rayon, puis on complète avec le
+  // catalogue — et jamais deux fois le même visuel d'une tuile à l'autre,
+  // sinon la rangée donne l'impression d'un seul et même rayon répété.
+  const dejaServis = new Set<string>()
+  const eventail = (...sources: (string | null | undefined)[]) => {
+    const out: string[] = []
+    for (const src of sources) {
+      if (!src || dejaServis.has(src)) continue
+      out.push(src)
+      dejaServis.add(src)
+      if (out.length === 3) break
+    }
+    return out
+  }
+
+  const visuelsScelles = ((scelleVisuels ?? []) as { image_url: string }[]).map(s => s.image_url)
+
   const RAYONS = [
-    { name: 'One Piece', sub: `${n(opDispo.count)} pièces disponibles`, href: '/catalogue/onepiece', img: top[0]?.imageUrl ?? null },
-    { name: 'Pokémon', sub: `${n(pkmDispo.count)} pièces disponibles`, href: '/catalogue/pokemon', img: arrivages.find(a => a.imageUrl)?.imageUrl ?? null },
-    { name: 'Scellés', sub: `${n(scelles.count)} références`, href: '/catalogue/scelles', img: null },
-    { name: 'Dépôt-vente', sub: `${n(depots.count)} pièces de la communauté`, href: '/depot-vente', img: top[1]?.imageUrl ?? null },
-    { name: 'Tout le catalogue', sub: 'Les deux univers', href: '/catalogue', img: top[2]?.imageUrl ?? null },
+    { name: 'One Piece', sub: `${n(opDispo.count)} pièces disponibles`, href: '/catalogue/onepiece', imgs: eventail(...top.map(p => p.imageUrl), ...replisOp) },
+    { name: 'Pokémon', sub: `${n(pkmDispo.count)} pièces disponibles`, href: '/catalogue/pokemon', imgs: eventail(...arrivages.map(a => a.imageUrl), ...replisPkm) },
+    // Un seul scellé existe en base : cet éventail-là n'aura qu'une carte tant
+    // que le rayon n'est pas rempli. On ne le complète pas avec des singles.
+    { name: 'Scellés', sub: `${n(scelles.count)} référence${(scelles.count ?? 0) > 1 ? 's' : ''}`, href: '/catalogue/scelles', imgs: eventail(...visuelsScelles) },
+    // Aucun dépôt actif en base : le visuel est donc du catalogue, pas de la
+    // communauté. Décoration assumée, comme avant cette mission.
+    { name: 'Dépôt-vente', sub: `${n(depots.count)} pièces de la communauté`, href: '/depot-vente', imgs: eventail(...replisOp, ...replisPkm) },
+    { name: 'Tout le catalogue', sub: 'Les deux univers', href: '/catalogue', imgs: eventail(...replisPkm, ...replisOp) },
   ]
 
   return (
@@ -197,15 +342,7 @@ export default async function HomePage() {
               </ul>
             </div>
 
-            {deck.length > 0 ? (
-              <HeroDeck cards={deck} />
-            ) : (
-              <div className="flex min-h-[380px] items-center justify-center lg:min-h-[560px]">
-                <div className="scan-pending flex aspect-[2.5/3.5] w-[262px] items-center justify-center rounded-[14px]">
-                  <span className="data text-[9px]">scans à venir</span>
-                </div>
-              </div>
-            )}
+            <NouveautesHero sets={nouveautes} />
           </div>
         </PageContainer>
 
@@ -239,7 +376,7 @@ export default async function HomePage() {
                       </div>
                       <span className="data text-[8px] text-ink-55">{p.ref}</span>
                       <span className="line-clamp-1 text-[12px] font-medium leading-tight text-ink">{p.name}</span>
-                      <span className="mt-1 text-[13px] font-semibold text-ink">{formatPrice(p.price)}</span>
+                      <span className="mt-1 text-[13px] font-semibold text-ink">{prixDepuis(p.price)}</span>
                     </Link>
                   ))}
                 </Reveal>
@@ -282,7 +419,7 @@ export default async function HomePage() {
                       {inspect.rarity ?? 'Carte'} · {inspect.ref}
                     </span>
                     <span className="mt-3 text-[26px] font-semibold leading-none text-ink">
-                      {formatPrice(inspect.price)}
+                      {prixOuEpuise(inspect.price)}
                     </span>
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <Link
@@ -319,21 +456,38 @@ export default async function HomePage() {
                 href={r.href}
                 className="glass glass-hoverable relative flex h-[132px] flex-col justify-between overflow-hidden rounded-panel-lg p-4 transition-colors"
               >
-                {/* Visuel débordant à droite de la tuile — traitement produit
-                    de la planche : la carte sort du cadre, elle n'est pas
-                    posée bien au centre d'une vignette. */}
-                {r.img && (
-                  // eslint-disable-next-line @next/next/no-img-element -- image décorative recadrée en débord
-                  <img
-                    src={r.img}
-                    alt=""
-                    aria-hidden
-                    className="pointer-events-none absolute -right-5 -bottom-3.5 h-[104px] rotate-[9deg] rounded-[6px] object-cover opacity-90 shadow-[0_14px_26px_-12px_rgba(26,22,17,0.5)]"
-                  />
-                )}
+                {/* Éventail débordant à droite de la tuile — traitement produit
+                    de la planche : les cartes sortent du cadre, elles ne sont
+                    pas posées bien au centre d'une vignette.
+                    Même formule que les tuiles de set (`off` × écartement,
+                    `off` × rotation, `zIndex: 3 − off`), à l'échelle réduite de
+                    ces tuiles. Empilement simple : ni flou ni profondeur 3D,
+                    ces 132 px ne sont pas le hero. La carte de tête garde
+                    exactement la position et l'inclinaison qu'elle avait ;
+                    les suivantes viennent DERRIÈRE elle. */}
+                {r.imgs.map((src, i) => {
+                  const off = r.imgs.length - 1 - i // 0 = carte de tête
+                  return (
+                    // eslint-disable-next-line @next/next/no-img-element -- éventail décoratif recadré en débord
+                    <img
+                      key={src}
+                      src={src}
+                      alt=""
+                      aria-hidden
+                      loading="lazy"
+                      className="pointer-events-none absolute -bottom-3.5 h-[104px] rounded-[6px] object-cover shadow-[0_14px_26px_-12px_rgba(26,22,17,0.5)]"
+                      style={{
+                        right: -20 + off * 22,
+                        transform: `rotate(${9 - off * 7}deg)`,
+                        zIndex: 3 - off,
+                        opacity: 0.9 - off * 0.12,
+                      }}
+                    />
+                  )
+                })}
                 <div className="relative">
                   <span className="display-sub block">{r.name}</span>
-                  <span className="mt-1.5 block max-w-[62%] text-[11px] leading-tight text-ink-55">{r.sub}</span>
+                  <span className="mt-1.5 block max-w-[56%] text-[11px] leading-tight text-ink-55">{r.sub}</span>
                 </div>
                 <span className="data relative text-[9px]">Voir →</span>
               </Link>

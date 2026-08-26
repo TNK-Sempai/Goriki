@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { formatPrice } from '@/lib/utils'
+import { prixDepuis } from '@/lib/utils'
 
 export interface ProductCardData {
   id: string
@@ -48,8 +48,12 @@ export default function ProductCard({ card }: { card: ProductCardData }) {
         <span className="text-[14px] font-semibold leading-tight text-ink">{card.name}</span>
         <span className="mono-meta">{card.ref}</span>
         <div className="mt-1 flex items-baseline justify-between gap-2">
-          <span className="text-[15px] font-semibold text-ink">{formatPrice(card.price)}</span>
-          {card.soldOut ? (
+          {/* `prixDepuis` dit déjà « Épuisé » quand aucun prix n'est saisi :
+              l'ancien badge ÉPUISÉ ne s'affiche donc plus que lorsqu'il ajoute
+              quelque chose — une pièce chiffrée mais sans stock. Sans ce
+              garde-fou, la vignette répétait le mot deux fois de suite. */}
+          <span className="text-[15px] font-semibold text-ink">{prixDepuis(card.price)}</span>
+          {card.soldOut && card.price > 0 ? (
             <span className="mono-meta">ÉPUISÉ</span>
           ) : card.grade ? (
             <span className="mono-meta">{card.grade}</span>

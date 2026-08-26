@@ -16,11 +16,11 @@ const IMPORT_SOURCES = [
 
 export default function ImportPage() {
   return (
-    <div>
-      <div className="admin-header-row">
+    <div className="gk-corps">
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">Import inventaire</div>
-          <div className="admin-sub">Importer les cartes depuis les APIs officielles</div>
+          <div className="gk-titre">Import inventaire</div>
+          <div className="gk-eyebrow-texte">Importer les cartes depuis les APIs officielles</div>
         </div>
       </div>
 

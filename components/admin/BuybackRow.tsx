@@ -62,31 +62,31 @@ export default function BuybackRow({
         onClick={() => setOpen(o => !o)}
         style={{ display: 'grid', gridTemplateColumns: '1fr 120px 110px 90px', gap: '12px', alignItems: 'center', width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
       >
-        <span className="admin-cell">{email ?? '—'}</span>
-        <span className="admin-cell muted">{new Date(createdAt).toLocaleDateString('fr-FR')}</span>
-        <span className="admin-cell">{item?.quantity ? `${item.quantity} cartes` : '—'}</span>
-        <span className="admin-cell mono">{NEXT_LABEL[status] ?? status}</span>
+        <span className="gk-cell">{email ?? '—'}</span>
+        <span className="gk-cell muted">{new Date(createdAt).toLocaleDateString('fr-FR')}</span>
+        <span className="gk-cell">{item?.quantity ? `${item.quantity} cartes` : '—'}</span>
+        <span className="gk-cell mono">{NEXT_LABEL[status] ?? status}</span>
       </button>
 
       {open && (
         <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {item?.description && (
-            <p className="admin-cell muted" style={{ margin: 0, maxWidth: '70ch', lineHeight: 1.6 }}>
+            <p className="gk-cell muted" style={{ margin: 0, maxWidth: '70ch', lineHeight: 1.6 }}>
               {item.description}
             </p>
           )}
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-            <span className="admin-cell mono">
+            <span className="gk-cell mono">
               ESTIMATION CLIENT : {item?.estimate != null ? formatPrice(item.estimate) : '—'}
             </span>
-            <span className="admin-cell mono">PHOTOS : {item?.photos?.length ?? 0}</span>
+            <span className="gk-cell mono">PHOTOS : {item?.photos?.length ?? 0}</span>
           </div>
 
           {(item?.photos ?? []).length > 0 && (
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {(item!.photos ?? []).map((p, i) => (
-                <button key={p} onClick={() => openPhoto(p)} className="btn btn-outline btn-sm">
+                <button key={p} onClick={() => openPhoto(p)} className="gk-btn">
                   Photo {i + 1}
                 </button>
               ))}
@@ -98,21 +98,21 @@ export default function BuybackRow({
               value={price}
               onChange={e => setPrice(e.target.value)}
               placeholder="Montant proposé"
-              className="admin-input"
+              className="gk-input"
               style={{ width: '150px', padding: '8px 10px', fontSize: '12px' }}
             />
-            <button onClick={() => act({ offer: price, status: 'accepted' }, 'offer')} disabled={busy !== null} className="btn btn-primary btn-sm">
+            <button onClick={() => act({ offer: price, status: 'accepted' }, 'offer')} disabled={busy !== null} className="gk-btn" data-primaire="true">
               {busy === 'offer' ? '…' : 'Proposer ce prix'}
             </button>
-            <button onClick={() => act({ status: 'rejected' }, 'reject')} disabled={busy !== null} className="btn btn-outline btn-sm">
+            <button onClick={() => act({ status: 'rejected' }, 'reject')} disabled={busy !== null} className="gk-btn">
               Refuser
             </button>
-            <button onClick={() => act({ status: 'completed', paymentType: 'cash' }, 'paid')} disabled={busy !== null} className="btn btn-outline btn-sm">
+            <button onClick={() => act({ status: 'completed', paymentType: 'cash' }, 'paid')} disabled={busy !== null} className="gk-btn">
               Marquer réglée
             </button>
           </div>
 
-          {error && <span className="admin-cell" style={{ color: '#ef4444' }}>{error}</span>}
+          {error && <span className="gk-cell" style={{ color: '#ef4444' }}>{error}</span>}
         </div>
       )}
     </div>

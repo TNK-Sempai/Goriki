@@ -217,17 +217,17 @@ export default function ImportPokemonPage() {
   }
 
   return (
-    <div style={{ maxWidth: '560px' }}>
-      <div className="admin-header-row">
+    <div className="gk-corps" style={{ maxWidth: '560px' }}>
+      <div className="gk-entete-ecran">
         <div>
-          <div className="admin-title">Import Pokémon</div>
-          <div className="admin-sub">Sélectionne un set et importe les cartes depuis TCGdex</div>
+          <div className="gk-titre">Import Pokémon</div>
+          <div className="gk-eyebrow-texte">Sélectionne un set et importe les cartes depuis TCGdex</div>
         </div>
       </div>
 
       {setsError && (
-        <div className="admin-alert" style={{ marginBottom: '16px' }}>
-          <div className="admin-alert-dot" />{setsError}
+        <div className="gk-vide" style={{ marginBottom: '16px' }}>
+          <div className="gk-pastille" />{setsError}
         </div>
       )}
 
@@ -301,7 +301,7 @@ export default function ImportPokemonPage() {
           <select
             value={selectedSet}
             onChange={(e) => setSelectedSet(e.target.value)}
-            className="admin-input"
+            className="gk-input"
           >
             <option value="">-- Choisir un set --</option>
             {sets.map((set) => (
@@ -315,14 +315,14 @@ export default function ImportPokemonPage() {
         <button
           onClick={handleImport}
           disabled={!selectedSet || !!loading}
-          className="btn btn-primary btn-sm"
+          className="gk-btn" data-primaire="true"
           style={{ marginTop: '12px', width: '100%' }}
         >
           {loading === 'single' ? 'Import en cours...' : "Lancer l'import"}
         </button>
       </div>
 
-      <div className="admin-sep">Log d&apos;import <div className="admin-sep-line" /></div>
+      <div className="gk-sep">Log d&apos;import <div className="gk-sep-line" /></div>
       <ImportLogPanel logs={logs} loading={loading !== null} stats={statRows} errors={errorRows} />
     </div>
   )

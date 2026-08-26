@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { fetchSets } from '../lib/tcgdex'
-import { importPokemonSet } from '../lib/import/pokemon'
+import { importPokemonSet, filtrerSetsImportables } from '../lib/import/pokemon'
 
 // Charge NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY depuis ../.env.local
 // (loader minimal ligne par ligne — les valeurs ne sont JAMAIS affichées).
@@ -48,9 +48,12 @@ function parseArgs(argv: string[]): CliOptions {
 }
 
 async function resolveTargets(options: CliOptions): Promise<string[]> {
+  // `--set` vise un set nommément : on n'écarte rien ici, `importPokemonSet`
+  // refusera de lui-même s'il appartient à une série hors périmètre — et le
+  // dira, ce qui vaut mieux qu'une cible silencieusement ignorée.
   if (options.set) return [options.set]
 
-  const allSets = await fetchSets()
+  const allSets = await filtrerSetsImportables(await fetchSets(), (l) => console.log(l))
   const ids = allSets.map((s) => s.id)
   if (!options.from) return ids
 

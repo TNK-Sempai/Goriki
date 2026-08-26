@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { formatPrice } from '@/lib/utils'
+import { prixOuEpuise } from '@/lib/utils'
 import { Heart } from 'lucide-react'
 
 export default async function WishlistPage() {
@@ -19,8 +19,10 @@ export default async function WishlistPage() {
   const enriched = await Promise.all((items ?? []).map(async (item) => {
     if (item.item_type === 'pokemon') {
       const { data } = await supabase
-        .from('pokemon_listings')
-        .select('id, price, quantity, image_api, front_photo_url, pokemon_cards(name_fr, number), pokemon_variant_types(label)')
+        // Un favori porte une VARIANTE (l'objet de catalogue) ; son prix et son
+        // stock viennent des exemplaires rattachés.
+        .from('pokemon_card_variants')
+        .select('id, image_url, pokemon_listings(price, quantity, front_photo_url), pokemon_cards(name_fr, number), pokemon_variant_types(label)')
         .eq('id', item.item_id)
         .single()
       return { ...item, listing: data }
@@ -82,8 +84,10 @@ export default async function WishlistPage() {
                     )}
                     <p className="text-cream text-xs font-medium line-clamp-2">{name}</p>
                     {variant && <p className="text-muted text-[10px] mt-0.5">{variant}</p>}
-                    <p className="text-amber text-sm mt-2">{formatPrice(l.price as number)}</p>
-                    {(l.quantity as number) === 0 && (
+                    <p className="text-amber text-sm mt-2">{prixOuEpuise(l.price as number)}</p>
+                    {/* Le badge ne double plus le mot : il ne sert que pour une
+                        pièce chiffrée tombée à zéro de stock. */}
+                    {(l.quantity as number) === 0 && (l.price as number) > 0 && (
                       <span className="badge badge-danger text-[9px] mt-1">Épuisé</span>
                     )}
                   </Link>
