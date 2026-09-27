@@ -17,6 +17,8 @@ import { usePathname } from 'next/navigation'
 export interface Compteurs {
   sets: number
   variantes: number
+  /** Écarts restants entre le catalogue et les checklists. */
+  ecarts: number
   exemplaires: number
   commandes: number
   scelles: number
@@ -45,6 +47,10 @@ export default function Rail({ compteurs, email }: { compteurs: Compteurs; email
       items: [
         { href: '/admin/catalogue', label: 'Catalogue', badge: fr(compteurs.sets), exact: true },
         { href: '/admin/catalogue/editeur', label: 'Éditeur de variantes', badge: fr(compteurs.variantes) },
+        // Remplace `/admin/catalogue/arbitrage`, supprimé du dépôt : il écrivait
+        // avec la logique d'un modèle à un seul type de variante, donc contre le
+        // schéma actuel. Le laisser accessible était plus risqué que l'ôter.
+        { href: '/admin/catalogue/reconciliation', label: 'Réconciliation', badge: compteurs.ecarts ? fr(compteurs.ecarts) : undefined },
         { href: '/admin/listings', label: 'Listings', badge: fr(compteurs.exemplaires) },
         { href: '/admin/import', label: 'Import' },
         { href: '/admin/produits', label: 'Scellés', badge: compteurs.scelles ? fr(compteurs.scelles) : undefined },
@@ -55,6 +61,9 @@ export default function Rail({ compteurs, email }: { compteurs: Compteurs; email
       label: 'Ventes',
       items: [
         { href: '/admin/commandes', label: 'Commandes', badge: compteurs.commandes ? fr(compteurs.commandes) : undefined },
+        // Les tarifs de port ont quitté `lib/constants.ts` : ils se règlent ici,
+        // sans redéploiement, parce qu'une grille transporteur change seule.
+        { href: '/admin/livraison', label: 'Livraison' },
         { href: '/admin/clients', label: 'Clients' },
         { href: '/admin/verifications', label: 'Vérifications', badge: compteurs.verifications ? fr(compteurs.verifications) : undefined },
         { href: '/admin/rachat', label: 'Rachat' },

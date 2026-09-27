@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Topbar from '@/components/admin/Topbar'
 import VueEditeur from '@/components/admin/catalogue/VueEditeur'
 import type { SetNettoyage, TypeVariante } from '@/components/admin/catalogue/types'
+import { checklistDuSet, casesParNumero } from '@/lib/admin/checklists'
 import type { CarteAdmin } from '@/components/admin/catalogue/VueEditeur'
 
 export const dynamic = 'force-dynamic'
@@ -28,10 +29,7 @@ export default async function EditeurPage({ searchParams }: Props) {
   // Les compteurs globaux du rail sont chargés par le layout : les refaire ici
   // coûtait trois `count exact` à chaque ouverture de l'éditeur pour un
   // résultat aussitôt jeté. Le sourcil de cet écran compte le SET courant.
-  const [{ data: apercu }, { data: typesGlobaux }] = await Promise.all([
-    supabase.rpc('admin_pokemon_sets_nettoyage'),
-    supabase.from('pokemon_variant_types').select('id, code, label, sort_order, source').is('set_id', null).order('sort_order'),
-  ])
+  const { data: apercu } = await supabase.rpc('admin_pokemon_sets_nettoyage')
 
   const sets: SetNettoyage[] = ((apercu ?? []) as SetNettoyage[])
     .map(s => ({
@@ -56,18 +54,22 @@ export default async function EditeurPage({ searchParams }: Props) {
   const setCourant = sets.find(s => s.set_id === demande) ?? sets[0] ?? null
 
   let cartes: CarteAdmin[] = []
-  let typesAutorises: TypeVariante[] = (typesGlobaux ?? []) as TypeVariante[]
+  let axes: { tirages: TypeVariante[]; finitions: TypeVariante[]; tampons: TypeVariante[] } =
+    { tirages: [], finitions: [], tampons: [] }
+  /** Numéro de carte → nombre de cases attendues par la checklist PokéCardex. */
+  let checklist = new Map<string, number>()
 
   if (setCourant) {
-    const [{ data: lignes }, { data: autorises }] = await Promise.all([
+    const [{ data: lignes }, { data: tirages }, { data: finitions }, { data: tampons }] = await Promise.all([
       supabase
         .from('pokemon_cards')
         .select(`
           id, number, name_fr, rarity, card_type, category, attribute,
           is_secret, is_promo, image_url, locked_fields,
           pokemon_card_variants(
-            id, image_url, image_manuelle, locked_fields,
-            pokemon_variant_types!inner(id, code, label, sort_order),
+            id, image_url, image_manuelle, locked_fields, source,
+            tirage_id, finition_id, tampon_id,
+            pokemon_variant_types(id, code, label, sort_order),
             pokemon_listings(id, quantity, condition)
           )
         `)
@@ -76,15 +78,21 @@ export default async function EditeurPage({ searchParams }: Props) {
         .order('sort_num')
         .order('number')
         .limit(400),
-      // `variantes_autorisees` retombe sur les 11 types globaux tant qu'aucune
-      // restriction n'est posée sur ce set.
-      supabase.rpc('variantes_autorisees', { p_set_id: setCourant.set_id }),
+      supabase.from('pokemon_variant_tirages').select('id, code, label, sort_order').order('sort_order'),
+      supabase.from('pokemon_variant_finitions').select('id, code, label, sort_order').order('sort_order'),
+      supabase.from('pokemon_variant_tampons').select('id, code, label, sort_order').order('sort_order'),
     ])
 
+    axes = {
+      tirages: (tirages ?? []) as TypeVariante[],
+      finitions: (finitions ?? []) as TypeVariante[],
+      tampons: (tampons ?? []) as TypeVariante[],
+    }
+
+    // La checklist du set courant — la référence contre laquelle comparer.
+    checklist = casesParNumero(await checklistDuSet(setCourant.code))
+
     cartes = ((lignes ?? []) as unknown as CarteAdmin[])
-    typesAutorises = ((autorises ?? []) as TypeVariante[])
-      .slice()
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
   }
 
   return (
@@ -102,7 +110,8 @@ export default async function EditeurPage({ searchParams }: Props) {
         sets={sets}
         setCourant={setCourant}
         cartes={cartes}
-        typesAutorises={typesAutorises}
+        axes={axes}
+        checklist={[...checklist.entries()]}
       />
     </>
   )

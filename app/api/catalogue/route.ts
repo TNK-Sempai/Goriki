@@ -36,6 +36,13 @@ export async function GET(request: NextRequest) {
       // faisaient les deux `eq/gt` d'origine.
       .eq('pokemon_listings.is_active', true)
       .gt('pokemon_listings.quantity', 0)
+      // Une annonce non chiffrée n'est pas en vente. Ce filtre manquait ICI, et
+      // seulement ici : la page d'accueil, les séries, le détail d'un set, la
+      // recherche et la want list le portaient déjà. 108 annonces Pokémon en
+      // stock à 0 € remontaient donc dans la grille, marquées « Épuisé » alors
+      // qu'elles ont du stock. Aucune donnée n'a été modifiée pour ça : elles
+      // reviendront d'elles-mêmes dès qu'un prix sera saisi.
+      .gt('pokemon_listings.price', 0)
 
     if (setId) query = query.eq('pokemon_cards.set_id', setId)
     if (rarity) query = query.eq('pokemon_cards.rarity', rarity)
@@ -67,6 +74,11 @@ export async function GET(request: NextRequest) {
       `, { count: 'exact' })
       .eq('is_active', true)
       .gt('quantity', 0)
+      // Même règle que côté Pokémon : pas de prix, pas de vente. Les 937
+      // annonces One Piece injectées sont masquées, la RLS les écarte déjà ;
+      // ce filtre tient aussi pour celles qui resteraient en ligne sans prix,
+      // et pour un administrateur connecté, que la RLS ne filtre pas.
+      .gt('price', 0)
 
     if (setId) query = query.eq('onepiece_cards.set_id', setId)
     if (rarity) query = query.eq('onepiece_cards.rarity', rarity)
@@ -86,6 +98,8 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact' })
       .eq('is_active', true)
       .gt('quantity', 0)
+      // Un scellé non chiffré n'est pas davantage vendable qu'une carte.
+      .gt('price', 0)
       .range(offset, offset + limit - 1)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

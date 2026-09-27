@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useCart, openCartDrawer } from '@/hooks/useCart'
+import { estChiffre } from '@/lib/annonces'
 
 interface AddToCartButtonProps {
   listingId: string
@@ -79,7 +80,17 @@ export default function AddToCartButton({
     }
   }
 
-  const isSoldOut = maxQuantity <= 0
+  /**
+   * Épuisé couvre DEUX cas, et pas seulement l'absence de stock : une pièce non
+   * chiffrée n'est pas achetable non plus.
+   *
+   * Sans la condition sur le prix, une annonce restée en ligne à 0 € avec du
+   * stock affichait « Ajouter au panier », alors que le prix juste au-dessus
+   * disait « Épuisé » : deux réponses contradictoires sur le même écran. Le
+   * serveur refusait déjà l'article, mais après le clic et par un message
+   * d'erreur, ce qui n'est pas la même chose que ne pas le proposer.
+   */
+  const isSoldOut = maxQuantity <= 0 || !estChiffre(price)
   const isDisabled = isSoldOut || loading || unavailable
 
   let label = 'Ajouter au panier'

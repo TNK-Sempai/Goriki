@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { resend, FROM_EMAIL } from '@/lib/resend'
+import { resend, FROM_EMAIL, REPLY_TO } from '@/lib/resend'
 import { orderConfirmedHtml } from '@/lib/emails/order-confirmed'
 
 export interface StockFailure {
@@ -95,7 +95,7 @@ async function sendConfirmationEmail(supabase: SupabaseClient, input: FinalizeOr
   try {
     const { data: order } = await supabase
       .from('orders')
-      .select('user_id, order_items(quantity, price_at_purchase, item_snapshot)')
+      .select('user_id, shipping_label, shipping_cost, handling_fee, service_point, order_items(quantity, price_at_purchase, item_snapshot)')
       .eq('id', input.orderId)
       .single()
 
@@ -117,8 +117,9 @@ async function sendConfirmationEmail(supabase: SupabaseClient, input: FinalizeOr
 
     await resend.emails.send({
       from: FROM_EMAIL,
+      replyTo: REPLY_TO,
       to: profile.email,
-      subject: 'Commande confirmée — Goriki',
+      subject: 'Commande confirmée · Goriki',
       html: orderConfirmedHtml({
         orderNumber: input.orderId,
         customerName: profile.full_name ?? profile.email,
@@ -129,6 +130,13 @@ async function sendConfirmationEmail(supabase: SupabaseClient, input: FinalizeOr
         })),
         total: input.total,
         shippingAddress: (input.shippingAddress as Record<string, string> | null) ?? null,
+        // Relus sur la commande, jamais recalculés : c'est ce qui a été facturé
+        // qui doit figurer dans l'email, pas une grille qui aura pu changer.
+        shippingLabel: (order as { shipping_label?: string | null }).shipping_label ?? null,
+        shippingCost: Number((order as { shipping_cost?: number | null }).shipping_cost ?? 0),
+        handlingFee: Number((order as { handling_fee?: number | null }).handling_fee ?? 0),
+        servicePoint:
+          ((order as { service_point?: { nom?: string; adresse?: string } | null }).service_point) ?? null,
       }),
     })
   } catch (emailError) {

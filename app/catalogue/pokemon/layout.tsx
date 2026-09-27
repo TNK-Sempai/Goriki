@@ -6,9 +6,10 @@ import { PokemonBallBackground } from '@/components/blocks/PokemonBallBackground
  * séries, et détail d'un set.
  *
  * Même patron que `app/catalogue/onepiece/layout.tsx` : monté une seule fois
- * pour les trois routes, et `AtmosphereLayer` exclut le préfixe
- * `/catalogue/pokemon` en bloc pour éviter le doublon de motif. Le layout et
- * l'exclusion partagent le même préfixe : ils ne peuvent pas diverger, et une
+ * pour les trois routes, et `natureDuFond()` (`lib/fond.ts`) classe le préfixe
+ * `/catalogue/pokemon` en `univers`, ce qui écarte en bloc le wallpaper commun
+ * et le canvas d'atmosphère pour éviter le doublon de motif. Le layout et le
+ * classement partagent le même préfixe : ils ne peuvent pas diverger, et une
  * route ajoutée plus tard hérite des deux.
  *
  * UNE DIFFÉRENCE AVEC LE FOND ONE PIECE, ASSUMÉE. La carte marine est en

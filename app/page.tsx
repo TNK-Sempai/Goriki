@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import SiteHeader from '@/components/layout/SiteHeader'
 import SiteFooter from '@/components/layout/SiteFooter'
 import PageContainer from '@/components/layout/PageContainer'
@@ -15,8 +16,12 @@ import { PHOTO_PRICE_THRESHOLD } from '@/lib/constants'
  *
  * Composition imposée par la planche, dans cet ordre :
  *   1. Hero asymétrique : manifeste typographique à gauche (3 lignes capitales),
- *      éventail de cartes + rose des vents à droite, rail d'index à l'extrême
- *      gauche, bandeau de garanties en pied de hero.
+ *      rail d'index à l'extrême gauche, bandeau de garanties en pied de hero.
+ *      Depuis la mission NOVA, le visuel du hero n'est plus l'éventail de
+ *      cartes mais l'illustration fournie par le propriétaire
+ *      (`public/hero.webp`), posée en panneau plein derrière le manifeste.
+ *      L'éventail de sets (`NouveautesHero`) est posé par-dessus, dans la
+ *      moitié droite du panneau (sous le texte avant 1024 px).
  *   2. Bande double : « Derniers arrivages » (rangée de 5) | « Pièces à
  *      inspecter » (mise en avant d'une pièce scannée).
  *   3. Rangée de 5 tuiles de rayon, visuel débordant à droite de chaque tuile.
@@ -100,6 +105,24 @@ const SELECT_PKM =
   'id, price, quantity, condition, front_photo_url, created_at, ' +
   'pokemon_card_variants!inner(id, image_url, cards:pokemon_cards!inner(name_fr, number, rarity))'
 
+/**
+ * Une ligne de `nouveautes_achetables()` (migration 0058), telle quelle.
+ *
+ * `achetables` arrive en `bigint` : PostgREST le sérialise en NOMBRE quand il
+ * tient dans un entier sûr, mais le type reste large côté base. On le repasse
+ * par `Number` au moment de le lire plutôt que de le déclarer `number` ici et
+ * de faire confiance à la sérialisation.
+ */
+interface SetNouveaute {
+  universe: 'pokemon' | 'onepiece'
+  set_id: string
+  code: string
+  name_fr: string
+  release_date: string | null
+  achetables: number | string
+  images: string[] | null
+}
+
 /** Garanties du pied de hero — reprises littéralement de la planche. */
 const GARANTIES = [
   { t: 'Cartes 100 % authentifiées', s: 'Scannées recto-verso' },
@@ -112,7 +135,7 @@ export default async function HomePage() {
 
   const [{ data: opTop }, { data: opNew }, { data: pkmNew }, opCards, pkmCards, opDispo, pkmDispo, scelles, depots,
     { data: apercusOp }, { data: apercusPkm }, { data: scelleVisuels },
-    { data: recentsPkm }, { data: recentsOp }] =
+    { data: setsNouveaute }] =
     await Promise.all([
       supabase.from('onepiece_listings').select(SELECT).eq('is_active', true).gt('quantity', 0).gt('price', 0).order('price', { ascending: false }).limit(4),
       supabase.from('onepiece_listings').select(SELECT).eq('is_active', true).gt('quantity', 0).gt('price', 0).order('created_at', { ascending: false }).order('price', { ascending: false }).limit(6),
@@ -133,15 +156,13 @@ export default async function HomePage() {
       // se réduit à ce qui existe, il ne se complète pas avec des cartes.
       supabase.from('sealed_products').select('image_url').eq('is_active', true)
         .gt('quantity', 0).not('image_url', 'is', null).limit(3),
-      // Nouveautés du hero : les 2 sets les plus récents de CHAQUE univers,
-      // classés dans leur propre univers. La parité 2+2 est structurelle — on
-      // ne compense jamais un univers avec l'autre.
-      supabase.from('pokemon_sets').select('id, code, name_fr, release_date')
-        .eq('is_active', true).not('release_date', 'is', null)
-        .order('release_date', { ascending: false }).limit(2),
-      supabase.from('onepiece_sets').select('id, code, name_fr, release_date')
-        .eq('is_active', true).not('release_date', 'is', null)
-        .order('release_date', { ascending: false }).limit(2),
+      // Nouveautés : les 2 sets les plus récents de CHAQUE univers parmi ceux
+      // qui ont au moins une carte ACHETABLE. La sélection, le décompte et les
+      // aperçus tiennent dans cet unique appel (migration 0058) : c'est un
+      // classement par groupe, que PostgREST ne sait pas exprimer et qui aurait
+      // demandé de rapatrier toutes les annonces en vente pour les regrouper
+      // ici, au-dessus du plafond de 1 000 lignes qui tronque sans erreur.
+      supabase.rpc('nouveautes_achetables'),
     ])
 
   const top = ((opTop ?? []) as unknown as ListingRow[]).map(toPiece)
@@ -172,73 +193,37 @@ export default async function HomePage() {
   const replisPkm = plusRares(apercusPkm)
 
 
-  // ── Nouveautés du hero ────────────────────────────────────────────────────
-  // Un aperçu par set : la carte la plus rare, comme les tuiles de catalogue.
-  // Jusqu'à trois visuels par set : l'éventail du hero en montre trois, la plus
-  // rare en tête (`rang` croissant).
-  const apercuParSet = new Map<string, string[]>()
-  const tousApercus = [
-    ...((apercusOp ?? []) as { set_id: string; image_url: string; rang: number }[]),
-    ...((apercusPkm ?? []) as { set_id: string; image_url: string; rang: number }[]),
-  ].sort((a, b) => Number(a.rang) - Number(b.rang))
-  for (const a of tousApercus) {
-    const liste = apercuParSet.get(a.set_id)
-    if (liste) { if (liste.length < 3) liste.push(a.image_url) }
-    else apercuParSet.set(a.set_id, [a.image_url])
-  }
+  // ── Nouveautés ────────────────────────────────────────────────────────────
+  // Plus aucun calcul ici. Le regroupement par set, le report du stock d'un set
+  // rattaché sur son parent, le décompte et le choix des trois aperçus se font
+  // en base, sur les seules cartes achetables.
+  //
+  // CE QUI A CHANGÉ, ET POURQUOI. La vitrine retenait les 2 sets les plus
+  // récents, en vente ou non : elle affichait « Bientôt » sur des sets vides et,
+  // pour DP-12, dont les deux seules cartes sont des DON!!, le filigrane SAMPLE
+  // de l'éditeur. La sélection porte désormais sur les sets réellement
+  // achetables, et l'aperçu est pris parmi leurs seules cartes en vente.
+  //
+  // Parité 2+2 quand elle est possible, jamais compensée : un univers sans set
+  // achetable ne cède pas sa place à l'autre, il ne paraît simplement pas.
+  //
+  // L'ordre d'affichage reste Pokémon d'abord, comme avant : la fonction rend
+  // ses lignes par univers alphabétique, ce tri de deux à quatre éléments le
+  // rétablit sans faire dépendre une décision de présentation d'une migration.
+  const ORDRE_UNIVERS = { pokemon: 0, onepiece: 1 } as const
 
-  interface SetRecent { id: string; code: string; name_fr: string; release_date: string | null }
-
-  const enNouveaute = (
-    rows: SetRecent[] | null,
-    universe: 'pokemon' | 'onepiece',
-    dispoParSet: Map<string, number>,
-  ): Nouveaute[] =>
-    (rows ?? []).map(r => ({
-      setId: r.id,
-      universe,
-      code: r.code,
-      name: r.name_fr,
-      releaseDate: r.release_date,
-      images: apercuParSet.get(r.id) ?? [],
-      dispo: dispoParSet.get(r.id) ?? 0,
-    }))
-
-  // Stock réel des sets mis en avant — affiché tel quel, zéro compris.
-  const idsMisEnAvant = [
-    ...((recentsPkm ?? []) as SetRecent[]).map(r => r.id),
-    ...((recentsOp ?? []) as SetRecent[]).map(r => r.id),
-  ]
-
-  const dispoPkm = new Map<string, number>()
-  const dispoOp = new Map<string, number>()
-  if (idsMisEnAvant.length > 0) {
-    const [{ data: sPkm }, { data: sOp }] = await Promise.all([
-      supabase.from('pokemon_listings')
-        .select('id, pokemon_cards!inner(set_id)')
-        .eq('is_active', true).gt('quantity', 0).gt('price', 0)
-        .in('pokemon_cards.set_id', ((recentsPkm ?? []) as SetRecent[]).map(r => r.id)),
-      supabase.from('onepiece_listings')
-        .select('id, onepiece_cards!inner(set_id)')
-        .eq('is_active', true).gt('quantity', 0).gt('price', 0)
-        .in('onepiece_cards.set_id', ((recentsOp ?? []) as SetRecent[]).map(r => r.id)),
-    ])
-    const compter = (rows: unknown[] | null, cle: string, cible: Map<string, number>) => {
-      for (const row of (rows ?? []) as Record<string, unknown>[]) {
-        const c = row[cle]
-        const carte = (Array.isArray(c) ? c[0] : c) as { set_id: string } | undefined
-        if (carte) cible.set(carte.set_id, (cible.get(carte.set_id) ?? 0) + 1)
-      }
-    }
-    compter(sPkm, 'pokemon_cards', dispoPkm)
-    compter(sOp, 'onepiece_cards', dispoOp)
-  }
-
-  // Parité 2+2 : Pokémon d'abord, puis One Piece, jamais l'un à la place de l'autre.
-  const nouveautes: Nouveaute[] = [
-    ...enNouveaute(recentsPkm as SetRecent[] | null, 'pokemon', dispoPkm),
-    ...enNouveaute(recentsOp as SetRecent[] | null, 'onepiece', dispoOp),
-  ]
+  const nouveautes: Nouveaute[] = ((setsNouveaute ?? []) as SetNouveaute[])
+    .slice()
+    .sort((a, b) => ORDRE_UNIVERS[a.universe] - ORDRE_UNIVERS[b.universe])
+    .map(r => ({
+    setId: r.set_id,
+    universe: r.universe,
+    code: r.code,
+    name: r.name_fr,
+    releaseDate: r.release_date,
+    images: r.images ?? [],
+    dispo: Number(r.achetables ?? 0),
+  }))
 
   // Chaque tuile de rayon porte un petit éventail au lieu d'un visuel isolé.
   // On sert d'abord les visuels RÉELS du rayon, puis on complète avec le
@@ -277,7 +262,7 @@ export default async function HomePage() {
 
       <main className="font-grotesk text-ink">
         {/* ── 1. Hero ─────────────────────────────────────────────────── */}
-        <PageContainer as="section" className="relative pb-9 pt-12 lg:pb-14 lg:pt-16">
+        <PageContainer as="section" className="relative pb-9 pt-6 lg:pb-14 lg:pt-8">
           {/* Rail d'index : numérotation de planche, à l'extrême gauche. */}
           <div className="pointer-events-none absolute left-4 top-[38%] hidden flex-col items-center gap-2.5 2xl:flex">
             <span className="data text-[9px] text-ink-55">01</span>
@@ -286,8 +271,54 @@ export default async function HomePage() {
             <span className="h-1.5 w-1.5 rounded-full bg-[rgba(26,22,17,0.18)]" />
           </div>
 
-          <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-[minmax(0,46fr)_minmax(0,54fr)] lg:gap-6">
-            <div className="flex flex-col">
+          {/* Panneau illustré. L'image remplace l'éventail de cartes qui tenait
+              la colonne droite : c'est un panorama, il perdrait tout son sens
+              recadré dans une demi-colonne. Le manifeste passe donc AU-DESSUS,
+              sur la moitié gauche, et le voile directionnel (`.voile-hero`)
+              garantit son contraste sans éteindre la cité de droite.
+              `isolate` : l'image et le voile sont en `-z-10`, l'isolation les
+              enferme dans ce panneau au lieu de les envoyer sous la page.
+
+              Le panneau sort de la gouttière sous 1024 px (`-mx-5 sm:-mx-8`) et
+              la rétablit lui-même en padding interne. Ce n'est pas un effet de
+              style : le manifeste est composé en trois lignes INSÉCABLES, et la
+              plus longue mesure 331 px à la taille mobile du titre. Sans ce
+              débord, la gouttière de la page et le padding du panneau se
+              cumuleraient et la troisième ligne serait rognée à 390 px. Le
+              texte retrouve ainsi exactement la largeur qu'il avait avant cette
+              mission, et l'illustration passe bord à bord. */}
+          <div className="relative isolate -mx-5 flex min-h-[420px] flex-col overflow-hidden lg:flex-row border-0 shadow-none sm:-mx-8 lg:mx-0 lg:min-h-[560px] lg:rounded-hero lg:border lg:border-[rgba(255,255,255,0.55)] lg:shadow-[0_28px_70px_-40px_rgba(26,22,17,0.45)]">
+            <Image
+              src="/hero.webp"
+              alt="Trois voyageurs sur un promontoire de cartes géantes, face à une cité flottante"
+              fill
+              priority
+              sizes="(min-width: 64rem) 1200px, 100vw"
+              className="-z-10 object-cover object-[50%_55%]"
+            />
+            {/* `sizes` plafonné à 1200 px au-delà de 1024 px, et non à la
+                largeur réelle du panneau (1328 px à 1440) : la source ne fait
+                que 1672 px de large, demander le palier supérieur ferait
+                AGRANDIR l'image par l'optimiseur, pour un fichier plus lourd et
+                aucun détail de plus. Le navigateur étire 1200 en 1328, soit 10 %
+                sur une aquarelle déjà voilée. 64rem = le point `lg` du design
+                system, le même que celui du wallpaper. */}
+            {/* Voile directionnel, sur tout le panneau à partir de 1024 px
+                seulement. En dessous, il est porté par la colonne de texte
+                (voir plus bas) pour ne pas recouvrir l'éventail. */}
+            <div aria-hidden="true" className="voile-hero absolute inset-0 -z-10 hidden lg:block" />
+
+            {/* `pt-32` sous 1024 px : la bande haute laissée à découvert par le
+                voile. C'est la seule façon de montrer l'illustration sur un
+                écran étroit, où le texte prend toute la largeur. */}
+            <div className="relative flex flex-col px-5 pb-10 pt-32 sm:px-8 lg:w-[46%] lg:shrink-0 lg:self-center lg:px-12 lg:pb-14 lg:pt-14">
+              {/* Sous 1024 px, le voile vertical couvre la colonne de texte et
+                  s'arrête avec elle : ses arrêts en pixels et ses pourcentages
+                  se calculent sur la même hauteur qu'avant, le texte garde donc
+                  exactement son contraste. Pas de `z-index` sur la colonne :
+                  ce `-z-10` reste dans le contexte isolé du panneau, au-dessus
+                  de l'image qui le précède. */}
+              <div aria-hidden="true" className="voile-hero absolute inset-0 -z-10 lg:hidden" />
               <span className="data mb-6 text-[9px] text-ink-55 lg:mb-8">
                 Maison de vente — cartes à collectionner
               </span>
@@ -342,7 +373,27 @@ export default async function HomePage() {
               </ul>
             </div>
 
-            <NouveautesHero sets={nouveautes} />
+            {/* Nouveautés : l'éventail de sets, posé SUR l'illustration, dans la
+                moitié droite (sous le texte avant 1024 px). Aucun encadré, les
+                cartes sont dans l'espace. `.voile-nouveautes` n'éclaircit que
+                la zone du cartouche de set et de sa navigation, l'illustration
+                reste visible autour des cartes.
+
+                RIEN N'EST RENDU s'il n'y a aucun set achetable. Le bloc n'est
+                pas vidé, il est absent : la colonne de texte garde ses 46 % et
+                l'illustration occupe le reste, exactement comme le hero avant
+                que la vitrine y revienne. Un conteneur conservé aurait réservé
+                sa place en `flex-1` et laissé une zone vide au milieu du
+                panneau, ce que le composant ne pouvait pas remplir puisqu'il
+                n'a rien à montrer. */}
+            {nouveautes.length > 0 && (
+              <div className="relative flex flex-1 items-center justify-center px-5 pb-8 sm:px-8 lg:px-6 lg:py-6">
+                <div aria-hidden="true" className="voile-nouveautes absolute inset-0 -z-10" />
+                <div className="w-full">
+                  <NouveautesHero sets={nouveautes} />
+                </div>
+              </div>
+            )}
           </div>
         </PageContainer>
 

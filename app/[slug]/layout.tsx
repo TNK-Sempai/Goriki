@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
+import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import { PokemonBallBackground } from '@/components/blocks/PokemonBallBackground'
 import { OnePieceMapBackground } from '@/components/blocks/OnePieceMapBackground.v3'
-import { AtmosphereBackdrop } from '@/components/atmosphere/AtmosphereLayer'
+import FondNeutre from '@/components/fond/FondNeutre'
 import { getListing } from '@/lib/catalogue/fiche'
 
 /**
@@ -14,7 +16,7 @@ import { getListing } from '@/lib/catalogue/fiche'
  *
  * POURQUOI CE LAYOUT NE RESSEMBLE PAS AUX DEUX AUTRES. Les rayons vivent sous
  * un préfixe d'univers (`/catalogue/pokemon/...`), donc le chemin suffit à
- * savoir quoi dessiner, et `AtmosphereLayer` peut exclure le même préfixe.
+ * savoir quoi dessiner, et `natureDuFond()` peut classer le même préfixe.
  * Depuis ARCHI-01 la fiche est indexée sur l'id de la variante, à la RACINE :
  * `/{uuid}`, 29 210 routes qui ne disent rien de leur univers. Trois schémas
  * répondent à cette forme — variante Pokémon, listing One Piece, produit
@@ -24,10 +26,11 @@ import { getListing } from '@/lib/catalogue/fiche'
  * page comme `generateMetadata` appellent déjà la même fonction avec le même
  * slug. Le trio se partage un seul aller-retour.
  *
- * `AtmosphereLayer` se retire de son côté sur toutes les routes en forme
- * d'UUID — c'est son pendant de l'exclusion par préfixe, et la raison pour
- * laquelle un scellé reçoit ici `AtmosphereBackdrop` explicitement : sans
- * univers à lui, il garde le canvas qu'il avait, et ne se retrouve pas nu.
+ * Les deux couches globales se retirent de leur côté sur toutes les routes en
+ * forme d'UUID (`natureDuFond()` répond `fiche`) : c'est leur pendant de
+ * l'exclusion par préfixe, et la raison pour laquelle un scellé monte ici
+ * `FondNeutre` explicitement. Sans univers à lui, il est une page neutre comme
+ * une autre et porte le wallpaper commun, décision du propriétaire.
  *
  * `relative z-10` sur le contenu : patron unique des fonds du site. Il est
  * indispensable au motif Poké Ball, qui est en `z-0` — à cette profondeur un
@@ -35,9 +38,22 @@ import { getListing } from '@/lib/catalogue/fiche'
  * marine, elle, est en `-z-10` et passerait sans ; le même conteneur pour les
  * deux évite d'avoir à se souvenir laquelle est laquelle.
  *
- * Un slug inconnu tombe sur `notFound()` dans la page : pas d'univers, donc le
- * canvas neutre, comme sur n'importe quelle autre page sans identité.
+ * Un slug inconnu tombe sur `notFound()` ICI, et non dans la page. La page est
+ * enveloppée par `loading.tsx` : quand elle s'exécute, le squelette est déjà
+ * parti avec un statut 200, et son `notFound()` ne peut plus changer le statut.
+ * Ce layout est hors de cette frontière et résout déjà le slug : l'appel y
+ * produit un vrai 404 HTTP, sans requête de plus.
  */
+/**
+ * Titre de la fiche introuvable. Le `notFound()` part désormais de ce layout :
+ * le `generateMetadata` de la page n'est plus évalué dans ce cas, et le titre
+ * « Produit introuvable » qu'il posait retombait sur celui du site.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params
+  return (await getListing(slug)) ? {} : { title: 'Produit introuvable' }
+}
+
 export default async function ProductLayout({
   children,
   params,
@@ -46,7 +62,9 @@ export default async function ProductLayout({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const tcg = (await getListing(slug))?.tcg ?? null
+  const resultat = await getListing(slug)
+  if (!resultat) notFound()
+  const tcg = resultat.tcg
 
   return (
     <>
@@ -55,7 +73,7 @@ export default async function ProductLayout({
       ) : tcg === 'onepiece' ? (
         <OnePieceMapBackground />
       ) : (
-        <AtmosphereBackdrop />
+        <FondNeutre />
       )}
       <div className="relative z-10">{children}</div>
     </>

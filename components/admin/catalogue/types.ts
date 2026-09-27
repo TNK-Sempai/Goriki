@@ -15,6 +15,13 @@ export interface SetNettoyage {
   /** Visuels du set. Lus à part : la RPC d agrégation est hors périmètre. */
   image_url: string | null
   symbol_url: string | null
+  /**
+   * Regroupement d'affichage boutique (migration 0057). `rattache_a` : code du
+   * parent sous lequel ce set s'affiche. `rattaches` : codes des sets affichés
+   * dans celui-ci. L'admin garde chaque set séparé.
+   */
+  rattache_a?: string | null
+  rattaches?: string[]
 }
 
 export interface TypeVariante {

@@ -70,8 +70,16 @@ export default function SetGrid({
               <span className="font-mono text-[9px] tracking-[0.06em] text-ink-55">
                 {set.code} · {set.inStock}/{set.total}
               </span>
-              <span className="text-[14px] font-semibold text-ochre">
-                {set.priceFrom !== null ? `dès ${formatPrice(set.priceFrom)}` : '—'}
+              {/* Jamais de tiret à la place d'un prix : un set dont aucune pièce
+                  n'est chiffrée n'a pas de prix « inconnu », il n'a rien à
+                  vendre. On le dit avec le mot du site, celui des tuiles et des
+                  fiches, plutôt qu'avec un signe à interpréter. */}
+              <span
+                className={`text-[14px] font-semibold ${
+                  set.priceFrom !== null ? 'text-ochre' : 'text-ink-55'
+                }`}
+              >
+                {set.priceFrom !== null ? `dès ${formatPrice(set.priceFrom)}` : 'Épuisé'}
               </span>
             </div>
           </Link>

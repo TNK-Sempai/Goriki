@@ -107,6 +107,9 @@ function InvoicePDF({ order, items, profile }: {
     shipping_address: Record<string, string> | null
     shipping_cost: number | null
     store_credit_used: number | null
+    shipping_label: string | null
+    handling_fee: number | null
+    service_point: { nom?: string; adresse?: string } | null
   }
   items: { id: string; item_snapshot: { name?: string } | null; item_type: string; quantity: number; price_at_purchase: number }[]
   profile: { email: string; full_name: string | null }
@@ -119,6 +122,7 @@ function InvoicePDF({ order, items, profile }: {
   // les articles ne totalisaient pas le montant facturé.
   const itemsSubtotal = items.reduce((sum, i) => sum + i.price_at_purchase * i.quantity, 0)
   const shippingCost = order.shipping_cost ?? 0
+  const handlingFee = order.handling_fee ?? 0
   const storeCreditUsed = order.store_credit_used ?? 0
 
   return createElement(Document, {},
@@ -128,8 +132,13 @@ function InvoicePDF({ order, items, profile }: {
       createElement(View, { style: styles.header },
         createElement(View, {},
           createElement(Text, { style: styles.brand }, 'GORIKI'),
-          createElement(Text, { style: styles.brandSub }, 'Tanuki Corporation · Bruxelles, Belgique'),
-          createElement(Text, { style: styles.brandSub }, 'contact@goriki.be'),
+          // Identité complète du vendeur : raison sociale, siège et numéro
+          // d'entreprise. Une facture belge qui ne les porte pas est contestable.
+          createElement(Text, { style: styles.brandSub }, 'Tanuki Corporation SRL'),
+          createElement(Text, { style: styles.brandSub }, "Avenue de l'Indépendance Belge 131"),
+          createElement(Text, { style: styles.brandSub }, '1081 Koekelberg, Belgique'),
+          createElement(Text, { style: styles.brandSub }, 'BCE 1037.049.170'),
+          createElement(Text, { style: styles.brandSub }, 'contact@tanuki-corporation.com'),
         ),
         createElement(View, {},
           createElement(Text, { style: styles.invoiceTitle }, 'FACTURE'),
@@ -148,6 +157,13 @@ function InvoicePDF({ order, items, profile }: {
           createElement(Text, { style: styles.bodyText },
             `${order.shipping_address.postal_code ?? ''} ${order.shipping_address.city ?? ''}`),
           createElement(Text, { style: styles.bodyText }, order.shipping_address.country ?? ''),
+        ) : null,
+        order.service_point?.nom ? createElement(View, { style: { marginTop: 8 } },
+          createElement(Text, { style: styles.sectionTitle }, 'Point relais'),
+          createElement(Text, { style: styles.bodyText }, order.service_point.nom),
+          order.service_point.adresse
+            ? createElement(Text, { style: styles.bodyText }, order.service_point.adresse)
+            : null,
         ) : null,
       ),
 
@@ -174,10 +190,21 @@ function InvoicePDF({ order, items, profile }: {
           createElement(Text, { style: styles.totalLabel }, 'Sous-total articles'),
           createElement(Text, { style: styles.totalLabel }, `${itemsSubtotal.toFixed(2)} €`),
         ),
+        // Port et forfait sur DEUX lignes : fondus en une seule, le client ne
+        // pourrait pas rapprocher le montant du tarif transporteur annoncé.
         createElement(View, { style: styles.totalRow },
-          createElement(Text, { style: styles.totalLabel }, 'Frais de port'),
+          createElement(Text, { style: styles.totalLabel },
+            order.shipping_label ? `Livraison : ${order.shipping_label}` : 'Livraison'),
           createElement(Text, { style: styles.totalLabel }, `${shippingCost.toFixed(2)} €`),
         ),
+        // Un forfait nul n'a pas de ligne : « 0,00 € » sur une facture
+        // interroge plus qu'il n'informe.
+        handlingFee > 0
+          ? createElement(View, { style: styles.totalRow },
+              createElement(Text, { style: styles.totalLabel }, "Frais de préparation et d'emballage"),
+              createElement(Text, { style: styles.totalLabel }, `${handlingFee.toFixed(2)} €`),
+            )
+          : null,
         storeCreditUsed > 0
           ? createElement(View, { style: styles.totalRow },
               createElement(Text, { style: styles.totalLabel }, 'Crédit boutique'),
@@ -185,7 +212,8 @@ function InvoicePDF({ order, items, profile }: {
             )
           : null,
         createElement(View, { style: styles.totalRow },
-          createElement(Text, { style: styles.totalLabel }, 'Total TTC'),
+          // « TTC » n'a pas de sens sans TVA applicable : le total est le total.
+          createElement(Text, { style: styles.totalLabel }, 'Total'),
           createElement(Text, { style: styles.totalAmount }, `${order.total.toFixed(2)} €`),
         ),
       ),
@@ -193,7 +221,7 @@ function InvoicePDF({ order, items, profile }: {
       // Footer
       createElement(View, { style: styles.footer },
         createElement(Text, { style: styles.footerText },
-          'Goriki — Tanuki Corporation · TVA non applicable selon l\'article 283 du CGI · Bruxelles, Belgique'
+          'Goriki · Tanuki Corporation SRL · Régime particulier de franchise des petites entreprises, TVA non applicable'
         ),
       ),
     )
@@ -218,7 +246,7 @@ export async function GET(
 
   const { data: order } = await supabase
     .from('orders')
-    .select('id, total, created_at, shipping_address, user_id, shipping_cost, store_credit_used, order_items(*)')
+    .select('id, total, created_at, shipping_address, user_id, shipping_cost, store_credit_used, shipping_label, handling_fee, service_point, order_items(*)')
     .eq('id', id)
     .single()
 
@@ -242,6 +270,9 @@ export async function GET(
       created_at: order.created_at,
       shipping_address: order.shipping_address as Record<string, string> | null,
       shipping_cost: order.shipping_cost,
+      shipping_label: order.shipping_label,
+      handling_fee: order.handling_fee,
+      service_point: order.service_point,
       store_credit_used: order.store_credit_used,
     },
     items: order.order_items ?? [],

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import BuybackForm from '@/components/compte/BuybackForm'
 import { formatPrice } from '@/lib/utils'
+import { RACHAT_OUVERT, MESSAGE_BIENTOT } from '@/lib/fonctionnalites'
 
 export const metadata = { title: 'Rachat de cartes' }
 
@@ -32,6 +33,25 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 export default async function RachatPage() {
+  /**
+   * FERMÉ AU LANCEMENT. Le reste de cette page est conservé INTACT.
+   * La coquille (en-tête, pied, navigation du compte) vient du layout :
+   * on ne rend ici que le contenu.
+   */
+  if (!RACHAT_OUVERT) {
+    return (
+      <>
+        <h1 className="display-section m-0">Rachat de cartes</h1>
+        <p className="m-0 mt-4 max-w-[56ch] text-[14px] leading-[1.6] text-ink-70">
+          {MESSAGE_BIENTOT}
+        </p>
+        <p className="m-0 mt-3 max-w-[56ch] text-[14px] leading-[1.6] text-ink-70">
+          Vous pourrez soumettre un lot depuis cette page, et en suivre l&apos;avancement ici même.
+        </p>
+      </>
+    )
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 

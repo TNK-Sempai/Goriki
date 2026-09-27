@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { RACHAT_OUVERT, REFUS_FERME } from '@/lib/fonctionnalites'
 
 const MAX_PHOTOS = 5
 const MAX_SIZE = 5 * 1024 * 1024
@@ -15,6 +16,20 @@ const MAX_SIZE = 5 * 1024 * 1024
  * serveur : la garde de l'interface ne suffit pas.
  */
 export async function POST(request: NextRequest) {
+  /**
+   * FONCTION FERMÉE AU LANCEMENT.
+   *
+   * Le refus est posé ICI, avant toute lecture du corps : l'écran ne propose
+   * plus de formulaire, mais une requête forgée n'a pas d'écran. C'est cette
+   * ligne, et non la page, qui garantit qu'aucune demande n'est enregistrée.
+   *
+   * 503 et non 403 : la fonction n'est pas interdite à ce client, elle n'est
+   * pas encore ouverte. Elle le sera.
+   */
+  if (!RACHAT_OUVERT) {
+    return NextResponse.json({ error: REFUS_FERME }, { status: 503 })
+  }
+
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

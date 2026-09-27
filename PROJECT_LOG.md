@@ -1388,3 +1388,1261 @@ Données de test retirées : variante Alakazam BASE1 #1 remise à `image_manuell
 `tsc --noEmit` exit 0 · `npm run build` exit 0 · lint 0 erreur.
 
 **Deux scories rencontrées en cours de route**, toutes deux de moi : un bloc `poserVisuelUrl` mort laissé par une édition interrompue, qui référençait un état inexistant (`tsc` l'a attrapé) ; et un commentaire JSX glissé **entre deux attributs**, ce qui est une erreur de syntaxe — un commentaire ne peut vivre qu'entre éléments.
+
+### Session 45 — 2026-08-26 (logos de set : correction par URL, sans la migration prescrite)
+
+**La vérification demandée par le brief a renversé la conception prescrite. Aucune colonne `logo_manuel` n'a été créée, et c'est le point important de cette session.**
+
+**Ce que le schéma dit réellement.** Les sets n'ont ni colonne générée ni séparation api/manuel : `pokemon_sets` porte `image_url` (le logo) et `symbol_url` (le symbole), toutes deux ordinaires — donc DEUX visuels, pas un. Aucun champ ne s'appelle `logo_api` ni `logo_url`.
+
+**Pourquoi reproduire le schéma des variantes aurait été une faute.**
+
+1. *Redondant.* Le mécanisme existe déjà, et il est d'une autre nature. `admin_corriger_set` écrit le champ ET l'inscrit dans `locked_fields` ; le trigger `verrous_pokemon_sets` (BEFORE UPDATE, actif) restaure la valeur de tout champ verrouillé à chaque écriture non manuelle — donc à chaque import. Les sets sont protégés par **verrouillage par champ**, les variantes par **colonne séparée**. Deux mécanismes concurrents pour la même garantie auraient fini par diverger.
+2. *Destructeur.* `verrous_pokemon_sets` exécute `new.image_url := old.image_url`. Rendre `image_url` générée rendrait cette affectation **illégale** — Postgres refuse d'assigner une colonne générée dans un trigger. La migration aurait cassé le verrouillage de TOUS les autres champs du set au passage.
+
+**Le vrai manque était l'interface.** `admin_corriger_set` gère `image_url` et `symbol_url` depuis toujours ; le panneau d'édition de set n'exposait que code / nom / série / sortie / nombre attendu. Le mécanisme était complet, seule son ouverture manquait — c'est ce trou qui empêchait de corriger un logo mort.
+
+**Livré** : `app/api/admin/catalogue/logo-set/` (route dédiée, validation de domaine + sonde HEAD, puis `admin_corriger_set` avec `p_verrouiller: true`), et les deux blocs « Logo » / « Symbole » dans le panneau — aperçu, état, champ de collage, et « Relâcher vers l'API » quand c'est verrouillé. L'action `corrigerSet` existante n'a pas suffi : elle écrit sans rien vérifier et accepterait « coucou » comme logo.
+
+**La complétion d'URL DIFFÈRE de celle des cartes**, comme le brief invitait à le revérifier : `lib/import/pokemon.ts` applique `withSuffix(…, '.png')` aux logos ET aux symboles, là où les cartes reçoivent `/high.webp`. `verifierUrlVisuel` prend donc désormais le suffixe en paramètre. Appliquer celui des cartes à un logo aurait produit une adresse morte à partir d'un lien correct.
+
+**`next/image` ne touche PAS les logos de set** — vérifié : `SetVisual` et `SetsIndex` utilisent des `<img>` nus, et les quatre consommateurs de `next/image` (panier, `ProductCard`, `SealedRow`, `SealedTile`) ne rendent que des visuels de carte ou de produit. La restriction aux deux hôtes ne repose donc pas ici sur la contrainte technique invoquée pour les variantes, mais sur la politique d'images déclarée du site et sur l'absence de toute troisième source réelle.
+
+**Un faux négatif de mon propre test, corrigé.** Le premier essai de verrou a conclu « VERROU CÉDÉ ». Cause : le trigger fait `new.locked_fields := old.locked_fields` **inconditionnellement** hors édition manuelle — mon `update` nu n'avait donc jamais posé le verrou qu'il prétendait tester. Rejoué en posant `goriki.edition_manuelle` comme le fait la vraie RPC : verrou tenu.
+
+**Validations** :
+
+| vérification | résultat |
+|---|---|
+| ré-import RÉEL rejoué sur EX5 (upsert identique à `lib/import/pokemon.ts`) | logo **verrouillé conservé**, symbole non verrouillé **réécrit** — dans la même instruction, le test discrimine |
+| rendu public, fiche de set | le logo corrigé s'affiche |
+| lien mort (404) | refusé — « Ce lien ne répond pas (HTTP 404) — le visuel n'a pas été changé » |
+| domaine étranger · Cloudinary d'un tiers · non-URL · `http://` | tous refusés, chacun avec sa raison |
+| URL TCGdex sans extension | complétée en **`.png`**, verrou posé (`locked_fields: ["image_url"]`) |
+| panneau de set | blocs « Logo » et « Symbole » présents, aperçu + champ + bouton |
+
+EX5 restauré : logo d'origine, `locked_fields` vidé. Compte admin de test supprimé, 0 résiduel. `tsc --noEmit` exit 0 · `npm run build` exit 0 · lint 0 erreur.
+
+**Signalement — One Piece n'est pas couvert, volontairement.** `onepiece_sets` a **0 logo et 0 symbole sur 30 sets**, et aucun module d'import n'écrit ces colonnes (`lib/import/` ne contient que `pokemon.ts`). Ni trigger de verrous ni RPC de correction n'existent de ce côté. Y ajouter le mécanisme serait de la structure morte tant qu'aucun logo n'est importé. À reprendre le jour où l'import One Piece des sets sera écrit.
+
+### Session 46 — 2026-08-26 (arbitrage des variantes contradictoires — missions 1 et 2)
+
+Les chiffres du brief ont été vérifiés en base AVANT toute construction, et se confirment exactement : **1 412** cartes portant à la fois `NORMAL` et `HOLO` · cohortes **746 / 650 / 16** · **80** cartes avec du stock sur `NORMAL`, **0** sur `HOLO`.
+
+## Mission 1 — le verrou
+
+**Migration 0041.** Colonne `source` sur `pokemon_card_variants` ('api' | 'manuel'), même vocabulaire et même contrainte que `pokemon_variant_types.source`. Table `pokemon_variant_exclusions` (PK `(card_id, variant_type_id)`), RLS admin en lecture **comme** en écriture — divergence assumée avec `pokemon_variant_types`, qui porte une lecture publique : ce n'est pas du catalogue, c'est un journal de décisions internes.
+
+`locked_fields` ne pouvait pas servir, et c'est structurel : il protège des CHAMPS d'une ligne existante, pas l'ABSENCE d'une ligne. Il fallait une trace positive.
+
+**`insertListings`** charge les exclusions du set en une requête (`in` sur la colonne de tête de la PK — aucun index supplémentaire) et écarte les paires concernées. Une erreur de lecture **interrompt l'import** au lieu de continuer : importer sans connaître les exclusions reviendrait à recréer exactement ce que l'utilisateur a supprimé. `ignoreDuplicates` n'est pas touché.
+
+**Test discriminant, deux passes sur le même set (BASE1)** :
+
+| | candidats | retenus | résultat |
+|---|---|---|---|
+| passe 1, sans exclusion | 204 | 204 | comportement de référence inchangé |
+| passe 2, avec exclusion | 204 | **203** | `[SKIP] 1 variante(s) exclue(s) manuellement`, variante **non recréée** |
+
+Les 204 candidats des DEUX passes prouvent que TCGdex déclarait toujours la paire : c'est bien l'exclusion qui l'a retenue, pas une absence côté source. Base restaurée à 204 variantes, 0 exclusion.
+
+## Mission 2 — l'écran d'arbitrage
+
+**Migration 0042 — nécessaire, et non prévue au périmètre.** Le brief demandait « les trois opérations en une transaction » et un garde-fou « côté serveur ». `supabase-js` ne sait pas ouvrir de transaction : il fallait une fonction plpgsql, qui en est une par construction et qui héberge le garde-fou du même côté que l'écriture. Deux fonctions : `admin_variantes_contradictoires` (lecture) et `admin_arbitrer_variantes` (décision).
+
+**Unité et lot ne se comportent pas pareil, volontairement.** À l'unité (`p_strict`), une carte protégée fait ÉCHOUER l'appel avec son message : l'utilisateur vise une carte précise. Au lot, elle est SAUTÉE et rapportée — faire échouer 1 400 cartes parce que l'une porte du stock rendrait le lot inutilisable, et on ne saurait pas laquelle a bloqué.
+
+Les codes `NORMAL`/`HOLO` désignent la contradiction examinée et sont **résolus en base** : si l'un manquait dans `pokemon_variant_types`, l'écran le dit au lieu de rendre une page vide. La liste des types reste chargée dynamiquement partout ailleurs.
+
+**Défaut trouvé et corrigé à la vérification.** L'écran affichait « 1 000 à arbitrer » et « 2 protégées par du stock ». Cause : PostgREST plafonne toute réponse à `db-max-rows` = 1 000. Des chiffres faux mais plausibles — le genre de troncature qui fait croire le travail fini alors qu'il en reste 412. La page charge désormais par tranches de 1 000 jusqu'à recevoir un lot incomplet : **1 412** et **80**.
+
+**Validations** :
+
+| vérification | résultat |
+|---|---|
+| garde-fou serveur (Zacian #045, 1 exemplaire sur `NORMAL`) | **HTTP 400** avec le message explicite, variante **toujours présente** |
+| décision unitaire (Absol #1) | les **trois** écritures : `NORMAL` supprimée · exclusion inscrite (« arbitrage doublon NORMAL/HOLO ») · `HOLO` passée en `manuel` |
+| écran | 1 412 cartes · 80 protégées · facettes cohorte 745/650/16, set, série, rareté, stock · trois actions unitaires · lot avec confirmation chiffrée |
+| lecture des dates | sur Mélodelfe, `HOLO` du 06/07 porte « la plus ancienne » face à `NORMAL` du 22/08 |
+
+Base restaurée : **29 210 variantes, 0 exclusion, 0 `source = manuel`**. Compte admin de test supprimé, 0 résiduel.
+
+**Migrations versionnées et vérifiées byte-exactes** par md5 contre `supabase_migrations.schema_migrations` (`11a1f7ab…` et `773d959e…`) — un fichier de migration qui diffère de ce qui tourne est pire qu'un fichier absent.
+
+`tsc --noEmit` exit 0 · `npm run build` exit 0 · lint 0 erreur.
+
+**Deux faux négatifs de mes propres sondes.** Filtrer une ressource imbriquée par `.not('pokemon_listings', 'is', null)` ne sélectionne pas ce qu'on croit : la jointure reste, mais vide — le test des cartes protégées tournait à vide alors que les 80 existaient bien. Résolu en désignant la cible par une requête SQL. Et `admin_variantes_contradictoires` renvoie 0 ligne depuis l'éditeur SQL : `is_admin()` y est faux faute de session — le garde-fou fonctionne, c'est la vérification qui était mal placée.
+
+**Hors périmètre, rappelé pour mémoire** : les **5 440 variantes `REVERSE` manquantes** sur 52 sets ne sont pas traitées ici. La table `pokemon_variant_exclusions` et la colonne `source` protégeront ce travail-là aussi.
+
+### Session 47 — 2026-08-26 (modèle de variantes à TROIS AXES — missions 1 à 5)
+
+Toutes les prémisses du brief vérifiées en base avant la moindre DDL, et toutes confirmées : 39 types dont **9 portant les 29 210 lignes** · `NORMAL` 15 452 (**568** sur set Wizards, **14 884** modernes) · `FIRST_EDITION` **676, toutes** antérieures à 03/2002 · aucun set sans date · Jungle #17 à **2 cases** dans la checklist · **38** sets sans symbole.
+
+**Une divergence relevée dans le brief.** Il annonce « les 30 libellés à zéro » comme tampons, en listant les préfixes `TAMPON_* STAFF_* CHAMPION_* TOP4_* TOP8_* WINNER_PROMO`. Ces préfixes n'en couvrent que **26**. Les quatre autres — `MASTERBALL`, `ROCKET`, `HOLO_COSMOS`, `NON_HOLO` — ne sont pas des tampons : ils appartiennent aux axes tirage et finition, où les listes du brief les place effectivement. Les préfixes ont été suivis ; 48 tampons au total (26 repris + 22 des checklists).
+
+**Mission 1 — 0043.** Trois tables de référence (11 tirages, 14 finitions, 48 tampons) et trois colonnes. `NOT NULL` et l'unicité N'Y SONT PAS, et ce n'est pas un oubli : `NOT NULL` sur une colonne ajoutée à 29 210 lignes échoue faute de valeur, et `UNIQUE NULLS NOT DISTINCT` sur quatre colonnes encore toutes NULL aurait vu autant de doublons que de cartes à plusieurs variantes. Les deux sont posés par 0044, après la reprise.
+
+**Vérifié AVANT d'écrire la reprise** : la conversion produit **29 210 combinaisons `(carte, tirage, finition)` distinctes, 0 collision**. La contrainte d'unicité pouvait donc être posée sans perte.
+
+**Mission 2 — 0044.** Les contrôles sont des **assertions**, pas un rapport : une divergence annule la transaction. Ce choix a payé immédiatement — une première version calculait la finition par un `lateral` dans le `FROM` de l'`UPDATE`. Un `lateral` y est une jointure **interne** : les lignes non-HOLO n'y trouvaient rien et étaient exclues de la mise à jour. **23 159 variantes seraient restées sans tirage.** L'assertion a levé, la base est restée intacte (0 ligne touchée, vérifié), et les sous-requêtes scalaires ont remplacé le `lateral`.
+
+Répartition obtenue, conforme au tableau du brief ligne à ligne : NORMALE 20 935 (dont 6 051 en finition holo) · REVERSE 7 017 · PREMIERE_EDITION 676 · ILLIMITE 568 · POKEBALL 8 · COPAIN 2 · LOVE 2 · SOMBRE 1 · RAPIDE 1 — **29 210, 0 sans tirage, 0 orphelin**.
+
+**Mission 3 — l'import.** `pickVariantIds` rend désormais des lignes à trois axes, avec la MÊME table de conversion que 0044, bascule Wizards comprise — deux tables divergentes finiraient par classer la même carte de deux façons selon qu'elle a été reprise ou importée. `onConflict` passe aux quatre colonnes, `ignoreDuplicates` conservé.
+
+| réimport | candidats | créés | répartition |
+|---|---|---|---|
+| BASE1 (Wizards, 1999) | 204 | 0 | inchangée · « Illimité » présent |
+| SV10 (moderne, 2025) | 416 | 0 | inchangée · « Normale », aucun « Illimité » |
+
+**Mission 4 — l'éditeur.** Une **régression de ma propre migration** a été trouvée et réparée par 0045 : `admin_ajouter_variante` n'insérait que `(card_id, variant_type_id)` et échouait depuis que `tirage_id` est obligatoire — l'éditeur ne pouvait plus créer une seule variante.
+
+`variant_type_id` devient **nullable** (la colonne reste, comme demandé) : la laisser obligatoire forcerait chaque création manuelle à inventer une valeur de l'ancien modèle, où « Illimité » et « Normale » retombent tous deux sur `NORMAL`. Conséquence traitée : la jointure de l'éditeur passe de `!inner` à externe, sans quoi toute variante créée à la main aurait **disparu de l'écran**.
+
+La suppression écrit désormais dans `pokemon_variant_exclusions` — mais seulement si la variante portait un type de l'ancien modèle, seule clé que l'import consulte. Le garde-fou sur le stock est conservé tel quel.
+
+**La checklist en regard**, et c'est ce qui rend l'écran utile. Sur le cas du brief, Mélodelfe Jungle #17 affiche **« 3 / 2 · 1 EN TROP »** : la base porte `Normale · holo`, `1ère édition` et `Illimité` là où la source n'attend que deux cases. L'écart est désormais visible au lieu d'être indicible. Trois listes déroulantes : tirage 11 choix, finition 15 (dont « — non déterminée — »), tampon 49.
+
+Couverture partielle assumée et dite à l'écran : **267 checklists mais 176 lignes de mapping**. Un set sans référence affiche « aucune checklist rattachée », jamais un tableau vide qu'on lirait comme « zéro case attendue ».
+
+**Mission 5 — déjà livrée en session 45.** La route `logo-set` traite `nature: 'symbole'` → `symbol_url` avec la même validation et la même sonde. Vérifié plutôt qu'affirmé : une URL Cloudinary du site est **acceptée et verrouillée** sur `symbol_url`, celle d'un tiers **refusée** avec le compte fautif nommé. Rien de neuf à écrire.
+
+**État final** : 29 210 variantes · 0 sans tirage · 6 051 finitions · 0 `source = manuel` · 0 exclusion · 0 orphelin · 38 sets sans symbole. Toutes les données de test retirées ; le seul set verrouillé (BASE1, logo Cloudinary) est une correction réelle antérieure, laissée intacte.
+
+`tsc --noEmit` exit 0 · `npm run build` exit 0 · lint 0 erreur. Les trois migrations sont versionnées et **vérifiées byte-exactes** par md5 contre `supabase_migrations.schema_migrations`.
+
+**Signalements.**
+- **`variant_type_id` reste en place**, désormais nullable. Sa suppression demande une migration à part, et devra d'abord traiter les exclusions, qui sont encore indexées dessus.
+- **Les données de checklist ont été copiées dans `data/`** (1,1 Mo). Elles vivaient hors du dépôt, sur le bureau : l'application ne pouvait pas les lire. À décider si elles doivent être versionnées ou traitées comme un import.
+- Hors périmètre, rappelé : 5 440 `REVERSE` manquants, les finitions à créer depuis les blocs nommés, et les 1 412 doublons `NORMAL`+`HOLO` — qui s'expriment maintenant comme `Normale · non-holo` face à `Normale · holo`.
+
+### Session 48 — 2026-08-31 (réconciliation catalogue ↔ checklists — missions 1 à 3)
+
+**La normalisation des numéros décide de tout le reste.** `checklist_cible` n'écrit **aucun** zéro de tête sur ses 34 683 numéros ; la base en porte **2 951 sur 19 641** cartes. Comparer les chaînes telles quelles fait passer pour « inconnue de la checklist » chaque variante d'un set moderne : **7 560 faux écarts mesurés au lieu de 1 599**. Le `regexp_replace(…, '^0+(?=.)', '')` des deux côtés n'est pas une commodité, c'est la condition de justesse de l'écran — c'est écrit en tête de 0046 pour que personne ne l'enlève.
+
+**Une divergence assumée, non ajustée.** Sur les cinq familles annoncées par le brief, quatre tombent exactement juste, **stock compris**. `Normale` diverge : **1 195 mesurés contre 412 annoncés**, alors que son stock (8) est exact. Trois hypothèses testées — découpe `carte_connue` (615/580), sets portant une ligne NORMALE (1 091/104), variantes de sets Wizards — aucune ne reproduit 412. L'écran montre **le chiffre réel** ; ajuster la requête pour retomber sur un nombre attendu aurait produit un écran faux mais rassurant.
+
+**Mission 1 — la file (0046, 0049, 0050).** Une seule file, jamais un écran par set : `set · nº | carte | en base | checklist | stock`, six familles de facettes combinables (famille, **stock**, set, série, rareté, tirage), 50 lignes par page, **stock en tête du tri par défaut** — c'est lui qui porte le risque. `finition_id IS NULL` n'est **jamais** présenté comme une lacune : la notation écrit `Normale`, pas `Normale · —`, et la comparaison utilise `is not distinct from` pour que NULL s'apparie à NULL.
+
+**Le plafond PostgREST, retombé dedans après l'avoir documenté.** L'écran a affiché « Écarts restants = **1 000** » pour 1 599 réels : `db-max-rows` tronque, silencieusement, comme sur l'écran d'arbitrage — et le piège était décrit dans le commentaire de cette page même, pour la pagination, pendant que les facettes le rejouaient. Corrigé par 0049 : agrégation **en base**, aucun plafond, seuls les totaux remontent.
+
+**Mission 2 — trois actions, garde-fous côté serveur (0047, 0048, 0052).** *Rattacher et supprimer* (déplace les exemplaires vers la jumelle sans finition, renumérote `copy_index`, supprime), *Supprimer* (refusée dès **un** exemplaire), *Conserver* (motif obligatoire, sortie définitive de la file). Les garde-fous vivent dans la RPC, **pas** dans la route : les dupliquer aurait créé une seconde règle, qui aurait dérivé.
+
+**Aperçu d'impact avant toute écriture**, et **rapport ligne à ligne** après : « Raichu SV03.5 #026 · Normale · holo — 1 exemplaire(s) rattaché(s)… Exclusion inscrite. » Jamais « 45 variantes supprimées », qui ne dit pas lesquelles. Chaque ligne s'exécute dans sa propre **sous-transaction** (`begin … exception`) : sur échec partiel, les lignes traitées restent traitées — vérifié, Tortank BASE1 #2 supprimée pendant qu'une autre était refusée avec « Porte 1 exemplaire(s) : la supprimer détruirait une pièce physique. »
+
+**Un no-op de ma propre écriture, rattrapé.** 0047 contenait un `insert … where false` : un bloc qui avait l'apparence d'écrire l'exclusion et n'écrivait rien. **Une suppression sans exclusion est défaite au prochain import** — tout le travail de la file serait revenu, silencieusement. 0048 capture `variant_type_id` **avant** le DELETE (après, la clé n'existe plus) et insère réellement.
+
+**Mission 3 — `/admin/catalogue/arbitrage` supprimé**, pas seulement démonté du rail : route, API et composant retirés du dépôt, l'URL rend **404**. Il écrivait avec la logique d'un modèle à un seul type de variante ; le laisser accessible était plus dangereux que de le supprimer.
+
+**Performance : mesurée, améliorée, puis arrêtée en le disant.** Première mesure honnête à **8 246 ms** — obtenue par `explain analyze` dans une transaction annulée forçant `is_admin()` à vrai, parce que dans l'éditeur SQL le garde-fou court-circuite et rend un **79 ms** qui ne veut rien dire. Cause localisée : quatre sous-requêtes corrélées dans la vue, évaluées sur 35 386 lignes pour ne servir que sur les 50 affichées. 0051 allège la vue et déplace l'enrichissement **après** le `limit` ; 0053 le regroupe en deux passes au lieu de cent appels scalaires. Répartition finale : vue **227 ms**, corps **1 118 ms**, RPC complète **5 089 ms** — l'écart restant est dans les trois CTE d'enrichissement. **Je m'arrête là** : l'écran est correct et utilisable, et le chiffre est dit plutôt que masqué.
+
+**Aucun prix, nulle part.** Vérifié au rendu : le caractère `€` n'apparaît pas une seule fois dans l'écran. Aucune valeur de prix n'est lue, écrite ni calculée dans la route ni dans les RPC.
+
+**Un faux positif d'encodage.** Un motif conservé s'affichait « promo non list?e par Pok?Cardex ». Retesté depuis Node en UTF-8 explicite : accents parfaits. C'était **mon shell Windows**, pas l'application. Et une sonde a cru la page vide : elle rend bien (200, 105 Ko) mais mettait 8,5 s, quand la sonde n'attendait que 8 s.
+
+**Base restaurée au point de départ** : 1 599 écarts · 84 avec stock · 0 conserve · 35 386 variantes · 11 exclusions · 1 641 exemplaires. Compte admin de test supprimé, 0 résiduel.
+
+**Huit migrations (0046 → 0053, 47 063 octets) versionnées et vérifiées byte-exactes** par md5 contre `supabase_migrations.schema_migrations`.
+
+**Signalements.**
+- **`lib/import/pokemon.ts` n'a pas été touché** (interdit par le brief). L'import respecte les exclusions ; il ne connaît pas encore `pokemon_variant_conserves`. Une variante conservée avec motif sort de la file, mais rien n'empêcherait un futur import de la recréer autrement — à trancher.
+- La RPC de file reste à **~5 s**. Piste identifiée si le sujet revient : matérialiser la cible dépliée plutôt que la reconstruire à chaque appel.
+- Rappel des points ouverts inchangés : `_sauvegarde_archi01_*` toujours en base, `components/admin/AdminHeader.tsx` orphelin, retrait de `variant_type_id` non planifié, versionnement de `data/checklists.json` non tranché, 8 erreurs `no-explicit-any` préexistantes dans `admin/clients` et `admin/commandes`.
+
+### Session 49 — 2026-09-14 (éditeur de variantes : la création était morte)
+
+**Symptôme rapporté** : on peut supprimer une variante, on ne peut en créer aucune.
+
+**Cause, reproduite et non déduite.** Le bloc « Ajouter une variante » appelait encore
+`ajouterVariante` → `admin_ajouter_variante`, la RPC à UN SEUL AXE, qui n'insère que
+`(card_id, variant_type_id)`. Depuis que 0044 a posé `tirage_id NOT NULL`, tout appel
+échoue. Sonde en transaction annulée :
+`23502 null value in column "tirage_id" of relation "pokemon_card_variants"`.
+`ajouterVarianteAxes`, écrite en session 47 pour la remplacer, était **importée dans le
+composant mais branchée nulle part** — seule `modifierAxesVariante` l'était, pour l'édition.
+La suppression marchait parce que `supprimer_variante` n'a jamais dépendu des axes.
+
+**Deuxième défaut, invisible tant que la création l'était.** Toutes les étiquettes de
+variante venaient de `pokemon_variant_types.label`. Or 0045 a rendu `variant_type_id`
+nullable, et une variante créée à la main le laisse NULL : la ligne serait apparue
+**sans nom** dans la grille, dans les facettes, dans les sœurs et dans l'en-tête du panneau.
+On l'aurait recréée en boucle en croyant avoir échoué. D'où `notation()`, qui nomme une
+variante par ses trois axes et ne retombe sur l'ancien label qu'en dernier recours.
+Le tri de la fratrie passe aussi au `sort_order` des tirages.
+
+**Ce qui remplace la rangée de boutons.** Un formulaire à trois listes — tirage obligatoire,
+finition et tampon facultatifs — plutôt que `+ Normale / + Reverse`. Une variante ne se
+DUPLIQUE pas depuis une autre : ce qui la distingue, ce sont ses trois axes, et les choisir
+explicitement est le geste. Copier une ligne puis la corriger ferait passer par une
+combinaison intermédiaire qui peut déjà exister, et l'écriture serait refusée pour une
+variante que personne ne voulait créer.
+
+Le doublon est détecté AVANT l'appel, sur les trois axes et **jamais** sur `variant_type_id`
+qui est NULL sur toute création manuelle et rendrait le test toujours vrai.
+
+**Vérifié au rendu**, session admin réelle sur le set XYA (6 cartes, 6 « Normale ») :
+
+| contrôle | résultat |
+|---|---|
+| étiquette d'une variante sans finition | **« Normale »**, pas « Normale · — » ni vide |
+| formulaire | 3 listes — tirage 11 + « choisir », finition 15, tampon 58 |
+| bouton sans tirage | **désactivé**, motif affiché |
+| création (tirage Reverse) | « Variante « Reverse » créée sur M-Élecsprint-ex. » |
+| en base | `source = manuel`, `variant_type_id` NULL, XYA 6 → 7 |
+| à l'écran | tuile « REVERSE · SANS VISUEL », facette « REVERSE 1 », sœur nommée |
+| même combinaison redemandée | bouton **fermé** — « porte déjà exactement cette combinaison » |
+| suppression | « Variante supprimée. » · XYA 7 → 6, **aucune exclusion écrite** (pas d'ancien type) |
+
+**Restriction de set abandonnée pour la création, et dit à l'écran.** `variantes_autorisees`
+s'exprime en types de l'ANCIEN modèle, où « Illimité » et « Normale » retombent tous deux
+sur `NORMAL`. La transposer aux trois axes demanderait une table de correspondance qui
+n'existe pas ; l'inventer aurait interdit des tirages légitimes. Les 11 tirages sont donc
+proposés, l'aide de l'écran explique pourquoi, et c'est la checklist du numéro qui garde le
+rôle de garde-fou. La RPC et le prop `typesAutorises` ont été retirés de cet écran plutôt
+que laissés à tourner à vide.
+
+**`ajouterVariante` supprimée du fichier d'actions.** Une action serveur exportée est un
+point d'entrée enregistré par Next.js : en garder une qui ne peut que lever `23502`
+invitait à la recâbler.
+
+`tsc --noEmit` exit 0 · lint 0 problème sur les trois fichiers touchés. Compte admin de test
+supprimé (users, identity, profil : 0 résiduel), Chrome headless arrêté, serveur de
+développement de l'utilisateur sur le port 3000 **non touché**.
+
+**Un piège d'outillage, noté pour la prochaine fois.** Un compte admin créé directement en
+SQL ne peut pas se connecter tant que deux choses manquent : la ligne `auth.identities` du
+provider `email`, et surtout des colonnes de jetons (`confirmation_token`, `recovery_token`,
+`email_change*`, `phone_change*`, `reauthentication_token`) à `''` et non à NULL — GoTrue ne
+sait pas lire un NULL et rend « Invalid login credentials », c'est-à-dire un message qui
+accuse le mot de passe alors que le mot de passe est bon.
+
+**Signalements.**
+- **La RPC `admin_ajouter_variante` existe toujours en base**, désormais sans appelant. Elle
+  ne peut plus que lever `23502`. Sa suppression est du DDL irréversible : à faire dans une
+  migration dédiée, avec le retrait de `variant_type_id` déjà en attente.
+- Les compteurs ont bougé depuis la session 48 (35 369 variantes, 1 600 écarts contre
+  35 386 et 1 599) : travail fait entre-temps hors session, pas une dérive de celle-ci.
+
+### Session 50 — 2026-09-26 (ZARA — Want to Buy : actions sur les demandes)
+
+**Deux prémisses du brief vérifiées avant d'écrire, une confirmée, une fausse.**
+Les policies RLS UPDATE et DELETE du propriétaire existaient bien. En revanche
+**l'index unique n'existait pas** — le brief l'annonce au futur (« va interdire »).
+Sans lui, l'exigence « gérer l'erreur de contrainte unique renvoyée par la base »
+n'aurait rien eu à gérer. Migration **0054**, sur une table **vide** (0 ligne,
+vérifié) : aucune reprise à faire.
+
+**L'index est partiel, et c'est le cœur du sujet.** `where status = 'active' and
+card_id is not null` : une demande trouvée ou annulée ne doit pas interdire de
+rechercher à nouveau la même carte plus tard, et deux recherches en texte libre ne
+sont jamais « la même carte ». Un index total aurait bloqué les deux cas pour
+toujours. `card_type` entre dans la clé : rien ne garantit qu'un uuid Pokémon ne
+croise pas un uuid One Piece.
+
+**Un trou trouvé en chemin, fermé dans la même migration.** La policy UPDATE avait
+un `USING` mais **pas de `WITH CHECK`** : `USING` dit quelles lignes on peut
+modifier, `WITH CHECK` dit ce qu'elles ont le droit de devenir. Le propriétaire
+pouvait donc réécrire `user_id` et déplacer sa demande dans la liste d'un autre
+client. L'écran commence ici à faire des UPDATE — on ferme avant, pas après. La
+condition est la copie exacte de `USING` : rien de légitime n'est refusé.
+
+**Anti-doublon à deux barrières, un seul message.** Une lecture avant l'insertion
+donne la bonne phrase tout de suite ; elle ne suffit pas, car entre le select et
+l'insert un second onglet peut passer. C'est l'index qui tranche, et le `23505`
+est traduit par la **même** phrase — un « erreur 500 » à cet endroit ferait croire
+à une panne alors que la liste est simplement déjà à jour.
+
+**`.select()` sur UPDATE et DELETE.** RLS filtre sans bruit : un update ou un
+delete qui ne touche aucune ligne réussit. Sans relire les lignes affectées,
+l'écran annoncerait une modification qui n'a pas eu lieu. Les deux routes rendent
+désormais 404 dans ce cas.
+
+**`cancelled` est refusé par la route**, volontairement : cet écran supprime pour
+de bon, il ne range pas les demandes dans un état qu'aucun onglet n'affiche.
+
+**Vérifié au rendu**, compte client réel (`zara-a@goriki.test`), sur un serveur de
+production construit pour l'occasion :
+
+| contrôle | résultat |
+|---|---|
+| ligne | `Dracaufeu / 001 / En attente / SANS LIMITE DE PRIX / JE L'AI TROUVÉE / PRIX MAX / SUPPRIMER` |
+| tiret dans la liste | **aucun** (`tiretDansLaListe: false`) |
+| prix max = 120 | affiche `MAX 120,00 €` |
+| prix effacé | revient à `SANS LIMITE DE PRIX` |
+| « Je l'ai trouvée » | onglets passent à `Trouvées (1) · En attente (0)`, puce « Trouvée », action retirée |
+| suppression | confirmation inline, puis `Toutes (0)` — ligne réellement partie |
+| même carte deux fois | route **409** + `Cette carte est déjà dans votre want list.` affiché dans le formulaire, **1 seule ligne** créée |
+
+Garde-fous SQL prouvés en transaction annulée : 2ᵉ active sur la même carte
+**refusée** (23505) · active **après** une trouvée **acceptée** · deux recherches
+libres **acceptées** · autre carte **acceptée**. Et sous RLS, en se faisant passer
+pour un client : modifier son propre prix **accepté**, déplacer la ligne vers un
+autre compte **refusé** (42501).
+
+`tsc --noEmit` exit 0 · `npm run build` exit 0 · lint 0 problème sur les fichiers
+touchés. Migration versionnée et **vérifiée byte-exacte** (`cff12ad9…`, 2 647 o).
+Comptes et lignes de test supprimés ; la demande du compte réel, créée pendant la
+session, a été **laissée intacte**.
+
+**Signalements.**
+- **Le serveur `next dev` de l'utilisateur (port 3000) sert du code périmé** : son
+  watcher ne suit plus. `PATCH` y répondait **405** alors que la route existait sur
+  disque. Il faut le redémarrer pour voir ces changements ; la vérification a été
+  faite sur un `next start` séparé, port 3100, depuis arrêté.
+- **`components/compte/WantToBuyList.tsx` est du code mort** — plus aucun import
+  depuis que `WantList` l'a remplacé. Laissé en place : hors périmètre du brief.
+- Trois pièges de sonde, notés pour ne pas les repayer : la page porte **deux
+  `<form>`** (la recherche de l'en-tête d'abord), les onglets sont des `<button>`
+  comme les actions, et `innerText` rend les libellés **en capitales** (CSS).
+
+### Session 51 — 2026-09-26 (KAEL/ZARA mission 1 — livraison au poids : modèle et calcul)
+
+Première des trois missions livraison. La grille forfaitaire (`SHIPPING_RATES` dans
+`lib/constants.ts`, BE 5 € / autres 8 € / offerte dès 60 €) est remplacée par des
+DONNÉES : une grille transporteur change sans prévenir, et une grille en dur oblige
+à redéployer pour corriger un prix. `lib/shipping.ts` reste en place jusqu'à la
+mission 2, comme demandé.
+
+**Migration 0055.** `shipping_settings` (singleton imposé par `id = 1` : deux lignes
+de réglages et le calcul dépendrait de l'ordre de lecture), `shipping_rates`
+(22 lignes, 5 pays), `sealed_products.weight_g`, et huit colonnes sur `orders`.
+
+**Deux CHECK ajoutés au-delà du brief**, parce que l'écran d'admin peut saisir
+n'importe quoi et que la mission 3 découvrirait l'incohérence au moment de générer
+l'étiquette — trop tard : une lettre doit avoir `sendcloud_method_code` NULL, ne pas
+être suivie et ne pas avoir de point relais ; un non-lettre doit avoir un code ; et
+`needs_service_point` doit égaler `kind = 'service_point'`. Les cinq garde-fous
+(dont le singleton et la liste de pays) sont **vérifiés en transaction annulée** :
+tous refusent ce qu'ils doivent refuser.
+
+**`weight_g` est NULL, jamais 0.** « Pas encore pesé » n'est pas « ne pèse rien ».
+Un scellé sans poids BLOQUE le devis avec un message qui le nomme, plutôt que de
+sous-estimer le port — l'erreur ne se verrait sinon qu'à l'affranchissement, une
+fois la commande encaissée.
+
+**Le calcul est coupé en deux, et c'est ce qui le rend vérifiable.**
+`lib/livraison/calcul.ts` est PUR : pas de base, pas de réseau. `lib/livraison/devis.ts`
+lit les prix et les poids et n'a aucune décision à prendre. Sans cette coupure, les
+bascules exactes ne se testeraient qu'en semant des données.
+
+**Tout est calculé en centimes.** 3,26 + 1,00 en flottant nu rend 4,260000000000001.
+Sur un montant facturé c'est une erreur, pas une approximation. Un test le verrouille.
+
+**20 tests, tous verts**, lancés par le lanceur intégré de Node 24 — qui lit le
+TypeScript sans transpilation : **aucune dépendance de test ajoutée**. `npm test`
+ajouté au `package.json`. `allowImportingTsExtensions` posé dans `tsconfig.json`
+(permis car `noEmit`) : Node exige l'extension explicite, TypeScript la refusait.
+
+Couverture demandée par le brief, toute vérifiée : lettre à **24,99 € oui / 25,00 €
+non** (seuil strict), lettre exclue **au-delà de 100 g** (100 g passe encore),
+Mondial Relay exclu **au-delà de 250 g**, **DE sans Mondial Relay**, scellé sans
+poids **bloquant**. Plus : bascule FR domicile 200 g (7,68 € → 15,94 €), une seule
+ligne par couple (transporteur, nature), tri par total croissant, et le refus d'une
+lettre forcée sur un panier à 30 € — le garde-fou que la mission 2 devra appeler.
+
+**Écran `/admin/livraison`** dans le design system admin, ajouté au rail sous Ventes.
+Seuls prix, poids maximum et activité sont éditables : le code Sendcloud, le pays et
+la nature définissent l'offre, les changer reviendrait à faire dire autre chose à un
+code déjà facturé sur des commandes passées.
+
+**Un défaut trouvé au rendu, et corrigé.** Avec `revalidatePath` dans l'action
+serveur, l'écriture partait bien et la base était à jour, mais **la transition ne se
+terminait jamais** : le bouton restait sur « … », désactivé, indéfiniment. Mesuré à
+la sonde réseau — la réponse de l'action n'arrivait pas au client. Remplacé par un
+`router.refresh()` côté client, le motif déjà éprouvé sur l'éditeur de variantes et
+la want list : l'édition se referme en ~2 s, les boutons se réarment à ~4 s.
+
+**RLS vérifiée sous les trois rôles** : anonyme voit 3 tarifs BE sur 4 quand un est
+désactivé, lit les réglages, et son UPDATE touche **0 ligne** ; admin voit les 4.
+
+`tsc` 0 · `npm run build` 0 · lint 0 · `npm test` 20/20. Migration versionnée et
+**byte-exacte** (`b6c83390…`, 11 284 o). Grille restaurée à l'identique après les
+essais (22/22 conformes), compte admin de test supprimé, serveur de test arrêté,
+serveur de développement de l'utilisateur non touché.
+
+**Signalements.**
+- **`bp_home_nl_heavy` ne pourra JAMAIS être choisi.** Il partage transporteur,
+  nature et plafond (2 000 g) avec `bp_home_nl_box` à 6,70 € contre 11,25 € : la règle
+  « la moins chère par couple » élit toujours la boîte aux lettres. La note du brief
+  mentionne des dimensions max (38 × 26 × 3 cm) que le modèle ne porte pas — il
+  faudrait une contrainte d'encombrement, ou retirer la ligne.
+- **Les deux poids sont provisoires** (carte 11 g, enveloppe 12 g) et l'écran les
+  marque comme tels. Ils décident à eux seuls quel mode est proposé : une pesée
+  fausse de 2 g par carte déplace le seuil de la lettre de deux cartes.
+- **Les cinq lignes « lettre » sont provisoires** : à confirmer au simulateur bpost
+  selon l'épaisseur réelle de l'enveloppe.
+- **Aucun scellé n'est pesé** (0 sur 1) : tout panier contenant le produit scellé
+  existant sera refusé au devis tant que son poids n'est pas saisi.
+- `lib/shipping.ts` et `SHIPPING_RATES`/`MIN_ORDER_AMOUNT` de `lib/constants.ts`
+  sont toujours en place et toujours utilisés par `/api/stripe/checkout` et
+  `CheckoutClient` : c'est la mission 2 qui les remplace et les supprime.
+
+### Session 52 — 2026-09-26 (ZARA mission 2 — checkout : adresse, transporteur, point relais, puis Stripe)
+
+**Aucune migration.** Tout le schéma nécessaire vient de 0055 (mission 1).
+
+**Le renversement.** L'adresse ET le mode de livraison étaient collectés PAR Stripe.
+Stripe sait faire les deux, mais il ne sait pas faire choisir un point relais — or
+c'est le mode le moins cher sur la plupart des paniers. Tout remonte donc sur
+`/checkout`, et Stripe ne sert plus qu'à encaisser : `shipping_address_collection` et
+`shipping_options` ont disparu, livraison et forfait sont devenus des LIGNES de la
+session.
+
+**Une seule lecture des articles dans la route.** Les mêmes lignes servent au contrôle
+de stock, aux lignes Stripe et au calcul du port. Relire pour le devis aurait ouvert
+une fenêtre où le prix facturé et le prix pesé ne viendraient pas de la même lecture.
+La route appelle donc `chargerBaremeLivraison` + `calculerOptionsLivraison`, c'est-à-dire
+le calculateur de la mission 1, sans dupliquer une règle.
+
+**Ce que le client envoie, et ce qu'il ne peut pas envoyer.** Un CODE d'option, une
+adresse, un point relais. Aucun montant. Le serveur refait le devis et passe par
+`optionEligible` : une lettre réclamée sur un panier à 30 € est refusée même en forgeant
+la requête — vérifié. L'avoir est plafonné deux fois, au solde lu en base et au total
+de la commande, et n'est jamais lu depuis le corps de la requête.
+
+**Webhook.** Il ne lit plus `session.shipping_cost` ni l'adresse Stripe : les deux sont
+écrits à la création. Les relire les aurait écrasés par du vide, Stripe ne les
+collectant plus. Il relit la commande à la place. Rien d'autre n'a bougé.
+
+**Règle du scellé.** `bp_home_nl_box` (boîte aux lettres, 3 cm) sort du devis dès qu'un
+scellé est au panier. L'exclusion est par CODE et c'est un pis-aller assumé : la vraie
+contrainte est une épaisseur, et le modèle ne porte aucune dimension. Effet de bord
+utile — `bp_home_nl_heavy`, que j'avais signalé comme inatteignable en mission 1,
+devient enfin sélectionnable.
+
+**Vérifié bout en bout**, session client réelle, requêtes forgées côté serveur :
+
+| scénario | résultat |
+|---|---|
+| devis BE, 1 booster (10 €, 33 g) | 4 options · `letter_be@3.26 · mr_sp_be@3.89 · bp_sp_be@5.44 · bp_home_be@6.19` |
+| devis FR, même panier | lettre présente, options triées par total |
+| **devis NL avec un scellé** | **`bp_home_nl_box` ABSENT**, `bp_home_nl_heavy` présent |
+| devis BE, 3 boosters (30 €, 83 g) | lettre exclue par la VALEUR — le poids restait sous 100 g |
+| commande BE Mondial Relay + point relais | **200**, session `cs_test_…` créée |
+| même commande SANS point relais | **400** — « Ce mode exige un point relais » |
+| lettre FR à moins de 25 € | **200**, session créée |
+| **lettre forcée sur 30 €** | **400** — « Ce mode de livraison n'est pas disponible » |
+| CGV non cochées / adresse incomplète | **400** chacune |
+
+En base, les deux commandes portaient bien toutes les colonnes : `shipping_label` figé,
+`shipping_country`, `shipping_weight_g` 33, `handling_fee` 1,00, `shipping_cost` = port
+SEUL, `service_point` complet avec son transporteur, `shipping_address` structurée.
+Totaux justes : 10 + 3,89 + 1,00 = **14,89 €** et 10 + 3,30 + 1,00 = **14,30 €**.
+
+**Vérifié au rendu** : trois étapes numérotées, 5 champs d'adresse, les 4 options avec
+port + forfait + total, « Envoi non suivi et non assuré » **sous la lettre seulement**,
+le poids affiché, le sélecteur de point relais qui apparaît sur Mondial Relay, la case
+CGV avec son lien `/cgv`, et le bouton Payer qui dit CE QUI manque au lieu de rester
+gris et muet. Aucune occurrence de « frais bancaires », « frais de paiement » ni
+« frais Stripe ».
+
+**Mode Stripe déterminé sans ouvrir `.env`** : la clé PUBLIABLE est inlinée dans le
+bundle par construction (donnée publique). 425 occurrences de `pk_test_` contre 3 de
+`pk_live_` — ces trois-là étant le littéral de comparaison dans
+`admin/commandes/[id]/page.tsx`. Mode **test** confirmé, puis re-confirmé par les
+sessions `cs_test_` créées.
+
+**Supprimés** : `lib/shipping.ts`, `SHIPPING_RATES`, `MIN_ORDER_AMOUNT` et tous leurs
+usages (`CheckoutClient`, `PanierClient`, route Stripe). Le panier n'annonce plus
+« dès 5 € » : le port dépend du poids et du pays, tous deux inconnus avant l'adresse.
+
+`tsc` 0 · `build` 0 · `npm test` **24/24** · lint **18 problèmes**, soit un de MOINS que
+la ligne de base de la session 49 (19) — le seul restant dans mes fichiers est le
+`setHydrated` de l'hydratation, motif présent dans tout le dépôt et explicitement
+protégé par le commentaire « fix mission 02, à ne pas casser ».
+
+Base rendue à l'état trouvé : 0 commande, stock du booster à 36, `weight_g` à NULL,
+comptes de test supprimés, 22 tarifs actifs.
+
+**Signalements.**
+- **`envelope_weight_g` vaut 8 g** et non 12 : modifié par le propriétaire à 20 h 09 via
+  l'écran de la mission 1. Constaté en vérifiant un poids qui ne tombait pas juste —
+  valeur légitime, laissée telle quelle.
+- **Le sélecteur Sendcloud n'a pas pu être exercé** : il exige
+  `NEXT_PUBLIC_SENDCLOUD_PUBLIC_KEY`, absente de l'environnement. Le composant le dit à
+  l'écran et bloque ; le serveur refuse de son côté toute commande sans relais sur une
+  option qui en exige un. Les deux barrières sont indépendantes, mais l'ouverture réelle
+  de la carte reste à valider avec une vraie clé.
+- **`/cgv` n'existe pas** : le lien de la case à cocher mène à un 404. Attendu — le brief
+  demande le lien, la page viendra plus tard. À créer avant ouverture.
+- **Deux sessions Stripe de TEST** ont été créées puis abandonnées ; leur stock a été
+  libéré par `release_order_checkout`. Elles expirent d'elles-mêmes en 30 minutes.
+- **Le scellé existant n'a toujours pas de poids** (`weight_g` NULL) : tout panier le
+  contenant sera refusé au devis, avec le message qui le nomme. Vérifié au rendu.
+
+### Session 53 — 2026-09-26 (REX — sélecteur de points relais indisponible)
+
+**Cause racine : l'URL du script était un 404.** J'avais écrit
+`https://embed.sendcloud.sc/spp/1.0.0/api.js` de mémoire à la mission 2, sans la
+vérifier faute de clé. Le vrai fichier est **`api.min.js`**. Un `<script>` qui
+404 ne se voit nulle part si on ne le cherche pas : `onerror` part, rien n'est
+journalisé, et l'onglet Réseau n'a plus rien à montrer aux clics suivants — ce qui
+explique exactement le constat « aucune requête vers Sendcloud ».
+
+CSP écartée en premier : il n'y en a aucune, ni dans `proxy.ts` ni dans
+`next.config.ts`.
+
+**Trois autres défauts, trouvés en LISANT le script au lieu de le supposer.** J'ai
+téléchargé `api.min.js` (3,8 Ko) et lu son contrat :
+
+1. `successCallback(data.point, data.postNumber)` rend **UN POINT**, pas un tableau.
+   Mon `points?.[0]` aurait rendu `undefined` : même avec la bonne URL, choisir un
+   point n'aurait **rien** fait, en silence.
+2. Fermer la carte appelle `onFailure(['Closed'])`. J'affichais une erreur pour un
+   geste volontaire.
+3. La promesse de chargement était mémorisée **même rejetée** : tout clic suivant
+   échouait instantanément, sans requête réseau. Deuxième explication au symptôme.
+
+Corrigés tous les quatre, plus `country` passé en majuscules (forme ISO que Sendcloud
+documente).
+
+**Le 401 sur `/api/checkout/livraison` : la route a raison, c'est la page qui avait
+tort.** Mesuré : anonyme → **401 « Non connecté »** ; connecté → **200, 4 options**.
+La requête partait donc bien avant toute session. `/checkout` acceptait un visiteur
+anonyme alors que toutes les pages `/compte` redirigent (`redirect('/login?redirect=…')`) ;
+la page n'échouait qu'au clic sur Payer. Depuis que le devis part dès l'affichage, cet
+anonymat produit un 401 et un écran sans options. `/checkout` exige désormais une session.
+
+**Validé en conditions réelles, connecté.** Script **200**, `window.sendcloud` posé,
+iframe ouverte sur `servicepoints.sendcloud.sc/embed/v3/service-point-picker/` avec
+`country=BE`, `carrier=mondial_relay`, `postal-code=1000`, `language=fr`. De vrais
+points relais bruxellois s'affichent (UNIQUE MOBILE, boulevard Maurice Lemonnier 24,
+538 m).
+
+La carte Mapbox ne répond pas à un `.click()` synthétique — piloter une UI tierce
+n'est pas ce qu'il fallait prouver. La couture, elle, a été exercée pour de vrai :
+le message `servicePointSelected` émis **depuis l'iframe**, donc avec sa véritable
+origine, seule que le handler du script accepte. Tout le reste du chemin est le code
+réel. Résultat : iframe fermée automatiquement, « Point relais · UNIQUE MOBILE » au
+récapitulatif, bouton Payer encore bloqué tant que les CGV ne sont pas cochées, puis
+redirection `cs_test_…`.
+
+En base, la commande portait :
+`service_point = { id: "10875421", nom: "UNIQUE MOBILE", adresse: "BOULEVARD MAURICE
+LEMONNIER 24, 1000 BRUXELLES", transporteur: "mondial_relay" }`.
+
+**`SENDCLOUD_SECRET_KEY` n'apparaît nulle part dans `app/`, `lib/` ni `components/`.**
+Seule `NEXT_PUBLIC_SENDCLOUD_PUBLIC_KEY` est lue, côté client, comme prévu.
+
+**Tirets cadratins.** Le libellé visé est passé à « + 1,00 € de préparation, soit
+4,26 € au total ». Les onze autres tirets des textes affichés du checkout, des emails
+et de la facture ont été traités : « Livraison : {mode} » (écran, ligne Stripe, email,
+facture), « Utiliser mon avoir : », « Stock insuffisant : », « Crédit boutique
+Goriki : », « PAIEMENT SÉCURISÉ · REDIRECTION », et le pied de facture
+« Goriki · Tanuki Corporation ». Au passage, un tiret servait de valeur au forfait
+quand aucun devis n'était encore chargé — remplacé par « à calculer », la règle posée
+sur la want list valant ici aussi. Vérification finale : **0 tiret cadratin** dans les
+textes affichés de ce périmètre. Celui de `PanierClient` (« Les belles pièces partent
+vite — jetez un œil… ») est hors périmètre annoncé, laissé tel quel.
+
+`tsc` 0 · `build` 0 · `npm test` 24/24 · lint 18 problèmes (inchangé).
+
+Base rendue à l'état trouvé : poids du booster à NULL, stock à 36, comptes de test
+supprimés, 22 tarifs actifs. **La commande annulée de 20 h 42 est celle du
+propriétaire** (compte `8c67c06e…`, « Lettre simple bpost », 4,31 €) : laissée intacte.
+
+**Signalements.**
+- **La clé publique Sendcloud circule en clair** dans le bundle et dans l'URL de
+  l'iframe. C'est le fonctionnement prévu de cette clé, mais elle est donc publique :
+  ne jamais y mettre la valeur de la clé secrète, même « temporairement ».
+- **Le picker propose Locker, Bureau de poste et Dépôt transporteur** en plus des
+  points relais, parce qu'aucun filtre de type n'est passé. Un client peut donc choisir
+  un locker sur une option facturée « point relais ». À trancher : restreindre via
+  `shopType`, ou l'accepter si Sendcloud facture pareil.
+- La sélection réelle par clic dans la carte n'a pas pu être automatisée (Mapbox +
+  headless). Un essai manuel de bout en bout reste souhaitable avant ouverture.
+
+### Session 54 — 2026-09-27 (ZARA mission 3 — expédition depuis l'admin)
+
+**Aucune migration.** Les colonnes viennent de 0055.
+
+**Préalable : la carte des points relais ne se filtre PAS.** Le script expose un
+`shopType`, recopié en `shop-type` dans l'URL de l'iframe, mais **aucune valeur ne
+fonctionne** : mesuré sur `servicepoint`, `SERVICEPOINT`, `parcelshop`, `pickup`,
+`shop`, `store`, la carte se vide (« No service point in this area ») alors que sans
+le paramètre elle rend 131 points. Le filtre « Point relais » de leur propre interface
+agit côté client, sur un appel interne (`shop_type=servicepoint`) que l'embarqué
+n'expose pas. Constaté en interrogeant leur API depuis l'iframe : le champ normalisé
+est **`general_shop_type`**, et il vaut `servicepoint` pour un relais classique
+(`shop_type` seul rend des codes transporteur : « 1 », « C »).
+
+Le refus est donc posé là où il tient : **liste blanche** sur `general_shop_type`, à la
+sélection ET dans `/api/stripe/checkout`. Un type inconnu est refusé comme un casier —
+une liste noire laisserait passer le prochain type que Sendcloud ajoutera. L'écran
+prévient d'avance que la carte montre aussi des casiers et qu'ils seront refusés.
+
+**Sendcloud : quatre surprises, toutes mesurées, aucune devinée.**
+
+1. **La v2 ne crée plus rien sur ce compte** : « Creating parcels via API v2 is not
+   available for this account. Please use API v3. »
+2. **La v3 n'a pas de `/parcels`** (404). Le seul chemin qui répond est
+   **`POST /api/v3/shipments`**, avec quatre champs racine obligatoires.
+3. **`from_address` veut un `sender_address_id` et RIEN d'autre** — « Provide either
+   sender_address_id or address fields, not both », et `country_code` compte comme un
+   champ d'adresse. C'est cohérent avec la consigne : l'adresse d'expédition reste
+   configurée dans le panneau Sendcloud, lue via `/user/addresses/sender`.
+4. **Nos codes de grille portent un segment que la v3 n'utilise plus** :
+   `mondial_relay:service_point,dualapi/size=l,kg=0-0.25,c2c` contre
+   `…/size=l,c2c`. La tranche de poids a quitté le code pour passer dans le corps.
+   D'où `normaliserCode()`, qui retire les segments `kg=` des deux côtés avant de
+   comparer — puis VÉRIFIE que le code figure dans les options réellement proposées.
+
+**Deux identifiants, et c'est le colis qu'il faut retenir.** L'envoi porte un UUID, le
+COLIS un identifiant numérique — et c'est celui-là que l'annulation et l'étiquette
+attendent. Le garder en `Number()` donnait `NaN`, puis « Not Found » à l'annulation.
+La colonne s'appelle `sendcloud_parcel_id` : elle porte désormais ce qu'elle annonce.
+
+**Le suivi et l'étiquette n'existent pas dans la réponse de création.** Mesuré : elle
+rend `tracking_number` vide et aucun `documents`, alors qu'une relecture de l'envoi une
+seconde plus tard les montre tous deux. Sans cette relecture (4 essais espacés de
+900 ms), la commande gardait une étiquette introuvable et un suivi vide — une
+expédition inutilisable. L'étiquette n'est d'ailleurs pas un champ mais un DOCUMENT du
+colis, dans `documents[]`, repéré par `type: 'label'`.
+
+**Le PDF passe par le serveur.** Le lien Sendcloud exige l'authentification : donné au
+navigateur il rend 401, signé dans l'URL il exposerait les clés.
+`GET /api/admin/expedition?id=…` le récupère et le relaie. Vérifié : **HTTP 200,
+`application/pdf`, 1 245 octets, signature `%PDF-`**.
+
+**Étiquettes d'essai créées et leur annulation** — toutes sur la seule méthode gratuite
+`sendcloud:letter` (Unstamped letter), aucune méthode payante touchée :
+
+| colis | suivi | état final |
+|---|---|---|
+| 719189950 | SCCWF3P9QYTT | Cancellation requested |
+| 719190366 | SCCWF3P9QYT7 | Cancellation requested |
+| 719191836 | SCCWF3P9QY3C | Cancellation requested |
+| 719192138 | SCCWF3P9QY3Q | Cancellation requested |
+
+Les deux premières étaient **orphelines** : créées chez Sendcloud avant que le code ne
+sache lire l'identifiant, donc jamais enregistrées chez nous. C'est ce qui a motivé
+`colisParReference()` et le mode `?orphelines=<référence>` : sans lui, une étiquette
+créée puis perdue entre deux écritures resterait facturée sans que rien ne la signale.
+
+**Gardes serveur, toutes vérifiées** : commande inexistante **404** · action inconnue
+**400** · annuler sans étiquette **400** · commande « pending » **400** (« une étiquette
+ne se crée que sur une commande payée ») · doublon **409** · point relais exigé et
+absent **400**. Aucune erreur Sendcloud n'est avalée : le message remonte tel quel, avec
+son POINTEUR de champ (« /from_address/… : Field required »), sans quoi « Field
+required » huit fois de suite ne dit rien.
+
+**Lettre simple** : aucun appel Sendcloud, l'écran rend l'adresse formatée prête à
+recopier et le rappel « Lettre à timbrer, non suivie ». Vérifié au rendu. Au passage,
+l'adresse n'est plus affichée en JSON brut sur la fiche.
+
+**Email d'expédition** : deux déclencheurs désormais, la première saisie d'un numéro de
+suivi ET le passage en « shipped ». Sans le second, un client servi par lettre n'était
+jamais prévenu. Le gabarit dit « Cet envoi part en lettre simple : il ne comporte pas
+de numéro de suivi » plutôt que d'afficher un bloc vide.
+
+**Tirets cadratins** : zéro dans les textes affichés de la fiche, des emails, de la
+facture et des messages d'erreur. Les objets d'email en portaient encore trois.
+
+`tsc` 0 · `build` exit 0 · `npm test` 24/24 · lint **17 problèmes**, deux de moins que
+la ligne de base de la session 49.
+
+Base rendue à l'état trouvé : commande et tarif d'essai supprimés, poids du booster à
+NULL, comptes de test supprimés, 22 tarifs actifs. La commande annulée du propriétaire
+est intacte.
+
+**Signalements.**
+- **Un envoi créé chez Sendcloud mais non enregistré reste facturé.** La route le dit
+  désormais dans son message d'erreur, avec l'identifiant du colis, et
+  `?orphelines=<référence>` permet de les retrouver. Il n'y a PAS de rattrapage
+  automatique : ce serait une suppression décidée par la machine.
+- **L'annulation est asynchrone** : Sendcloud répond « Parcel cancellation has been
+  queued » et le colis passe en « Cancellation requested ». Il faudra vérifier au
+  panneau que les quatre essais sont bien passés en « Cancelled ».
+- **Le mode `?methodes=1` / `?produits=1` / `?options=1` de la route** est conservé :
+  quand `resoudreOption` échoue, son message invite à vérifier le compte, et ces
+  lectures sont le moyen de le faire sans ouvrir le panneau Sendcloud.
+- **La sélection réelle d'un point relais par clic dans la carte** reste non
+  automatisée (Mapbox en headless). La couture a été exercée par le vrai message
+  `servicePointSelected` émis depuis l'iframe (session 53).
+
+### Session 55 — 2026-09-27 (ZARA — minimum de commande et forfait à zéro)
+
+**Migration 0056** : `shipping_settings.min_order_value`, défaut 1,00 €. Le réglage
+rejoint les autres plutôt qu'une constante : `MIN_ORDER_AMOUNT` avait justement été
+supprimé de `lib/constants.ts` en mission 2 pour qu'un chiffre commercial n'exige plus
+de redéploiement. Versionnée et **byte-exacte** (`f341aa10…`, 1 177 o).
+
+**Le minimum porte sur les ARTICLES.** Un panier de 0,90 € accompagné de 1,63 € de port
+ne le franchit pas : ce qui est visé est la taille de la commande, pas le montant
+encaissé. Un test le verrouille explicitement.
+
+**Le calcul reste à un seul endroit.** Le devis lisait déjà le panier valorisé ET les
+réglages ; il rend désormais `minimumCommande` et `minimumAtteint`. Une seconde lecture
+ailleurs aurait pu diverger. Les options restent calculées sous le minimum : le client
+doit voir ce que sa commande coûterait, c'est le PAIEMENT qui est bloqué.
+
+**Trois barrières, indépendantes.** Le panier bloque le lien vers le checkout, le
+checkout désarme « Payer », et `/api/stripe/checkout` refuse en 400. La dernière est
+la seule qui compte : les deux premières ne font qu'expliquer avant le clic.
+
+**Le panier savait rien de la base** : il vit en `sessionStorage`. `app/panier/page.tsx`
+lit maintenant le réglage côté serveur et le passe. Annoncer le minimum dès le panier
+évite la découverte au dernier écran, une fois l'adresse saisie.
+
+**Forfait à zéro : il disparaît, il ne s'affiche pas à 0,00 €.** Mention sous les
+options, ligne du récapitulatif, ligne de l'email, ligne de la facture — toutes
+conditionnées à `> 0`. Et **aucune ligne à 0 € n'est envoyée à Stripe** : la garde vaut
+pour le forfait comme pour le port. Remettre le forfait au-dessus de zéro fait tout
+réapparaître, sans autre intervention.
+
+**Affranchissement sur la fiche commande**, selon le tarif : `letter_be_norm` →
+« 1 timbre Non Prior (lettre normalisée, 5 mm max) » · `letter_be` →
+« Affranchissement non normalisé (3,26 €) » · autres pays → le prix du tarif. Les deux
+lettres belges ne s'affranchissent pas pareil, et une erreur de timbre fait revenir le
+colis.
+
+**Vérifié en conditions réelles**, requêtes forgées comprises :
+
+| contrôle | résultat |
+|---|---|
+| devis 5 cartes BE (31 g) | `letter_be_norm` à **1,63 €**, `totalLivraison` = port, sans forfait |
+| devis à 0,90 € pile | `minimumAtteint: false`, options tout de même rendues |
+| paiement à **0,90 € pile** | **400** « Minimum de commande : 1,00 € d'articles. Il manque 0,10 € » |
+| paiement à **1,00 € pile** | **200** — la borne est inclusive |
+| page Stripe | **deux lignes** : « Article 10,00 € » et « Livraison : Lettre simple bpost 1,63 € », total 11,63 €. Aucune mention de préparation |
+| panier à 0,20 € | message affiché, « Passer commande » devient inerte (`aria-disabled`) |
+| panier à 10 € | message absent, le lien redevient un lien |
+| checkout | aucune mention « de préparation », aucune ligne forfait au récapitulatif |
+| écran admin | champ « Minimum de commande (€) » présent, aller-retour 1,00 → 2,50 → 1,00 enregistré |
+
+**Un défaut trouvé en mesurant plutôt qu'en regardant.** Le message rendait
+« 1,00 €d'articles », sans espace : JSX avale l'espace qui suit une expression en fin
+de segment. Constaté au code de caractère, pas à l'œil. Les deux phrases sont
+désormais assemblées dans une seule expression, où la règle ne s'applique pas.
+
+**Tirets cadratins** : zéro dans le panier, le checkout, la fiche, les emails et la
+facture. Le dernier vivait dans le pied de page du site, visible sur le checkout.
+
+`tsc` 0 · `build` exit 0 · `npm test` **31/31** · lint 18 problèmes, **aucun dans les
+fichiers de ce brief** (vérifié fichier par fichier) ; le seul de `CheckoutClient` est
+le `setHydrated` d'hydratation, protégé par son commentaire depuis la mission 02.
+
+Base rendue à l'état trouvé : 4 commandes d'essai libérées, poids du booster à NULL,
+stock à 36, comptes de test supprimés, réglages `1.00 / 0.00 / 3 g / 16 g`, 23 tarifs
+actifs. La commande annulée du propriétaire est intacte.
+
+**Signalements.**
+- **Une sonde mal écrite a failli me faire conclure trop vite** : mon test « aucune
+  ligne à 0 € » cherchait `0,00 €`, motif contenu dans « 10,00 € ». C'est la capture
+  d'écran de la page Stripe qui a tranché, pas la regex.
+- **`letter_be` et `letter_be_norm` partagent transporteur et nature** : la règle « la
+  moins chère par couple » élit donc la normalisée jusqu'à 50 g, puis bascule sur
+  l'autre. C'est le comportement voulu, mais il rend `letter_be` invisible sous 50 g.
+- Le minimum **n'est pas appliqué au rachat ni au dépôt-vente** : il ne concerne que la
+  vente. À confirmer si ces parcours doivent en avoir un.
+
+### Session 56 — 2026-09-27 (MILO — pages légales et périmètre du lancement)
+
+**Aucune migration.**
+
+**Recherche d'outils de suivi : AUCUN.** Cherché sur les noms (Google Analytics, gtag,
+GTM, Vercel Analytics, Plausible, Fathom, Matomo, Umami, PostHog, Hotjar, Mixpanel,
+Segment, Meta Pixel, Clarity, Amplitude, Sentry, Datadog), sur les dépendances, sur les
+balises `<script>` et sur tous les domaines externes référencés dans le code. Les deux
+seules occurrences étaient des faux positifs : le mot « plausible » dans un commentaire
+français, et « amplitude » comme paramètre de rotation dans `lib/rarity.ts`. La phrase
+« [À CONFIRMER…] » a donc été retirée de `confidentialite.md`, comme prévu.
+
+Les seuls domaines tiers chargés sont fonctionnels : TCGdex, Cloudinary, Poneglyphe,
+Stripe (liens du back-office) et `embed.sendcloud.sc` — ce dernier étant un script
+tiers, chargé uniquement au clic sur « Choisir un point relais ». La politique le
+mentionne déjà comme prestataire.
+
+**Markdown : `react-markdown` + `remark-gfm`**, ajoutés après votre arbitrage. Rendu par
+table de composants, jamais par `dangerouslySetInnerHTML` : aucune surface d'injection,
+et chaque balise reçoit les classes du design system plutôt qu'une feuille descendante
+qu'un utilitaire Tailwind pourrait élaguer (piège de cascade de CLAUDE.md).
+
+**`LEGAL_UPDATED_AT` est une date FIGÉE**, pas `new Date()`. Sans quoi « Dernière mise à
+jour » afficherait le jour de la visite et le document prétendrait avoir été revu ce
+matin. Le marqueur reste dans les `.md` et la substitution se fait au rendu : une date
+recopiée dans quatre fichiers finirait par en contredire trois.
+
+**Un registre unique** (`PAGES_LEGALES`) sert les quatre pages, le pied de page ET le
+sitemap. Une liste recopiée à trois endroits survit à une page renommée.
+
+**Les `.md` doivent être embarqués au déploiement** : `outputFileTracingIncludes` les
+déclare dans `next.config.ts`. Le chemin est dynamique, donc invisible pour l'analyse
+statique de Next — sans cette déclaration, les pages auraient fonctionné en local et
+échoué en ligne.
+
+**Rendu mobile mesuré, pas supposé.** À 390 px, la page ne défile pas horizontalement.
+Les deux tableaux de la politique faisaient d'abord 420 px dans un conteneur à
+débordement : ils défilaient seuls, mais la colonne « Base légale » se coupait au bord
+sans aucun indice, et on lisait une base légale tronquée sans le savoir. Largeur
+minimale ramenée à 340 px et cellules resserrées sous `sm` : le tableau tient
+désormais ENTIER (350 px mesurés dans 390), plus aucun débordement, ni page ni
+conteneur.
+
+**Fermeture du rachat et du dépôt-vente.** Interrupteur unique dans
+`lib/fonctionnalites.ts` : `RACHAT_OUVERT` et `DEPOT_VENTE_OUVERT`, à `false`. Constante
+et non réglage en base, volontairement : ouvrir une fonction demande d'avoir relu son
+parcours, ses emails et les pages légales qui la décrivent. Un interrupteur en base
+inviterait à le basculer un soir sans ce travail.
+
+Fermé à DEUX endroits, la page et le serveur. Vérifié : `/rachat` et `/depot-vente`
+rendent « Bientôt disponible » avec **zéro champ dans `<main>`**, les entrées de
+navigation restent visibles, `/compte/rachat` et `/compte/depot-vente` affichent le
+message dans la coquille du compte, et `POST /api/rachat` comme `POST /api/compte/rachat`
+répondent **503** avant toute lecture du corps. 503 et non 403 : la fonction n'est pas
+interdite à ce client, elle n'est pas encore ouverte.
+
+**Aucun code ni aucune donnée supprimés** : les pages gardent tout leur contenu sous la
+garde, et la base ne portait de toute façon ni demande de rachat ni dépôt (0 et 0).
+
+**Adresse de contact** remplacée dans la facture, `BULK_CONTACT_EMAIL` et `REPLY_TO`.
+`REPLY_TO` était **exporté sans être branché** : un client qui répondait à un email de
+commande écrivait à `noreply@`, c'est-à-dire à personne. Les trois envois le posent
+maintenant en `replyTo`. L'expéditeur `noreply@goriki.be` est inchangé.
+
+**Facture** : identité complète du vendeur (Tanuki Corporation SRL, siège, BCE), mention
+« Régime particulier de franchise des petites entreprises, TVA non applicable » à la
+place de l'article 283 du CGI — qui était du droit FRANÇAIS sur une facture belge, signalé
+à l'audit de la session 48 — et « Total » au lieu de « Total TTC », qui n'a pas de sens
+sans TVA applicable.
+
+`tsc` 0 · `build` exit 0 · `npm test` 31/31 · lint 18 problèmes, **aucun dans les
+fichiers de ce brief**. Les quatre pages légales sont **prérendues en statique**.
+
+Base rendue à l'état trouvé : compte de test supprimé, aucune donnée touchée.
+
+**Signalements.**
+- **`npm audit` remonte 11 vulnérabilités, toutes PRÉEXISTANTES** : `exceljs` (devDep) et
+  sa dépendance `uuid`, plus `next`, `sharp`, `postcss`, `nanoid`. Ni `react-markdown` ni
+  `remark-gfm` n'y figurent, vérifié. `npm audit fix --force` rétrograderait `exceljs`
+  en version majeure inférieure : à traiter séparément, pas au détour de ce brief.
+- **`SITE_DESCRIPTION` porte encore un tiret cadratin** (`lib/constants.ts`), affiché
+  dans la balise description de chaque page. Hors périmètre, non modifié.
+- **`/depot-vente` était une vitrine de vente**, listant les pièces en dépôt avec un CTA
+  « Déposer mes cartes ». La fermer masque donc aussi ce rayon. Sans conséquence
+  aujourd'hui (0 pièce en dépôt), mais à savoir si des dépôts existaient.
+- **Le dépôt-vente n'a aucune route de création** : rien à fermer côté serveur, seules
+  les deux pages l'étaient. La garde `DEPOT_VENTE_OUVERT` est en place pour le jour où
+  une route existera.
+- **La facture n'a pas été régénérée en PDF** : aucune commande payée en base pour le
+  faire. Les trois changements sont textuels et le build passe, mais un rendu réel
+  reste à faire à la première vraie commande.
+
+### Session 57 - 2026-09-27 (NOVA : image du hero et fond des pages neutres)
+
+**Aucune migration.**
+
+**Une seule source pour « quelle route porte quel fond » : `lib/fond.ts`.** Trois couches
+lisaient jusqu'ici la même règle recopiée : le layout Pokémon, le layout One Piece et
+`AtmosphereLayer`, dont les commentaires insistaient déjà sur le fait que leurs préfixes
+devaient rester identiques. Un quatrième fond arrivant, la recopie serait devenue
+intenable. `natureDuFond(pathname)` répond `univers`, `neutre`, `aucun` ou `fiche`, et les
+deux couches globales en découlent. Ajouter une page neutre ne demande plus rien, ajouter
+un rayon d'univers demande une ligne, à un seul endroit.
+
+**Le wallpaper bascule en CSS, jamais en JavaScript.** `.fond-neutre` porte la version
+portrait, une media query à `64rem` (le point `lg`, seul point de bascule du design
+system : 196 usages contre 2 pour `md`) la remplace par la version large. Vérifié au
+rendu : à 390 px le navigateur ne télécharge que `wallpaper-mobile.webp`, à 1440 px que
+`wallpaper.webp`. Un composant qui aurait mesuré la fenêtre aurait chargé la mauvaise
+image le temps de l'hydratation, voire les deux.
+
+**Le voile a deux intensités, et un critère.** 0,42 partout, 0,74 sur les écrans qu'on
+vient LIRE (pages légales, compte, panier), liste tenue dans `fondDense()`. Le critère
+n'est pas esthétique : le voile ne doit jamais faire descendre le contraste d'un texte en
+dessous de ce qu'il vaut sur le parchemin nu. C'est ce qui fixe aussi le bas du voile du
+hero à 0,93, valeur à laquelle un `text-ink-55` retrouve exactement son rapport habituel.
+
+**Le canvas d'atmosphère perd son rôle de fond.** Il peignait sa cartographie à 72 %
+d'opacité sur une vingtaine d'écrans. Il ne reste que sur l'accueil, invisible au repos,
+pour le seul morph de transition vers un univers, comme demandé. Effet de bord bienvenu :
+la boucle `requestAnimationFrame` ne tourne plus que sur une page au lieu de vingt.
+
+**Le hero est un panorama, il ne pouvait pas tenir dans une demi-colonne.** Le visuel
+précédent était l'éventail de cartes de `NouveautesHero`, dans la colonne droite.
+L'illustration fournie est une scène large 1672 x 941 : recadrée à 700 px elle perdait son
+sujet. Elle occupe donc tout le panneau, le manifeste passe au-dessus à gauche, et le
+voile est DIRECTIONNEL sur grand écran (0,88 à gauche, 0,02 à droite) : le texte garde son
+contraste, la cité flottante reste pleinement visible là où il n'y a rien à lire.
+
+**Un rognage mesuré, pas supposé.** À 390 px, la troisième ligne du manifeste mesure
+331 px, pour 350 px de contenu utile. La gouttière de page et le padding du panneau se
+seraient cumulés et le titre aurait été coupé, silencieusement, puisque le panneau est en
+`overflow: hidden`. Le panneau sort donc de la gouttière sous 1024 px et la rétablit
+lui-même : le texte retrouve exactement la largeur qu'il avait, et l'illustration passe
+bord à bord. Mesuré à 360, 390, 430 et 768 px : plus aucun débord, y compris à 360 où
+l'ancienne composition débordait déjà de 11 px.
+
+**Sur écran étroit, le voile réserve une bande haute à découvert** (rampe en PIXELS et non
+en pourcentages : la hauteur du panneau dépend du texte, une rampe relative se décalerait
+d'un écran à l'autre). Sans elle, l'illustration disparaissait entièrement sous le voile,
+puisque le texte occupe toute la largeur.
+
+**`NouveautesHero` quitte le hero et reprend sa place juste en dessous.** L'illustration
+l'a délogé de la colonne droite ; le propriétaire a demandé, dans la foulée, de le
+remonter en section propre. Il vit donc sous le hero, avec ses quatre requêtes d'origine
+restituées telles quelles (les 2 sets les plus récents de chaque univers, et leur stock
+réel). Aucun encadré : la composition pose ses cartes dans l'espace, c'est la règle de
+traitement produit de la planche, et un filet `.hair` suffit à séparer la section du hero.
+
+Aucun recadrage non plus, contrairement à ce que je pensais devoir poser : l'éventail se
+resserre déjà tout seul sous 1024 px (`--eventail` à 0,58, largeurs clampées en vw).
+Mesuré cartes inclinées comprises à 360, 390, 430 et 1440 px, il tient dans la gouttière,
+et `document.scrollWidth` reste égal à la fenêtre. Un `overflow` n'aurait rien coupé et
+aurait rogné les ombres portées.
+
+**Poids des images.** Originaux laissés dans `docs/design-reference/`, qui n'est pas
+servi ; `public/` créé à la racine.
+
+| Servi | Source | Dimensions | Avant | Après | Gain |
+|---|---|---|---|---|---|
+| `hero.webp` | `Hero.png` | 1672 x 941 | 3 388 853 o | 583 072 o | 83 % |
+| `wallpaper.webp` | `wallpaper.png.png` | 1672 x 940 | 2 891 371 o | 205 926 o | 93 % |
+| `wallpaper-mobile.webp` | `wallpaper-mobile.png.png` | 1024 x 1536 | 3 157 845 o | 214 540 o | 93 % |
+
+Ce que le visiteur télécharge réellement est plus bas encore pour le hero, qui passe par
+`next/image` : 53 338 o à 390 px, 170 433 o à 1440 px. `sizes` est plafonné à 1200 px
+au-delà de `lg` et non à la largeur réelle du panneau (1328 px à 1440) : la source ne fait
+que 1672 px, demander le palier supérieur aurait fait AGRANDIR l'image par l'optimiseur,
+pour un fichier plus lourd et aucun détail de plus.
+
+AVIF produit puis écarté : 177 Ko et 185 Ko, soit 12 % de moins que le WebP. Pas de quoi
+maintenir deux formats et une règle `image-set`.
+
+`tsc` 0 · `build` exit 0 · lint 18 problèmes, **aucun dans les fichiers de ce brief**
+(baseline inchangée).
+
+**Signalements.**
+- **`NouveautesHero` porte encore le mot « hero » dans son nom et dans son en-tête**
+  (« colonne droite du hero »), alors qu'il vit maintenant sous le hero. Renommage hors
+  périmètre, non fait : à traiter dans une passe de nettoyage.
+- **Un set sans aperçu laisse la vitrine vide.** Sur les quatre sets mis en avant
+  aujourd'hui, `30TH-C` n'a aucun visuel en base : quand le défilement tombe sur lui, la
+  scène de 560 px n'affiche que le cartouche de texte, sans une seule carte. Le composant
+  n'a pas d'état de repli pour ce cas, seulement pour « aucun set du tout ». Défaut
+  préexistant, révélé par la mesure, hors périmètre de ce brief.
+- **Le gradient radial du body est masqué sur les pages neutres** : le wallpaper est opaque
+  et passe devant. Il reste seul visible sur les pages d'univers et le checkout. Aucun
+  code retiré, la règle est intacte.
+- **Sous 1024 px, l'illustration du hero est très retenue.** Le texte occupe toute la
+  largeur : au-delà de la bande haute, le voile doit rester fort pour que les libellés de
+  11 px gardent leur contraste. C'est l'arbitrage lisibilité contre illustration, tranché
+  du côté de la lisibilité comme le demandait le brief.
+
+### Session 58 - 2026-09-27 (NOVA : Nouveautés de retour dans le hero)
+
+**Constat du propriétaire.** Remonté en section séparée sous le hero (session 57),
+l'éventail de `NouveautesHero` perdait sa mise en scène. Il revient dans le hero.
+
+**Section séparée supprimée**, avec tout ce qu'elle portait : le titre « Nouveautés », le
+compteur « N sets récents », le lien « Voir tout → » et le filet `.hair`. Dans le hero,
+seul le badge « Nouveau » du cartouche signale la vitrine.
+
+**Composition du panneau illustré** (`app/page.tsx`). `Hero.png` reste le fond de tout le
+panneau. Le panneau passe en `flex-col lg:flex-row` : texte, boutons et garanties dans la
+moitié gauche (`lg:w-[46%]`), éventail dans la moitié droite, par-dessus l'illustration.
+Sous 1024 px, l'éventail passe sous le texte, dans le même panneau.
+
+**Voile du texte déplacé, pas modifié.** À partir de 1024 px, `.voile-hero` couvre tout le
+panneau comme avant (voile directionnel). En dessous, il est porté par la colonne de texte
+seule, sinon sa partie à 0,93 aurait recouvert l'éventail. Ses arrêts se calculent sur la
+même hauteur qu'avant : le texte garde exactement son contraste.
+
+**`.voile-nouveautes` ajouté** (`styles/globals.css`), léger par principe :
+- à partir de 1024 px, une ellipse de 300 x 140 px centrée sur le cartouche (0,78 au
+  centre, 0 au bord) ; le reste de la moitié droite ne reçoit que le voile directionnel,
+  presque transparent de ce côté ;
+- sous 1024 px, une rampe haute de 0,93 à 0 sur 180 px, qui prolonge le voile du texte
+  sans marche nette, et une rampe basse de 0,80 à 0 sur 250 px derrière le cartouche et
+  la navigation.
+Arrêts en pixels depuis le bas : la hauteur de la zone varie, celle du cartouche non.
+
+**Écartement de l'éventail** (`NouveautesHero.tsx`) : `--eventail` à 0,6 entre 1024 et
+1279 px, 1 à partir de `xl`. À 1024 px la moitié droite ne fait qu'environ 490 px : à 1, la
+carte de droite arrivait à 3 px du bord du panneau. À 0,6 : 20 px de marge côté bord, 21 px
+côté texte. `lg:min-h` de la scène ramené de 560 à 520 px.
+
+**Mesuré** (build de production, Chromium) : à 1440 px, panneau de 628 px, cartes entre
+x = 715 et 1302 dans un panneau de 96 à 1344 ; à 390 px, panneau bord à bord de 1060 px,
+cartes entre x = 15 et 378. `scrollWidth` égal à la fenêtre à 360, 390, 1024 et 1440 px.
+
+`tsc` 0 · `build` exit 0 · lint 18 problèmes, aucun dans les fichiers de ce brief (baseline
+inchangée).
+
+**Signalement levé** : `NouveautesHero` vit de nouveau dans le hero, son nom redevient exact.
+
+### Session 59 - 2026-09-27 (ZARA : annonces non chiffrées, masquage et garde-fou 0 €)
+
+**Aucune migration.** Aucune donnée modifiée : l'arbitrage du propriétaire est de masquer
+par le code, pas de toucher aux lignes. La base a été rendue exactement dans l'état trouvé,
+distribution recomptée (937 / 839 / 1533 / 108).
+
+**Deux affirmations du brief étaient fausses, vérifiées en base avant de coder.**
+- `pokemon_listings.price` est **NOT NULL, défaut 0**. Aucune annonce Pokémon n'a de prix
+  NULL et il ne peut pas y en avoir. « Pas chiffré » s'y dit 0, exactement comme en One
+  Piece. La règle est donc unique pour les deux univers, et non deux règles jumelles.
+- Le brief supposait les annonces non chiffrées masquées. **108 annonces Pokémon étaient EN
+  LIGNE, en stock, à 0 €** : visibles dans la grille du catalogue, ajoutables au panier, et
+  payables dès qu'un autre article portait le panier au-dessus du minimum de commande.
+  C'était le vrai trou, et il n'était pas dans le brief.
+
+**Une règle, un fichier : `lib/annonces.ts`.** `estChiffre`, `estVendable`,
+`doitRepasserEnVente`, plus le libellé de refus. La règle « 0 n'est pas un prix » vivait
+déjà à sept endroits avec sept formulations ; un huitième lecteur, la grille du catalogue,
+l'avait oubliée. 15 tests unitaires (`lib/annonces.test.ts`), 46 au total dans le projet.
+
+**Remise en vente automatique : un seul point d'écriture.** Les trois écrans de saisie
+(édition en ligne, application à une sélection, fiche d'annonce) passent tous par
+`PATCH /api/listings`. La règle y est posée une fois, avec une relecture de l'état AVANT
+en une requête `in` pour toute la sauvegarde. Aucun des trois écrans ne peut l'oublier, et
+aucun n'a eu à être modifié.
+
+**Distinguer le masquage « faute de prix » d'un autre : arbitrage du propriétaire.** Aucune
+colonne n'enregistre la raison d'un masquage. Mesuré au moment de la décision : sur les 937
+annonces masquées, 937 répondaient à la signature (masquée + 0 € + stock), et aucune
+annonce masquée ne portait de prix. Le propriétaire a tranché pour la combinaison, sans
+migration. Risque résiduel assumé, à connaître : une annonce masquée délibérément pour une
+autre raison et pas encore chiffrée se rallumera quand on la chiffrera.
+
+**Un garde-fou que j'avais écrit ne servait à rien, le test l'a montré.** J'avais ajouté un
+paramètre `visibiliteTouchee` pour qu'un `is_active: false` explicite l'emporte sur
+l'automatisme. La vérification a rallumé l'annonce quand même, et c'était juste : la fiche
+d'annonce renvoie TOUJOURS la valeur courante, donc `false` sur une annonce masquée, sans
+que personne ait touché la case. La respecter aurait désactivé l'automatisme précisément là
+où le brief le demande. Dans l'autre sens, un `true` explicite donne déjà le même résultat.
+Le paramètre ne pouvait jamais changer l'issue : branche morte déguisée en garde-fou,
+retirée.
+
+Conséquence assumée : chiffrer une annonce masquée la met en vente. Pour la chiffrer en la
+gardant masquée, il faut décocher « actif » et enregistrer une seconde fois.
+
+**Garde-fou serveur, deux routes.** `POST /api/cart` et `POST /api/stripe/checkout`
+refusent toute ligne non chiffrée, avec un message explicite plutôt qu'un retrait
+silencieux. Vérifié en forçant la requête, session ouverte, adresse complète, CGV
+acceptées : le prix envoyé par le client est ignoré, la route relit la base.
+
+**Côté boutique.** `/api/catalogue` était la SEULE requête publique sans filtre de prix :
+la page d'accueil, les séries, le détail d'un set, la recherche et la want list le
+portaient déjà. Ajouté pour les trois branches (Pokémon, One Piece, scellés). Le bouton
+d'ajout au panier traite désormais l'absence de prix comme une rupture, au lieu d'afficher
+« Ajouter au panier » sous un prix qui disait « Épuisé ». Et la tuile de set n'affiche plus
+de tiret à la place d'un prix.
+
+**Filtre de saisie.** Le filtre du set disait « Sans prix » et filtrait `prix <= 0`, pendant
+que le compteur juste à côté comptait `stock > 0 et prix <= 0` : deux définitions pour un
+seul mot. Sans conséquence en Pokémon, où toutes les annonces ont du stock ; en One Piece,
+839 annonces sans stock ni prix noyaient les 937 à traiter. Le filtre s'appelle maintenant
+« En stock sans prix », porte son compte, et ce compte est calculé sur TOUT le set et pas
+sur les lignes affichées, pour ne pas fondre au moment où on clique dessus. Le tableau de
+bord, qui ne comptait que Pokémon, porte les deux univers.
+
+**Vérifications, toutes au rendu.**
+- One Piece masquée à 0 € : fiche « Produit introuvable », ajout au panier refusé, y
+  compris en forçant un prix de 2,50 € dans la requête.
+- Prix saisi à 2,50 € dans l'admin : `is_active` passe à `true`, la fiche propose l'ajout,
+  le panier accepte.
+- Pokémon en ligne à 0 € : « Carapuce n'est pas encore en vente » au panier ET au paiement.
+  Masquée puis chiffrée : remise en vente, achetable.
+- Grille Pokémon : 1 641 variantes avant, **1 533 après**, soit exactement les 108.
+- Set PRB01 : 166 annonces, filtre « En stock sans prix · 122 », 122 affichées.
+- Tableau de bord : « Prix à saisir · Pokémon 108 » et « Prix à saisir · One Piece 937 ».
+
+`tsc` 0 · `build` exit 0 · `npm test` 46/46 · lint 18 problèmes, **aucun dans les fichiers
+de ce brief**. Compte admin de test supprimé, base recomptée à l'identique.
+
+**Signalements.**
+- **Une fiche produit introuvable répond HTTP 200**, avec le titre « Produit introuvable ».
+  Le visiteur voit la bonne page, mais un moteur d'indexation la prend pour une page
+  valide. Préexistant, hors périmètre.
+- **Un administrateur connecté voit la boutique autrement qu'un client** : la policy RLS
+  d'admin est un `ALL` sans condition, donc il lit aussi les annonces masquées. Les filtres
+  applicatifs ajoutés ici le couvrent pour le prix, pas pour `is_active` partout.
+- **839 annonces One Piece sont actives, sans stock et sans prix.** Invisibles en boutique
+  (stock nul) et hors des files de saisie, qui exigent du stock. À savoir si elles doivent
+  un jour recevoir du stock : elles apparaîtront alors d'un coup dans la file.
+- **Les 108 annonces Pokémon restent en base telles quelles**, actives à 0 €, masquées par
+  le seul code. Elles reviendront d'elles-mêmes en boutique dès qu'un prix sera saisi, sans
+  passer par la remise en vente automatique puisqu'elles ne sont pas masquées.
+
+### Session 60 - 2026-09-27 (ZARA : 30ᵉ Anniversaire affiché comme un seul set)
+
+**Constat.** TCGdex découpe le 30ᵉ Anniversaire en 30TH (161 cartes) et 30TH-C, la
+Collection Classique (30 cartes). Commercialement, un seul produit de 191 cartes. Les deux
+lignes restent séparées en base : l'import upserte sur `code` et recréerait 30TH-C.
+
+**Mécanisme générique : `display_parent_id`** (migration 0057, sur `pokemon_sets` ET
+`onepiece_sets`). NULL = set affiché pour lui-même ; un uuid = set affiché dans son parent,
+en fin de liste. Un seul niveau, garanti par le trigger `sets_rattachement_un_niveau`.
+Déclarer un nouveau cas ne demande aucun code :
+`update pokemon_sets set display_parent_id = (select id from pokemon_sets where code = 'PARENT') where code = 'ENFANT';`
+L'import ne touche pas cette colonne (`upsertSet` ne l'envoie pas). Helpers dans
+`lib/catalogue/rattachements.ts`.
+
+**Boutique.**
+- Page du set (`SetDetail`) : cartes du groupe entier, celles de chaque rattaché en fin de
+  liste quel que soit le tri, sous un intertitre (nom, code, nombre de cartes). La fiche
+  compte le groupe : 191 cartes. Rareté, versions, stock : sur le groupe.
+- Anciennes URL d'un rattaché : `permanentRedirect` vers le parent, paramètres conservés.
+  La page streame (`loading.tsx`) : Next répond 200 avec un `meta refresh` à 0 s, puis
+  redirige côté client. Vérifié : arrivée sur la page de 30TH.
+- Listes de sets (`getSeriesByEra`) : le rattaché disparaît, son stock et son nombre de
+  cartes s'ajoutent au parent (tuile « 191 cartes »).
+- Recherche (`search_catalogue`, réécrite dans 0057) : un set rattaché trouvé renvoie son
+  parent, la déduplication n'en garde qu'une entrée (« classique » et « anniversaire »
+  donnent tous deux « 30ᵉ Anniversaire »). Une carte de 30TH-C mène à la page de 30TH ;
+  son code et son numéro restent ceux imprimés (30TH-C 001).
+- Vitrine Nouveautés : les rattachés n'ont plus d'entrée (30TH puis ME05, au lieu de 30TH
+  puis 30TH-C). Stock compté sur le groupe.
+- Compteur de sets de `/catalogue`, sitemap : rattachés exclus.
+- Fiche produit : fil d'ariane et « Voir les N cartes » pointent sur le parent, N = groupe.
+- Rachat : une seule entrée ; les cartes du rattaché suivent, préfixées de leur code, et
+  la ligne du lot garde le code RÉEL (30TH-C) pour l'inspection.
+
+**Admin.** Les deux sets restent séparés. Mention en ligne (« ↳ rattaché à 30TH »,
+« + 30TH-C ») et bloc « Affichage boutique » dans le panneau latéral. Aucun import modifié.
+
+**Nom de 30TH-C.** « Collection Classique30ᵉ Anniversaire » corrigé en « Collection
+Classique 30ᵉ Anniversaire ». Un import l'aurait réécrit (`upsertSet` envoie `name_fr` à
+chaque passage) : `name_fr` est donc ajouté à `locked_fields`, et `verrous_pokemon_sets`
+rétablit le nom. Vérifié par une écriture simulée, annulée.
+
+**Bug corrigé au passage.** La vitrine comptait le stock Pokémon par
+`pokemon_listings → pokemon_cards`, relation disparue depuis ARCHI-01 : la requête
+échouait en silence et affichait « bientôt » partout. Elle passe désormais par la
+variante (vérifié : 245 lignes sur SV10, l'ancienne renvoyait une erreur).
+
+`tsc` 0 · `build` exit 0 · lint 18 problèmes, aucun dans les fichiers de ce brief (baseline
+inchangée).
+
+**Signalements.**
+- **Le sitemap ne liste aucun set** : il demande `updated_at`, colonne absente de
+  `pokemon_sets` et `onepiece_sets`. Préexistant, hors périmètre.
+- **Rachat : sans recherche, la liste ne montre que les 60 premières cartes.** Les 30
+  cartes de 30TH-C, en fin de liste, ne s'y voient qu'en tapant leur nom ou numéro.
+  Plafond préexistant.
+- **La référence « 30TH-C 1 » ne trouve rien en recherche** : la branche par référence
+  retire les tirets du terme mais pas du code. Préexistant, touche tout code à tiret.
+- **Déclarer un rattachement passe par SQL.** Aucun contrôle dans l'admin pour l'instant.
+
+### Session 61 - 2026-09-27 (ZARA : sitemap des sets et vraies pages 404)
+
+**Sitemap.** Il demandait `updated_at` aux tables de sets, colonne qui n'existe ni sur
+`pokemon_sets` ni sur `onepiece_sets` : la requête échouait et le sitemap ne listait aucun
+set. La date retenue est `created_at` (entrée du set au catalogue, donc apparition de sa
+page). `release_date` écartée : nulle sur certains sets, future pour un set annoncé. Aucune
+colonne ajoutée. Mesuré : 1 009 URL avant, 1 284 après (183 sets Pokémon, 92 One Piece,
+soit exactement les sets actifs non rattachés en base ; 30TH-C absent).
+
+**Vraies 404.** Cause commune : `loading.tsx`. Le squelette part avec un statut 200 avant
+que la page s'exécute, et son `notFound()` ne peut plus changer le statut. Le contenu était
+bien celui de la page introuvable, mais servi en 200.
+- Fiche produit : `notFound()` déplacé dans `app/[slug]/layout.tsx`, hors de la frontière
+  de chargement, qui résolvait déjà le slug (aucune requête en plus). Un `generateMetadata`
+  du layout conserve le titre « Produit introuvable | Goriki » dans le HTML servi.
+- Set : aucun layout de set n'est hors de `app/catalogue/loading.tsx`. Le contrôle est donc
+  dans le proxy (`lib/supabase/middleware.ts`), limité aux chemins
+  `/catalogue/{univers}/{id}` : une lecture par clé primaire, puis un `rewrite` sur la même
+  URL avec `status: 404`. La page est rendue telle quelle, seul le statut change.
+- Série : pas de route dynamique ; un chemin inconnu répondait déjà 404.
+
+Statuts mesurés (build de production) : fiche, set Pokémon, set One Piece, set à id
+invalide, série inexistante : 404 ; fiche, set et liste de séries existants : 200 ; ancienne
+URL de 30TH-C : 200 puis redirection (inchangé).
+
+`tsc` 0 · `build` exit 0 · lint 18 problèmes, aucun dans les fichiers de ce brief (baseline
+inchangée).
+
+**Signalements.**
+- **Titre d'onglet de la fiche introuvable.** Le HTML servi porte « Produit introuvable |
+  Goriki », mais une fois la page hydratée l'onglet affiche « 404: This page could not be
+  found. », titre du not-found par défaut de Next, désormais rendu depuis la racine. Le
+  garder demanderait un `app/not-found.tsx`, qui changerait toutes les 404 du site.
+- **Builds concurrents.** Une autre session sert `.next` avec `next start -p 3100` pendant
+  que celle-ci rebuild : la mesure a été faite sur une copie du projet (`next build
+  --webpack`, Turbopack refusant un `node_modules` en jonction) pour ne pas casser son
+  serveur.
+
+### Session 62 - 2026-09-27 (ZARA : Nouveautés, uniquement des sets achetables)
+
+**Migration 0058** `nouveautes_achetables(p_sets_par_univers, p_apercus)`, appliquée et
+versionnée, md5 identique à l'octet près (`2b1678e15f91397401d8ea6193c07e5d`, 7 360
+caractères).
+
+**Le défaut.** La vitrine retenait les 2 sets les plus récents par `release_date`, en vente
+ou non. Elle affichait donc « Bientôt » sur 30TH et 30TH-C, qui n'ont aucune annonce
+achetable, et pour DP-12, dont les DEUX seules cartes sont des DON!!, le filigrane SAMPLE
+que l'éditeur imprime sur ces visuels.
+
+**Une fonction en base plutôt que des requêtes, et ce n'est pas une préférence.** La
+sélection est un « top 2 par univers » assorti d'un « top 3 des cartes achetables » par set
+retenu. PostgREST ne sait pas exprimer ce classement par groupe : il aurait fallu rapatrier
+toutes les annonces en vente pour les regrouper côté Node, soit 1 533 lignes aujourd'hui,
+au-dessus du plafond `db-max-rows` de 1 000 qui **tronque sans lever d'erreur**. La page
+passe de six requêtes à une.
+
+**`security invoker`, volontairement.** La fonction n'a aucun privilège propre et filtre
+`is_active` explicitement. Un administrateur connecté, dont la policy RLS est un `ALL` sans
+condition, voit donc exactement la même vitrine qu'un visiteur. Vérifié : la fonction
+appelée sous un rôle qui contourne la RLS rend les deux mêmes sets.
+
+**Ce qu'est une carte montrable.** Achetable (visible, stock > 0, prix chiffré au sens de
+`estChiffre`), plus trois exclusions : pas un DON!!, un visuel non nul, et une URL qui ne
+contient pas « sample ». Le test DON!! porte sur `card_type` ET `rarity`, qui valent tous
+deux « DON!! » en base : une source qui n'en renseignerait qu'une serait quand même
+écartée. Rien en base ne marque aujourd'hui une image d'échantillon, le filigrane est DANS
+le fichier ; le garde sur l'URL ne coûte rien et attrapera le jour où une source le nomme.
+
+**Deux conditions distinctes, chacune son rôle.** Le décompte affiché compte toutes les
+annonces achetables du groupe, DON!! compris : c'est le stock réel. La qualification d'un
+set, elle, exige au moins une carte MONTRABLE. Sans cette seconde condition, un set dont
+les seules pièces en vente seraient des DON!! entrerait dans la vitrine avec un éventail
+vide, c'est-à-dire le défaut qu'on corrige.
+
+**Dédoublonnage par carte.** Plusieurs exemplaires d'une même carte peuvent être en vente :
+l'éventail montrait trois fois le même visuel. La fonction garde un exemplaire par carte,
+le plus cher, qui est en pratique le mieux conservé.
+
+**Aperçus pris sur ce qui est en vente.** La rareté la moins fréquente est calculée parmi
+les cartes ACHETABLES du set, plus parmi tout le catalogue, et le visuel suit le même ordre
+de préférence que `visuelDuListing` : scan réel de la pièce, puis visuel de la variante,
+puis illustration de référence.
+
+**Sets rattachés inchangés** (migration 0057) : jamais candidats, leur stock reporté sur le
+parent par un `coalesce(display_parent_id, id)`.
+
+**Cas « aucun set achetable » : le bloc est ABSENT, pas vide.** Un conteneur conservé aurait
+gardé sa place en `flex-1` et laissé un trou au milieu du panneau, que le composant ne
+pouvait pas remplir. Sans lui, la colonne de texte garde ses 46 % et l'illustration occupe
+le reste : c'est le hero de la session 57, à l'identique.
+
+**L'ordre d'affichage reste Pokémon d'abord**, rétabli par un tri de deux à quatre éléments
+côté page. La fonction rend ses lignes par univers alphabétique, et une décision de
+présentation n'a pas à dépendre d'une migration.
+
+**Vérifications, au rendu, DÉCONNECTÉ.**
+- Sets retenus aujourd'hui. **Pokémon** : ME03 « Équilibre Parfait » (27/03/2026, 51
+  annonces / 46 cartes distinctes) et ME02.5 « Héros Transcendants » (30/01/2026, 82
+  annonces / 80 cartes). **One Piece : aucun**, l'univers n'a pas une seule annonce
+  achetable. Parité 2+2 impossible, et non compensée.
+- 30TH, 30TH-C et DP-12, jusqu'ici en vitrine, sont écartés : 0 annonce achetable.
+- À 390 px comme à 1440 px : 2 sets au pager, 3 visuels réels, aucun « Bientôt », aucune URL
+  contenant « sample » ou « DON- », aucun débordement horizontal.
+- Cas vide simulé en appelant la fonction avec `p_sets_par_univers = 0`, sans toucher une
+  seule ligne de données : le panneau garde la même hauteur (628 px à 1440), l'illustration
+  occupe la moitié droite, aucune zone vide. Correctif temporaire retiré après mesure.
+
+`tsc` 0 · `build` exit 0 · `npm test` 46/46 · lint 18 problèmes, **aucun dans les fichiers
+de ce brief**.
+
+**Signalements.**
+- **`apercus_de_set` (migration 0031) reste inchangée** et sert toujours les éventails des
+  tuiles de rayon, qui sont de la décoration et tirent du CATALOGUE, stock ou non. Les deux
+  fonctions coexistent donc avec des règles différentes, à dessein : une vitrine de
+  nouveautés annonce ce qu'on peut acheter, une tuile de rayon ne doit pas se vider.
+- **La sélection dépend de `release_date`.** Un set récent chiffré plus tard remplacera un
+  set plus ancien dès qu'une de ses cartes sera mise en vente. C'est voulu, mais la vitrine
+  bougera au fil de la saisie des prix.
+- **One Piece disparaîtra de la vitrine tant que rien n'y sera chiffré.** Les 937 annonces
+  en stock attendent leur prix : le jour où deux sets en auront, la parité 2+2 reviendra
+  d'elle-même.

@@ -23,6 +23,21 @@ const nextConfig: NextConfig = {
     staleTimes: { dynamic: 30 },
   },
 
+  /**
+   * Les textes légaux sont lus au rendu depuis `content/legal/*.md`.
+   *
+   * Sans cette déclaration, le traçage de Next ne les embarque pas : les pages
+   * fonctionneraient en local et rendraient une erreur une fois en ligne, faute
+   * de trouver le fichier. Le chemin est dynamique (`${slug}.md`), donc
+   * indéchiffrable pour l'analyse statique.
+   */
+  outputFileTracingIncludes: {
+    '/cgv': ['./content/legal/**'],
+    '/mentions-legales': ['./content/legal/**'],
+    '/confidentialite': ['./content/legal/**'],
+    '/retractation': ['./content/legal/**'],
+  },
+
   images: {
     // Hôtes d'images du catalogue. `assets.tcgdex.net` sert les 25 225 visuels
     // de cartes ; `res.cloudinary.com` les photos réelles uploadées en admin.

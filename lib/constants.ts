@@ -36,17 +36,21 @@ export type Condition = (typeof CONDITIONS)[number]
 
 export const PHOTO_PRICE_THRESHOLD = 1.0
 
-// TODO tarifs à valider
-export const SHIPPING_RATES = {
-  BE: 5.00,              // zone Belgique (euros)
-  EU: 8.00,              // zone UE-proche : FR, LU, NL, DE (euros)
-  FREE_THRESHOLD: 60.00, // livraison offerte dès ce sous-total marchandises (euros)
-} as const
-
-// TODO montant à valider par l'utilisateur (placeholder mission 03)
-// Évalué sur le sous-total MARCHANDISES, hors port et AVANT déduction du crédit boutique.
-// Mettre à 0 pour désactiver le minimum de commande.
-export const MIN_ORDER_AMOUNT = 5.00
+// ─────────────────────────────────────────────────────────────────────────────
+// Livraison — PLUS AUCUN TARIF ICI.
+//
+// `SHIPPING_RATES` (BE 5 € / EU 8 € / offerte dès 60 €) et `MIN_ORDER_AMOUNT`
+// ont été SUPPRIMÉS. Les tarifs vivent en base, dans `shipping_rates` et
+// `shipping_settings` (migration 0055), et se règlent depuis /admin/livraison :
+// une grille transporteur change sans prévenir, et une grille en dur obligeait
+// à redéployer pour corriger un prix.
+//
+// Le propriétaire a par ailleurs tranché : pas de livraison gratuite, pas de
+// seuil, pas de minimum de commande. Ne pas réintroduire ces trois notions.
+//
+// Le calcul est dans `lib/livraison/calcul.ts` (pur, testé) et
+// `lib/livraison/devis.ts` (lecture en base).
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Durée de vie d'un checkout : la commande `pending` et sa réservation de stock
 // expirent au-delà. Aligné sur `expires_at` de la Checkout Session Stripe,
@@ -87,4 +91,4 @@ export const BULK_CATEGORIES = [
 ] as const
 
 /** Adresse de contact pour les gros stocks bulk. */
-export const BULK_CONTACT_EMAIL = 'contact@goriki.be'
+export const BULK_CONTACT_EMAIL = 'contact@tanuki-corporation.com'

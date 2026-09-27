@@ -44,18 +44,23 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!profile || profile.role !== 'admin') redirect('/')
 
-  const [sets, variantes, exemplaires, commandes, scelles, verifications] = await Promise.all([
+  const [sets, variantes, exemplaires, commandes, scelles, verifications, ecarts] = await Promise.all([
     supabase.from('pokemon_sets').select('id', { count: 'exact', head: true }),
     supabase.from('pokemon_card_variants').select('id', { count: 'exact', head: true }),
     supabase.from('pokemon_listings').select('id', { count: 'exact', head: true }),
     supabase.from('orders').select('id', { count: 'exact', head: true }),
     supabase.from('sealed_products').select('id', { count: 'exact', head: true }),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('identity_status', 'pending'),
+    // Le badge de réconciliation est le compte RÉEL des écarts, pas un chiffre
+    // figé : il descend à mesure que la file se vide, ce qui est le seul repère
+    // de progression visible depuis n'importe quel écran de l'admin.
+    supabase.from('v_ecarts_checklist').select('variante_id', { count: 'exact', head: true }),
   ])
 
   const compteurs: Compteurs = {
     sets: sets.count ?? 0,
     variantes: variantes.count ?? 0,
+    ecarts: ecarts.count ?? 0,
     exemplaires: exemplaires.count ?? 0,
     commandes: commandes.count ?? 0,
     scelles: scelles.count ?? 0,

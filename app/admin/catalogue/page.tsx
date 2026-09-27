@@ -32,18 +32,33 @@ export default async function CatalogueSetsPage({ searchParams }: Props) {
     // n'a rien à faire dans le panneau d'un autre.
     supabase.from('pokemon_variant_types').select('id, code, label, sort_order, source').is('set_id', null).order('sort_order'),
     // Visuels lus à part : la RPC d'agrégation reste hors périmètre.
-    supabase.from('pokemon_sets').select('id, image_url, symbol_url'),
+    supabase.from('pokemon_sets').select('id, code, image_url, symbol_url, display_parent_id'),
   ])
 
-  const parSet = new Map(
-    ((visuels ?? []) as { id: string; image_url: string | null; symbol_url: string | null }[])
-      .map(v => [v.id, v]),
-  )
+  const lus = (visuels ?? []) as {
+    id: string
+    code: string
+    image_url: string | null
+    symbol_url: string | null
+    display_parent_id: string | null
+  }[]
+  const parSet = new Map(lus.map(v => [v.id, v]))
+
+  // Rattachements d'affichage (migration 0057), dans les deux sens.
+  const rattachesPar = new Map<string, string[]>()
+  for (const v of lus) {
+    if (!v.display_parent_id) continue
+    const liste = rattachesPar.get(v.display_parent_id)
+    if (liste) liste.push(v.code)
+    else rattachesPar.set(v.display_parent_id, [v.code])
+  }
 
   const lignes: SetNettoyage[] = ((data ?? []) as SetNettoyage[]).map(s => ({
     ...s,
     image_url: parSet.get(s.set_id)?.image_url ?? null,
     symbol_url: parSet.get(s.set_id)?.symbol_url ?? null,
+    rattache_a: parSet.get(parSet.get(s.set_id)?.display_parent_id ?? '')?.code ?? null,
+    rattaches: (rattachesPar.get(s.set_id) ?? []).sort(),
     cartes: Number(s.cartes),
     cartes_corrigees: Number(s.cartes_corrigees),
     variantes: Number(s.variantes),

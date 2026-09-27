@@ -23,7 +23,7 @@ export default async function AdminDashboard() {
   const [
     sets, cartes, variantes, exemplaires,
     { count: commandes }, { data: paiements },
-    { count: sansVisuel }, { count: sansPrix }, { count: scelles },
+    { count: sansVisuel }, { count: sansPrixPkm }, { count: sansPrixOp }, { count: scelles },
     { data: apercu },
   ] = await Promise.all([
     supabase.from('pokemon_sets').select('id', { count: 'exact', head: true }),
@@ -33,7 +33,15 @@ export default async function AdminDashboard() {
     supabase.from('orders').select('id', { count: 'exact', head: true }),
     supabase.from('orders').select('total').eq('status', 'paid'),
     supabase.from('pokemon_card_variants').select('id', { count: 'exact', head: true }).is('image_url', null),
-    supabase.from('pokemon_listings').select('id', { count: 'exact', head: true }).lte('price', 0),
+    // « En stock sans prix » : la file de travail réelle, pour les DEUX univers.
+    // One Piece manquait, et c'est là que tout le travail se trouve depuis
+    // l'injection du stock : 937 annonces à chiffrer, invisibles de ce tableau.
+    // `quantity > 0` ajouté côté Pokémon pour que les deux comptes veuillent
+    // dire la même chose ; sans effet aujourd'hui, toutes les annonces Pokémon
+    // ayant du stock, mais les 839 One Piece sans stock ni prix n'ont rien à
+    // faire dans une file de saisie.
+    supabase.from('pokemon_listings').select('id', { count: 'exact', head: true }).gt('quantity', 0).lte('price', 0),
+    supabase.from('onepiece_listings').select('id', { count: 'exact', head: true }).gt('quantity', 0).lte('price', 0),
     supabase.from('sealed_products').select('id', { count: 'exact', head: true }),
     supabase.rpc('admin_pokemon_sets_nettoyage'),
   ])
@@ -61,11 +69,18 @@ export default async function AdminDashboard() {
 
   const file = [
     {
-      titre: 'Prix à saisir',
-      compte: sansPrix ?? 0,
-      sub: 'Aucun exemplaire ne peut être vendu sans prix',
+      titre: 'Prix à saisir · Pokémon',
+      compte: sansPrixPkm ?? 0,
+      sub: 'En stock, mais pas encore chiffré',
       href: '/admin/listings',
-      ton: (sansPrix ?? 0) > 0 ? 'rouge' : 'muet',
+      ton: (sansPrixPkm ?? 0) > 0 ? 'rouge' : 'muet',
+    },
+    {
+      titre: 'Prix à saisir · One Piece',
+      compte: sansPrixOp ?? 0,
+      sub: 'En stock, mais pas encore chiffré',
+      href: '/admin/listings',
+      ton: (sansPrixOp ?? 0) > 0 ? 'rouge' : 'muet',
     },
     {
       titre: 'Variantes sans visuel',

@@ -153,7 +153,7 @@ export default function NouveautesHero({ sets }: { sets: Nouveaute[] }) {
       ref={stageRef}
       onPointerMove={onMove}
       onPointerLeave={() => setPointer(null)}
-      className="relative flex min-h-[380px] flex-col items-center justify-center [--eventail:0.58] sm:[--eventail:0.78] lg:min-h-[560px] lg:[--eventail:1]"
+      className="relative flex min-h-[380px] flex-col items-center justify-center [--eventail:0.58] sm:[--eventail:0.78] lg:min-h-[520px] lg:[--eventail:0.6] xl:[--eventail:1]"
       style={{ perspective: 1600 }}
     >
       <Link
@@ -176,9 +176,12 @@ export default function NouveautesHero({ sets }: { sets: Nouveaute[] }) {
                 aspectRatio: '2.5 / 3.5',
                 zIndex: s.z,
                 transform: [
-                  // `--eventail` vaut exactement 1 à partir de `lg` : le calc s'y
+                  // `--eventail` vaut exactement 1 à partir de `xl` : le calc s'y
                   // réduit donc à la valeur brute de `HeroDeck`. En dessous, il
-                  // resserre l'écartement — les largeurs, elles, clampent déjà en vw.
+                  // resserre l'écartement, les largeurs, elles, clampent déjà en vw.
+                  // Entre 1024 et 1279 px, la moitié droite du hero ne fait que
+                  // 490 px environ : à 1, les cartes de fond déborderaient sur le
+                  // texte, d'où 0,6.
                   `translate3d(calc(${s.x}px * var(--eventail, 1) + ${(px * 34 * s.depth).toFixed(2)}px), calc(${s.y}px * var(--eventail, 1) + ${(py * 22 * s.depth).toFixed(2)}px), 0)`,
                   `rotateY(${(px * 14 * s.depth).toFixed(2)}deg)`,
                   `rotateX(${(-py * 10 * s.depth).toFixed(2)}deg)`,

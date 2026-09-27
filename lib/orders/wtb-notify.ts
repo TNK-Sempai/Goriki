@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { resend, FROM_EMAIL } from '@/lib/resend'
+import { resend, FROM_EMAIL, REPLY_TO } from '@/lib/resend'
 import { SITE_URL } from '@/lib/constants'
 
 /**
@@ -51,8 +51,9 @@ export async function notifyWantToBuyMatches(
     try {
       await resend.emails.send({
         from: FROM_EMAIL,
+      replyTo: REPLY_TO,
         to: profile.email,
-        subject: 'Une carte de votre liste vient d’arriver — Goriki',
+        subject: 'Une carte de votre liste vient d’arriver · Goriki',
         html: `<p>Bonjour ${profile.full_name ?? ''},</p>
 <p>Une carte que vous recherchez est désormais disponible.</p>
 <p><a href="${SITE_URL}/${match.listingId}">Voir la carte</a></p>`,

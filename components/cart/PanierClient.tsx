@@ -4,14 +4,17 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useCart } from '@/hooks/useCart'
 import { formatPrice } from '@/lib/utils'
-import { SHIPPING_RATES } from '@/lib/constants'
 
-export default function PanierClient() {
+/** Montant à la française, sans dépendre d'un formateur pour un seul usage. */
+const euros = (n: number) => n.toFixed(2).replace('.', ',') + ' €'
+
+export default function PanierClient({ minimumCommande = 0 }: { minimumCommande?: number }) {
   const { items, removeItem, updateQty, total } = useCart()
 
   const isEmpty = items.length === 0
-  const freeShipping = total >= SHIPPING_RATES.FREE_THRESHOLD
-  const missing = SHIPPING_RATES.FREE_THRESHOLD - total
+  // Arrondi en centimes : 1 − 0.9 rend 0.09999999999999998 en flottant nu.
+  const manque = Math.round((minimumCommande - total) * 100) / 100
+  const sousMinimum = !isEmpty && manque > 0
 
   return (
     <main className="page-shell pb-16 pt-10 font-grotesk text-ink">
@@ -28,7 +31,7 @@ export default function PanierClient() {
             Aucune carte pour l&apos;instant.
           </span>
           <p className="m-0 max-w-[42ch] text-[14px] leading-[1.6] text-[rgba(26,22,17,0.65)]">
-            Les belles pièces partent vite — jetez un œil aux dernières arrivées ou à
+            Les belles pièces partent vite : jetez un œil aux dernières arrivées ou à
             votre wishlist.
           </p>
           <div className="mt-2 flex flex-wrap justify-center gap-3">
@@ -122,16 +125,17 @@ export default function PanierClient() {
               <span className="text-[rgba(26,22,17,0.65)]">Sous-total</span>
               <span className="font-medium">{formatPrice(total)}</span>
             </div>
+            {/* Aucun montant de port ici, et ce n'est pas un oubli : il dépend du
+                POIDS et du PAYS, tous deux inconnus tant que l'adresse n'est pas
+                saisie. Annoncer « dès 5 € » comme avant, c'était promettre un
+                tarif qui n'existe plus depuis la grille au poids. */}
             <div className="flex justify-between py-2 text-[14px]">
-              <span className="text-[rgba(26,22,17,0.65)]">Livraison estimée</span>
-              <span className="font-medium">
-                {freeShipping ? 'Offerte' : `dès ${formatPrice(SHIPPING_RATES.BE)}`}
-              </span>
+              <span className="text-[rgba(26,22,17,0.65)]">Livraison</span>
+              <span className="font-medium">à l&apos;étape suivante</span>
             </div>
             <div className="px-0 pb-3 pt-1 text-[12px] text-ink-55">
-              {freeShipping
-                ? `Livraison offerte dès ${formatPrice(SHIPPING_RATES.FREE_THRESHOLD)} — c'est bon !`
-                : `Offerte dès ${formatPrice(SHIPPING_RATES.FREE_THRESHOLD)} d'achat (encore ${formatPrice(missing)})`}
+              Le prix dépend du poids et du pays. Les modes disponibles s&apos;affichent
+              après la saisie de l&apos;adresse.
             </div>
 
             <div className="my-2 mb-4 h-px bg-[rgba(26,22,17,0.12)]" />
@@ -141,9 +145,26 @@ export default function PanierClient() {
               <span className="text-[24px] font-semibold">{formatPrice(total)}</span>
             </div>
 
-            <Link href="/checkout" className="btn-ochre py-4 text-center text-[15px]">
-              Passer commande
-            </Link>
+            {/* Sous le minimum, le lien devient un bouton inerte : un <Link>
+                désactivé n'existe pas, et laisser passer pour refuser à l'écran
+                suivant ferait perdre la saisie de l'adresse. */}
+            {sousMinimum ? (
+              <>
+                <p className="m-0 mb-3 rounded-control border border-[rgba(200,134,10,0.35)] bg-[rgba(200,134,10,0.10)] px-4 py-3 text-[13px] leading-[1.5]">
+                  {`Minimum de commande : ${euros(minimumCommande)} d'articles. Il manque ${euros(manque)}.`}
+                </p>
+                <span
+                  aria-disabled="true"
+                  className="btn-ochre cursor-not-allowed py-4 text-center text-[15px] opacity-50"
+                >
+                  Passer commande
+                </span>
+              </>
+            ) : (
+              <Link href="/checkout" className="btn-ochre py-4 text-center text-[15px]">
+                Passer commande
+              </Link>
+            )}
             <Link href="/catalogue" className="mt-3.5 text-center text-[13px] text-ink-60">
               Continuer mes achats
             </Link>

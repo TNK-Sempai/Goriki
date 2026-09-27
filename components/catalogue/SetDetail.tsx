@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { Suspense } from 'react'
 import PageContainer from '@/components/layout/PageContainer'
 import CardGrid from '@/components/catalogue/CardGrid'
@@ -8,6 +8,7 @@ import SetToolbar from '@/components/catalogue/SetToolbar'
 import SetVisual from '@/components/catalogue/SetVisual'
 import { PaginationUrl } from '@/components/ui/Pagination'
 import { chargerVariantes, estVendable, type LigneVariante } from '@/lib/catalogue/variantes'
+import { rattachesDe } from '@/lib/catalogue/rattachements'
 import { createClient } from '@/lib/supabase/server'
 import { decouper, lirePage } from '@/lib/pagination'
 import { resoudreParPage } from '@/lib/pagination.server'
@@ -50,6 +51,12 @@ const CONDITIONS = ['Mint', 'Near Mint', 'Excellent', 'Light Played', 'Moderate 
  * était NULL sur la totalité des sets. Ce n'est plus vrai : 121 des 185 sets
  * Pokémon portent un logo et 147 un symbole. One Piece n'en a aucun (0 sur 30)
  * et retombe donc sur le cadre.
+ *
+ * SETS RATTACHÉS (migration 0057). Un set rattaché n'a pas de page : son URL
+ * redirige vers celle de son parent. La page du parent montre les cartes de
+ * tout le groupe, celles de chaque rattaché en fin de liste, sous un
+ * intertitre, quel que soit le tri choisi. La fiche technique compte le groupe
+ * entier (30ᵉ Anniversaire : 161 + 30 = 191 cartes).
  */
 export default async function SetDetail({
   universe,
@@ -73,7 +80,7 @@ export default async function SetDetail({
   // ferait échouer la requête entière. One Piece n'a de toute façon aucun visuel
   // de set en base (0 sur 30), il retombera sur le cadre.
   const colonnesSet =
-    'id, code, name_fr, card_count, release_date, serie_name, image_url' +
+    'id, code, name_fr, card_count, release_date, serie_name, image_url, display_parent_id' +
     (universe === 'pokemon' ? ', symbol_url' : '')
 
   const { data: setData } = await supabase
@@ -89,9 +96,26 @@ export default async function SetDetail({
       serie_name: string | null
       image_url: string | null
       symbol_url?: string | null
+      display_parent_id: string | null
     }>()
 
   if (!setData) notFound()
+
+  // Ancienne URL d'un set rattaché : on renvoie vers le parent, filtres compris.
+  if (setData.display_parent_id) {
+    const qs = new URLSearchParams()
+    for (const [k, v] of Object.entries(searchParams)) {
+      if (typeof v === 'string') qs.set(k, v)
+    }
+    const suite = qs.toString()
+    permanentRedirect(`/catalogue/${universe}/${setData.display_parent_id}${suite ? `?${suite}` : ''}`)
+  }
+
+  // Le groupe affiché : le set, puis ses rattachés. Son ordre est celui des
+  // blocs de la grille.
+  const rattaches = await rattachesDe(supabase, universe, setId)
+  const idsGroupe = [setId, ...rattaches.map(r => r.id)]
+  const rangDuSet = new Map(idsGroupe.map((id, i) => [id, i]))
 
   // Nombre de pièces réellement achetables dans ce set.
   // Depuis ARCHI-01, l'exemplaire Pokémon n'a plus de `card_id` : il rejoint la
@@ -107,18 +131,18 @@ export default async function SetDetail({
           .eq('is_active', true)
           .gt('quantity', 0)
           .gt('price', 0)
-          .eq('pokemon_card_variants.pokemon_cards.set_id', setId)
+          .in('pokemon_card_variants.pokemon_cards.set_id', idsGroupe)
       : supabase
           .from(t.listings)
           .select(`id, ${t.cards}!inner(set_id)`, { count: 'exact', head: true })
           .eq('is_active', true)
           .gt('quantity', 0)
           .gt('price', 0)
-          .eq(`${t.cards}.set_id`, setId)
+          .in(`${t.cards}.set_id`, idsGroupe)
 
   const [{ data: rarities }, { data: variants }, dispo] = await Promise.all([
-    supabase.from(t.cards).select('rarity').eq('set_id', setId).not('rarity', 'is', null),
-    supabase.from(t.variants).select('code, label').or(`set_id.eq.${setId},set_id.is.null`),
+    supabase.from(t.cards).select('rarity').in('set_id', idsGroupe).not('rarity', 'is', null),
+    supabase.from(t.variants).select('code, label').or(`set_id.in.(${idsGroupe.join(',')}),set_id.is.null`),
     comptePieces,
   ])
 
@@ -129,8 +153,8 @@ export default async function SetDetail({
   // entier, les pièces qu'on ne vend pas comprises.
   let cardsQuery = supabase
     .from(t.cards)
-    .select('id, number, name_fr, rarity, image_url')
-    .eq('set_id', setId)
+    .select('id, set_id, number, name_fr, rarity, image_url')
+    .in('set_id', idsGroupe)
 
   if (sp('rarity')) cardsQuery = cardsQuery.eq('rarity', sp('rarity')!)
   if (sp('q')) cardsQuery = cardsQuery.ilike('name_fr', `%${sp('q')}%`)
@@ -154,7 +178,11 @@ export default async function SetDetail({
 
   // Borne large et volontaire : le plus gros set du catalogue compte 299 cartes.
   // On charge donc toujours le set entier, et les vignettes sont en `lazy`.
-  const { data: cartes } = await cardsQuery.limit(400)
+  // La borne s'entend par set du groupe.
+  const { data: cartes } = await cardsQuery.limit(400 * idsGroupe.length)
+
+  /** Bloc d'une carte dans la grille : 0 pour le set, 1… pour ses rattachés. */
+  const blocDe = new Map((cartes ?? []).map(c => [c.id, rangDuSet.get(c.set_id) ?? 0]))
 
   const idsCartes = (cartes ?? []).map(c => c.id)
 
@@ -271,6 +299,12 @@ export default async function SetDetail({
     })
   }
 
+  // Les rattachés ferment la marche, quel que soit le tri : `sort` est stable,
+  // l'ordre choisi est donc conservé à l'intérieur de chaque bloc.
+  if (rattaches.length > 0) {
+    visibles.sort((a, b) => (blocDe.get(a.cardId) ?? 0) - (blocDe.get(b.cardId) ?? 0))
+  }
+
   const nbDisponibles = entrees.filter(e => e.available).length
 
   // ── Pagination, en DERNIER ────────────────────────────────────────────────
@@ -283,6 +317,20 @@ export default async function SetDetail({
 
   const uniqueRarities = [...new Set((rarities ?? []).map(r => r.rarity).filter(Boolean))] as string[]
 
+  // La page courante, découpée en blocs consécutifs du même set : chaque bloc
+  // de rattaché reçoit son intertitre, y compris quand il ouvre une page.
+  const blocs: { rang: number; cartes: CardEntry[] }[] = []
+  for (const e of tranche.elements) {
+    const rang = blocDe.get(e.cardId) ?? 0
+    const dernier = blocs[blocs.length - 1]
+    if (dernier && dernier.rang === rang) dernier.cartes.push(e)
+    else blocs.push({ rang, cartes: [e] })
+  }
+
+  // Nombre de cartes du GROUPE : inconnu dès qu'un des sets ne l'annonce pas.
+  const cartesAuSet = [setData.card_count, ...rattaches.map(r => r.card_count)]
+    .reduce<number | null>((n, c) => (n === null || c === null ? null : n + c), 0)
+
 
   const sortie = setData.release_date
     ? new Date(setData.release_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -290,7 +338,7 @@ export default async function SetDetail({
 
   const FICHE = [
     sortie ? { k: 'Sortie', v: sortie } : null,
-    setData.card_count ? { k: 'Cartes au set', v: String(setData.card_count) } : null,
+    cartesAuSet ? { k: 'Cartes au set', v: String(cartesAuSet) } : null,
     { k: 'Disponibles', v: String(dispo.count ?? 0) },
     setData.serie_name ? { k: 'Série', v: setData.serie_name } : null,
   ].filter(Boolean) as { k: string; v: string }[]
@@ -366,14 +414,34 @@ export default async function SetDetail({
           {nbDisponibles} disponible{nbDisponibles > 1 ? 's' : ''}{' '}à l&apos;achat
         </p>
 
-        <CardGrid
-          cards={tranche.elements}
-          emptyLabel={
-            disponiblesSeulement
-              ? "Aucune carte de ce set n'est disponible à l'achat pour le moment."
-              : 'Ce set ne contient aucune carte importée.'
-          }
-        />
+        {blocs.length === 0 ? (
+          <CardGrid
+            cards={[]}
+            emptyLabel={
+              disponiblesSeulement
+                ? "Aucune carte de ce set n'est disponible à l'achat pour le moment."
+                : 'Ce set ne contient aucune carte importée.'
+            }
+          />
+        ) : (
+          blocs.map(b => {
+            const r = b.rang > 0 ? rattaches[b.rang - 1] : null
+            return (
+              <div key={b.rang} className={r ? 'hair mt-10 pt-8' : undefined}>
+                {r && (
+                  <h2 className="display-sub m-0 mb-5">
+                    {r.name_fr}
+                    <span className="data ml-2.5 text-[9px] text-ink-55">
+                      {r.code}
+                      {r.card_count ? ` · ${r.card_count} cartes` : ''}
+                    </span>
+                  </h2>
+                )}
+                <CardGrid cards={b.cartes} emptyLabel="" />
+              </div>
+            )
+          })
+        )}
 
         <Suspense fallback={<div className="mt-8 h-[52px]" />}>
           <PaginationUrl

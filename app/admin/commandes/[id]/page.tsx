@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
+import BlocExpedition, { type CommandeExpedition } from '@/components/admin/commandes/BlocExpedition'
 
 const STATUSES = ['pending','paid','preparing','shipped','delivered','cancelled','refunded']
 
@@ -78,12 +79,14 @@ export default function CommandeDetailPage({ params }: { params: Promise<{ id: s
         <div className="gk-sep" style={{ marginTop: 0 }}>Client <div className="gk-sep-line" /></div>
         <div style={{ fontSize: '11px', color: 'rgba(238,228,204,0.7)' }}>{order.profiles?.email}</div>
         <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{order.profiles?.full_name}</div>
-        {order.shipping_address && (
-          <pre style={{ fontSize: '9px', color: 'var(--muted)', marginTop: '10px', background: 'var(--bg)', borderRadius: '3px', padding: '10px', overflowX: 'auto' }}>
-            {JSON.stringify(order.shipping_address, null, 2)}
-          </pre>
-        )}
+        {/* L'adresse n'est plus dumpée en JSON ici : le bloc Expédition la rend
+            formatée, prête à recopier sur une enveloppe. */}
       </div>
+
+      <BlocExpedition
+        commande={order as CommandeExpedition}
+        onChange={maj => setOrder({ ...order, ...maj })}
+      />
 
       {order.needs_review && (
         <div style={{ ...cardStyle, border: '1px solid rgba(239,68,68,0.4)' }}>
@@ -117,7 +120,7 @@ export default function CommandeDetailPage({ params }: { params: Promise<{ id: s
           </div>
         ) : (
           <div style={{ fontSize: '11px', color: 'var(--muted)' }}>
-            Aucun paiement Stripe — commande réglée intégralement en crédit boutique.
+            Aucun paiement Stripe : commande réglée intégralement en crédit boutique.
           </div>
         )}
       </div>

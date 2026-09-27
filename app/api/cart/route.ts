@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { estChiffre, REFUS_NON_CHIFFREE } from '@/lib/annonces'
 
 // POST /api/cart — valide prix et stocks avant checkout
 export async function POST(request: NextRequest) {
@@ -26,6 +27,23 @@ export async function POST(request: NextRequest) {
 
     if (!data || !data.is_active) {
       errors.push(`${item.name} n'est plus disponible`)
+      continue
+    }
+    /**
+     * Garde-fou : une annonce non chiffrée n'entre pas au panier.
+     *
+     * Un prix à zéro veut dire « pas encore chiffré », jamais « gratuit ». La
+     * RLS écarte déjà les annonces masquées pour un visiteur, mais elle ne dit
+     * rien du prix : une annonce restée EN LIGNE sans prix passait ici sans
+     * obstacle, et `data.price !== item.price` la validait très bien avec 0 des
+     * deux côtés. Mesuré : 108 annonces Pokémon étaient dans ce cas.
+     *
+     * Le refus est posé AVANT le contrôle de stock : sans prix, la quantité
+     * disponible n'a aucun intérêt, et un message sur le stock détournerait
+     * l'attention de la vraie raison.
+     */
+    if (!estChiffre(data.price)) {
+      errors.push(REFUS_NON_CHIFFREE(item.name))
       continue
     }
     if (data.quantity < item.quantity) {

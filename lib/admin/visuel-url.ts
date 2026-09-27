@@ -47,7 +47,24 @@ const HOTES_TCGDEX = ['assets.tcgdex.net']
 
 const COMPTE_CLOUDINARY = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 
-export function verifierUrlVisuel(brut: string): VerdictVisuel {
+/**
+ * Suffixe à ajouter à une URL TCGdex sans extension. Il DIFFÈRE selon la nature
+ * du visuel, et c'est une règle du projet, pas un détail :
+ *
+ *   · une carte  → `/high.webp`  (un segment de plus, pas une extension)
+ *   · un logo ou un symbole de set → `.png`
+ *
+ * Vérifié dans `lib/import/pokemon.ts`, qui appelle `withSuffix(…, '.png')`
+ * pour `logo` comme pour `symbol`, là où les cartes reçoivent `/high.webp`.
+ * Appliquer le suffixe des cartes à un logo donnerait une adresse morte —
+ * d'où le paramètre plutôt qu'une constante.
+ */
+export type SuffixeTcgdex = '/high.webp' | '.png'
+
+export function verifierUrlVisuel(
+  brut: string,
+  suffixeTcgdex: SuffixeTcgdex = '/high.webp',
+): VerdictVisuel {
   const valeur = brut.trim()
   if (!valeur) return { ok: false, raison: 'Collez une URL.' }
 
@@ -66,12 +83,11 @@ export function verifierUrlVisuel(brut: string): VerdictVisuel {
 
   // ── TCGdex ────────────────────────────────────────────────────────────
   if (HOTES_TCGDEX.includes(hote)) {
-    // Les URLs TCGdex n'ont PAS d'extension : le catalogue ajoute
-    // `/high.webp` pour une carte, `.png` pour un logo (règle CLAUDE.md).
-    // Coller l'URL nue donnerait une image morte alors que le lien « existe ».
-    // On complète donc comme le fait l'import, plutôt que de refuser.
+    // Les URLs TCGdex n'ont PAS d'extension. Coller l'adresse nue donnerait
+    // une image morte alors que le lien « existe ». On complète donc comme le
+    // fait l'import — avec le suffixe propre à la NATURE du visuel.
     const aUneExtension = /\.(png|jpg|jpeg|webp|svg)$/i.test(u.pathname)
-    const url = aUneExtension ? u.toString() : `${u.toString().replace(/\/$/, '')}/high.webp`
+    const url = aUneExtension ? u.toString() : `${u.toString().replace(/\/$/, '')}${suffixeTcgdex}`
     return { ok: true, url, source: 'tcgdex' }
   }
 

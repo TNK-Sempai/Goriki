@@ -39,7 +39,12 @@ type Statut = 'tous' | 'stock' | 'sans-prix' | 'sans-photo' | 'inactifs'
 const STATUTS: { v: Statut; label: string }[] = [
   { v: 'tous', label: 'Tous' },
   { v: 'stock', label: 'Avec stock' },
-  { v: 'sans-prix', label: 'Sans prix' },
+  // « En stock sans prix » et non « Sans prix » : c'est la file de travail
+  // réelle. Le filtre disait `prix <= 0` pendant que le compteur du panneau
+  // disait `stock > 0 et prix <= 0` — deux définitions pour un seul mot. Sans
+  // conséquence côté Pokémon, où toutes les annonces ont du stock ; côté One
+  // Piece, 839 annonces sans stock ET sans prix noyaient les 937 à traiter.
+  { v: 'sans-prix', label: 'En stock sans prix' },
   { v: 'sans-photo', label: 'Sans photo' },
   { v: 'inactifs', label: 'Inactifs' },
 ]
@@ -147,7 +152,7 @@ export default function SetListingsEditor({
       const actif = (e?.is_active ?? l.is_active) as boolean
 
       if (statut === 'stock' && qte <= 0) return false
-      if (statut === 'sans-prix' && !(prix <= 0)) return false
+      if (statut === 'sans-prix' && !(qte > 0 && prix <= 0)) return false
       if (statut === 'sans-photo' && !l.needs_photo) return false
       if (statut === 'inactifs' && actif) return false
       if (variante && v?.code !== variante) return false
@@ -228,6 +233,15 @@ export default function SetListingsEditor({
 
   const nbEdits = Object.keys(edits).length
   const sansPrix = visibles.filter(l => (valeur(l, 'quantity') as number) > 0 && (valeur(l, 'price') as number) <= 0).length
+  /**
+   * Le compte porté par la pastille : sur TOUT le set, pas sur les lignes
+   * affichées. Un compteur qui tombe à la valeur de la liste dès qu'on clique
+   * dessus n'apprend plus rien, et c'est justement le moment où l'on veut
+   * savoir combien il en reste.
+   */
+  const sansPrixTotal = listings.filter(
+    l => (valeur(l, 'quantity') as number) > 0 && (valeur(l, 'price') as number) <= 0,
+  ).length
 
   const colonnes = '26px 44px 1fr 96px 110px 74px 88px 108px 34px 30px'
 
@@ -263,6 +277,7 @@ export default function SetListingsEditor({
               style={{ padding: '4px 10px', cursor: 'pointer', fontSize: '9px' }}
             >
               {s.label}
+              {s.v === 'sans-prix' && sansPrixTotal > 0 ? ` · ${sansPrixTotal}` : ''}
             </button>
           ))}
         </div>

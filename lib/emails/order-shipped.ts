@@ -5,8 +5,26 @@ export function orderShippedHtml({
 }: {
   orderNumber: string
   customerName: string
-  trackingNumber: string
+  /**
+   * Absent sur une lettre simple, qui n'est pas suivie. On le DIT au client
+   * plutôt que d'afficher un bloc vide : un « Numéro de suivi » sans numéro
+   * laisse croire à une panne, et un tiret à la place d'une valeur ne dit rien.
+   */
+  trackingNumber?: string | null
 }): string {
+  const suiviHtml = trackingNumber
+    ? `
+      <p style="color:#7A6E5C;font-size:12px;margin:0 0 8px;text-transform:uppercase;letter-spacing:1px;">Numéro de suivi</p>
+      <p style="color:#D4900C;font-family:monospace;font-size:16px;margin:0 0 24px;letter-spacing:1px;">${trackingNumber}</p>
+      <p style="color:#7A6E5C;font-size:13px;margin:0;">
+        Utilisez ce numéro sur le site de votre transporteur pour suivre votre colis.
+      </p>`
+    : `
+      <p style="color:#7A6E5C;font-size:13px;margin:0;">
+        Cet envoi part en lettre simple : il ne comporte pas de numéro de suivi.
+        Comptez quelques jours ouvrables.
+      </p>`
+
   return `
 <!DOCTYPE html>
 <html lang="fr">
@@ -22,12 +40,7 @@ export function orderShippedHtml({
       <h2 style="color:#EEE4CC;font-family:Georgia,serif;font-size:20px;margin:0 0 8px;">Votre commande est expédiée 📦</h2>
       <p style="color:#7A6E5C;font-size:14px;margin:0 0 24px;">Bonjour ${customerName}, votre colis est en route.</p>
 
-      <p style="color:#7A6E5C;font-size:12px;margin:0 0 8px;text-transform:uppercase;letter-spacing:1px;">Numéro de suivi</p>
-      <p style="color:#D4900C;font-family:monospace;font-size:16px;margin:0 0 24px;letter-spacing:1px;">${trackingNumber}</p>
-
-      <p style="color:#7A6E5C;font-size:13px;margin:0;">
-        Utilisez ce numéro sur le site de votre transporteur pour suivre votre colis.
-      </p>
+      ${suiviHtml}
     </div>
 
     <div style="text-align:center;">

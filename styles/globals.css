@@ -457,6 +457,130 @@
   .trend-up   { color: #2E693A; }
   .trend-down { color: #A33B2A; }
 
+  /* ─────────────────────────────────────────────────────────────────────────
+     FOND DES PAGES NEUTRES (wallpaper) et VOILE DU HERO
+     Mission NOVA. Tout le rendu de ces deux fonds tient dans ce bloc : les
+     composants ne portent qu'une classe, jamais une valeur. Voir `lib/fond.ts`
+     pour la décision « quelle route reçoit quoi », elle aussi centralisée.
+     ───────────────────────────────────────────────────────────────────────── */
+
+  /* Nappe fixe posée derrière toute page neutre.
+     `position: fixed` plutôt que `background-attachment: fixed` sur le body :
+     même rendu immobile au défilement, sans le coût de repeinture que la
+     version « attachment » impose à chaque frame sur mobile.
+     z-index -20 : SOUS le canvas d'atmosphère (-z-10), qui ne subsiste que sur
+     l'accueil pour le morph de transition. Un fond négatif se peint quand même
+     au-dessus du fond de page, donc le gradient radial du body passe dessous
+     sur les pages neutres, et reste seul visible sur les pages d'univers. */
+  .fond-neutre {
+    position: fixed;
+    inset: 0;
+    z-index: -20;
+    pointer-events: none;
+    background-color: var(--bg);
+    background-image: url('/wallpaper-mobile.webp');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+  }
+
+  /* 64rem = 1024 px = le point `lg` de Tailwind, seul point de bascule du
+     design system (196 usages de `lg` dans le projet contre 2 de `md`).
+     UN SEUL fichier est téléchargé par écran : un navigateur ne résout la
+     `url()` que des règles dont la media query est satisfaite. La version
+     portrait n'est jamais demandée au-delà de 1024 px, ni la version large en
+     deçà. */
+  @media (min-width: 64rem) {
+    .fond-neutre { background-image: url('/wallpaper.webp'); }
+  }
+
+  /* Voile clair. Deux intensités seulement : la nappe est déjà très pâle, mais
+     sur un écran qu'on vient LIRE (documents légaux, compte, panier) le dessin
+     passe derrière les lignes de texte et fatigue. Mesuré sur la zone la plus
+     foncée du wallpaper : contraste du texte d'encre au-dessus de 7:1 dans les
+     deux cas, soit au-delà de l'exigence AA. */
+  .fond-neutre::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(232, 225, 216, 0.42);
+  }
+  .fond-neutre[data-dense='true']::after {
+    background: rgba(232, 225, 216, 0.74);
+  }
+
+  /* Voile du hero de l'accueil, posé entre l'illustration et le manifeste.
+     L'illustration est un panorama : le premier plan (les trois voyageurs, la
+     pile de cartes géantes) occupe sa moitié gauche, exactement là où tombe le
+     texte. Le voile est donc DIRECTIONNEL sur grand écran : il éteint la
+     gauche, s'efface au-delà de la colonne de texte et laisse la cité flottante
+     lisible à droite.
+
+     Sous 1024 px le texte occupe toute la largeur : le voile bascule à la
+     verticale et réserve une bande haute presque claire, où l'illustration se
+     voit vraiment, avant de se refermer au niveau du premier mot. Ses arrêts
+     sont en PIXELS et non en pourcentages : la hauteur du panneau dépend du
+     texte, une rampe en pourcentage se décalerait à chaque écran, alors que la
+     bande à découvert doit finir exactement là où commence le texte.
+
+     Opacités choisies pour que le texte garde le contraste qu'il a sur le fond
+     nu du site, jamais moins : le bas du voile est à 0,93, soit le même rapport
+     de contraste qu'un `text-ink-55` posé sur le parchemin. */
+  .voile-hero {
+    background: linear-gradient(
+      180deg,
+      rgba(232, 225, 216, 0.16) 0,
+      rgba(232, 225, 216, 0.22) 56px,
+      rgba(232, 225, 216, 0.84) 124px,
+      rgba(232, 225, 216, 0.88) 60%,
+      rgba(232, 225, 216, 0.93) 100%
+    );
+  }
+  @media (min-width: 64rem) {
+    .voile-hero {
+      background: linear-gradient(
+        90deg,
+        rgba(232, 225, 216, 0.88) 0%,
+        rgba(232, 225, 216, 0.80) 44%,
+        rgba(232, 225, 216, 0.36) 62%,
+        rgba(232, 225, 216, 0.08) 82%,
+        rgba(232, 225, 216, 0.02) 100%
+      );
+    }
+  }
+
+  /* Voile de l'éventail des nouveautés, dans le hero. Léger par principe :
+     il n'éclaircit que le bas, là où se lisent le cartouche de set et sa
+     navigation. Arrêts en PIXELS depuis le bas, pour la même raison que
+     `.voile-hero` : la hauteur de la zone varie, le cartouche non.
+     Sous 1024 px, une rampe haute prolonge en plus le 0,93 du voile de texte
+     situé juste au-dessus, sans quoi la jonction ferait une marche nette. */
+  .voile-nouveautes {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(232, 225, 216, 0.93) 0,
+        rgba(232, 225, 216, 0.30) 96px,
+        rgba(232, 225, 216, 0) 180px
+      ),
+      linear-gradient(
+        0deg,
+        rgba(232, 225, 216, 0.80) 0,
+        rgba(232, 225, 216, 0.66) 150px,
+        rgba(232, 225, 216, 0) 250px
+      );
+  }
+  @media (min-width: 64rem) {
+    .voile-nouveautes {
+      background: radial-gradient(
+        ellipse 300px 140px at 50% calc(100% - 84px),
+        rgba(232, 225, 216, 0.78) 0,
+        rgba(232, 225, 216, 0.52) 55%,
+        rgba(232, 225, 216, 0) 100%
+      );
+    }
+  }
+
   /* Emplacement d'image manquante — repris tel quel des maquettes
      (« scan à venir »), pour ne pas inventer un second motif. */
   .scan-pending {

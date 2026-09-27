@@ -4,6 +4,7 @@ import { ThemeProvider } from 'next-themes'
 import LenisProvider from '@/components/providers/LenisProvider'
 import { UniverseProvider } from '@/components/universe/UniverseProvider'
 import AtmosphereLayer from '@/components/atmosphere/AtmosphereLayer'
+import FondNeutreAuto from '@/components/fond/FondNeutreAuto'
 import { SITE_NAME, SITE_DESCRIPTION } from '@/lib/constants'
 import '@/styles/globals.css'
 import '@/styles/components.css'
@@ -77,6 +78,12 @@ export default function RootLayout({
         >
           <LenisProvider>
             <UniverseProvider>
+              {/* Les deux fonds globaux, dans l'ordre de profondeur : la nappe
+                  illustrée des pages neutres, puis le canvas d'atmosphère qui
+                  ne reste que sur l'accueil, au-dessus d'elle. Chacun lit la
+                  même fonction de `lib/fond.ts` et ne peut donc pas empiéter
+                  sur l'autre. */}
+              <FondNeutreAuto />
               <AtmosphereLayer />
               {children}
             </UniverseProvider>

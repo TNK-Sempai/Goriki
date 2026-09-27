@@ -28,7 +28,7 @@ const CLE_BROUILLON = 'goriki:rachat:singles'
 type Univers = 'onepiece' | 'pokemon'
 
 interface SetRow { id: string; code: string; name_fr: string }
-interface CardRow { id: string; name_fr: string; number: string; rarity: string | null; image_url: string | null }
+interface CardRow { id: string; set_id: string; name_fr: string; number: string; rarity: string | null; image_url: string | null }
 interface VariantRow { code: string; label: string }
 
 export interface LigneLot {
@@ -61,6 +61,8 @@ export default function SelecteurSingles({
   const [sets, setSets] = useState<SetRow[]>([])
   const [setChoisi, setSetChoisi] = useState<SetRow | null>(null)
   const [cartes, setCartes] = useState<CardRow[]>([])
+  /** Code RÉEL de chaque set du groupe choisi : une carte de 30TH-C reste 30TH-C dans le lot. */
+  const [codesDuGroupe, setCodesDuGroupe] = useState<Map<string, string>>(new Map())
   const [recherche, setRecherche] = useState('')
   const [carteChoisie, setCarteChoisie] = useState<CardRow | null>(null)
   const [versions, setVersions] = useState<VariantRow[]>([])
@@ -109,6 +111,8 @@ export default function SelecteurSingles({
       .from(TABLES[u].sets)
       .select('id, code, name_fr')
       .eq('is_active', true)
+      // Un set rattaché (migration 0057) se choisit par son parent.
+      .is('display_parent_id', null)
       .order('code')
     setSets((data ?? []) as SetRow[])
     setChargement(false)
@@ -120,13 +124,24 @@ export default function SelecteurSingles({
     setCarteChoisie(null); setVersions([]); setRecherche('')
     setChargement(true)
     const supabase = createClient()
+    // Le set choisi et ses rattachés : les cartes de ces derniers suivent.
+    const { data: rattaches } = await supabase
+      .from(TABLES[univers].sets)
+      .select('id, code')
+      .eq('display_parent_id', s.id)
+      .order('code')
+    const groupe = [{ id: s.id, code: s.code }, ...((rattaches ?? []) as { id: string; code: string }[])]
+    const rang = new Map(groupe.map((g, i) => [g.id, i]))
     const { data } = await supabase
       .from(TABLES[univers].cards)
-      .select('id, name_fr, number, rarity, image_url')
-      .eq('set_id', s.id)
+      .select('id, set_id, name_fr, number, rarity, image_url')
+      .in('set_id', groupe.map(g => g.id))
       .order('number')
-      .limit(500)
-    setCartes((data ?? []) as CardRow[])
+      .limit(500 * groupe.length)
+    setCodesDuGroupe(new Map(groupe.map(g => [g.id, g.code])))
+    setCartes(
+      ((data ?? []) as CardRow[]).sort((a, b) => (rang.get(a.set_id) ?? 0) - (rang.get(b.set_id) ?? 0)),
+    )
     setChargement(false)
   }
 
@@ -138,7 +153,7 @@ export default function SelecteurSingles({
     const { data } = await supabase
       .from(TABLES[univers].variants)
       .select('code, label')
-      .or(`set_id.eq.${setChoisi.id},set_id.is.null`)
+      .or(`set_id.eq.${c.set_id},set_id.is.null`)
     const rows = (data ?? []) as VariantRow[]
     setVersions(rows)
     setChargement(false)
@@ -161,7 +176,7 @@ export default function SelecteurSingles({
         ...prev,
         {
           universe: univers,
-          set_code: setChoisi.code,
+          set_code: codesDuGroupe.get(c.set_id) ?? setChoisi.code,
           card_id: c.id,
           card_name: c.name_fr,
           card_number: c.number,
@@ -360,6 +375,9 @@ export default function SelecteurSingles({
                       <span className="flex min-w-0 flex-col">
                         <span className="line-clamp-1 text-[13px] text-ink">{c.name_fr}</span>
                         <span className="data text-[8px]">
+                          {/* Carte d'un set rattaché : son code, sinon 30TH-C 001
+                              se confondrait avec 30TH 001. */}
+                          {setChoisi && c.set_id !== setChoisi.id ? `${codesDuGroupe.get(c.set_id) ?? ''} ` : ''}
                           {c.number}
                           {c.rarity ? ` · ${c.rarity}` : ''}
                         </span>

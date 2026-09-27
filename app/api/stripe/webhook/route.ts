@@ -83,17 +83,23 @@ async function handleCompleted(
     return NextResponse.json({ received: true, orphan: true })
   }
 
-  const shippingCost =
-    (session.shipping_cost?.amount_total ?? session.total_details?.amount_shipping ?? 0) / 100
+  // Le port et l'adresse ne viennent PLUS de Stripe. Depuis que la livraison se
+  // choisit sur notre page (point relais compris), `shipping_cost` et
+  // `shipping_address` sont écrits à la création de la commande. Les relire ici
+  // les écraserait par du vide : Stripe ne collecte plus ni l'un ni l'autre.
+  const { data: commande } = await service
+    .from('orders')
+    .select('shipping_cost, shipping_address')
+    .eq('id', orderId)
+    .maybeSingle()
 
   const result = await finalizeOrder(service, {
     orderId,
     paymentId: typeof session.payment_intent === 'string' ? session.payment_intent : null,
     sessionId: session.id,
     total: (session.amount_total ?? 0) / 100,
-    shippingCost,
-    shippingAddress:
-      (session.collected_information?.shipping_details?.address as unknown as Record<string, unknown>) ?? null,
+    shippingCost: Number(commande?.shipping_cost ?? 0),
+    shippingAddress: (commande?.shipping_address as Record<string, unknown> | null) ?? null,
     storeCreditUsed: parseFloat(session.metadata?.store_credit_used ?? '0'),
   })
 

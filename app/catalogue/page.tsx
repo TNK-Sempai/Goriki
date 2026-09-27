@@ -11,8 +11,9 @@ export default async function CataloguePage() {
 
   // Compteurs réels : aucun chiffre en dur dans les blocs d'entrée.
   const [pkmSets, opSets, pkmCards, opCards, sealed] = await Promise.all([
-    supabase.from('pokemon_sets').select('id', { count: 'exact', head: true }).eq('is_active', true),
-    supabase.from('onepiece_sets').select('id', { count: 'exact', head: true }).eq('is_active', true),
+    // Les sets rattachés (migration 0057) ne sont pas des entrées de la boutique.
+    supabase.from('pokemon_sets').select('id', { count: 'exact', head: true }).eq('is_active', true).is('display_parent_id', null),
+    supabase.from('onepiece_sets').select('id', { count: 'exact', head: true }).eq('is_active', true).is('display_parent_id', null),
     supabase.from('pokemon_cards').select('id', { count: 'exact', head: true }),
     supabase.from('onepiece_cards').select('id', { count: 'exact', head: true }),
     supabase.from('sealed_products').select('id', { count: 'exact', head: true }).eq('is_active', true),

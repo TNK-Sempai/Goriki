@@ -10,6 +10,10 @@ import { PaginationUrl } from '@/components/ui/Pagination'
 import { decouper, lirePage } from '@/lib/pagination'
 import { resoudreParPage } from '@/lib/pagination.server'
 import { prixOuEpuise } from '@/lib/utils'
+import { DEPOT_VENTE_OUVERT } from '@/lib/fonctionnalites'
+import SiteHeaderFerme from '@/components/layout/SiteHeader'
+import SiteFooterFerme from '@/components/layout/SiteFooter'
+import BientotDisponible from '@/components/layout/BientotDisponible'
 
 export const metadata = { title: 'Dépôt-vente' }
 export const dynamic = 'force-dynamic'
@@ -58,6 +62,21 @@ interface Props {
 }
 
 export default async function DepotVentePage({ searchParams }: Props) {
+  /**
+   * FERMÉ AU LANCEMENT. Le reste de cette page est conservé INTACT :
+   * rouvrir la fonction consiste à passer `DEPOT_VENTE_OUVERT` à `true`.
+   * La route serveur refuse de son côté, indépendamment de cet écran.
+   */
+  if (!DEPOT_VENTE_OUVERT) {
+    return (
+      <>
+        <SiteHeaderFerme />
+        <BientotDisponible titre={'Dépôt-vente'} accroche={"Vous pourrez confier vos pièces à la boutique, qui les met en vitrine et vous reverse le produit de la vente."} />
+        <SiteFooterFerme />
+      </>
+    )
+  }
+
   const sp = await searchParams
   const tri = typeof sp.tri === 'string' && TRIS.some(t => t.value === sp.tri) ? sp.tri : 'recent'
   const univers = typeof sp.univers === 'string' && sp.univers in UNIVERS ? sp.univers : ''

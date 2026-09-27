@@ -107,9 +107,12 @@ export async function relacherChampCarte(cardId: string, champ: string): Promise
 
 // ─── Variantes ─────────────────────────────────────────────────────────────
 
-export async function ajouterVariante(cardId: string, typeId: string): Promise<Resultat> {
-  return appeler('admin_ajouter_variante', { p_card_id: cardId, p_type_id: typeId })
-}
+// `ajouterVariante` a été SUPPRIMÉE ici, et non simplement laissée de côté.
+// Elle appelait `admin_ajouter_variante`, qui n'insère que
+// `(card_id, variant_type_id)` : depuis que `tirage_id` est NOT NULL (0044),
+// tout appel échoue sur `23502`. Une action serveur exportée est un point
+// d'entrée enregistré par Next.js — en garder une qui ne peut que casser
+// invitait à la recâbler. La création passe par `ajouterVarianteAxes`.
 
 /**
  * `cibleId` absent : la suppression est REFUSÉE si des exemplaires portent du
@@ -120,6 +123,43 @@ export async function ajouterVariante(cardId: string, typeId: string): Promise<R
 export async function supprimerVariante(varianteId: string, cibleId?: string): Promise<Resultat> {
   return appeler('supprimer_variante', {
     p_variante: varianteId, p_cible: cibleId ?? null,
+  })
+}
+
+/**
+ * Crée une variante sur les TROIS AXES.
+ *
+ * Remplace `ajouterVariante`, qui n'écrivait que `variant_type_id` et échouait
+ * depuis que `tirage_id` est obligatoire. Le tirage est requis ; finition et
+ * tampon restent facultatifs — une finition NULL veut dire « non déterminée »,
+ * ce qui est une information, pas un trou.
+ */
+export async function ajouterVarianteAxes(
+  cardId: string,
+  tirageId: string,
+  finitionId?: string | null,
+  tamponId?: string | null,
+): Promise<Resultat> {
+  return appeler('admin_ajouter_variante_axes', {
+    p_card_id: cardId,
+    p_tirage_id: tirageId,
+    p_finition_id: finitionId ?? null,
+    p_tampon_id: tamponId ?? null,
+  })
+}
+
+/** Change les axes d'une variante existante ; la passe en `source = manuel`. */
+export async function modifierAxesVariante(
+  varianteId: string,
+  tirageId: string,
+  finitionId?: string | null,
+  tamponId?: string | null,
+): Promise<Resultat> {
+  return appeler('admin_modifier_axes_variante', {
+    p_variante_id: varianteId,
+    p_tirage_id: tirageId,
+    p_finition_id: finitionId ?? null,
+    p_tampon_id: tamponId ?? null,
   })
 }
 

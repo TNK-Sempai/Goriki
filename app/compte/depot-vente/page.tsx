@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { formatPrice } from '@/lib/utils'
+import { DEPOT_VENTE_OUVERT, MESSAGE_BIENTOT } from '@/lib/fonctionnalites'
 
 export const metadata = { title: 'Mes dépôts' }
 
@@ -30,6 +31,25 @@ interface Depot {
 }
 
 export default async function MesDepotsPage() {
+  /**
+   * FERMÉ AU LANCEMENT. Le reste de cette page est conservé INTACT.
+   * La coquille (en-tête, pied, navigation du compte) vient du layout :
+   * on ne rend ici que le contenu.
+   */
+  if (!DEPOT_VENTE_OUVERT) {
+    return (
+      <>
+        <h1 className="display-section m-0">Mes dépôts</h1>
+        <p className="m-0 mt-4 max-w-[56ch] text-[14px] leading-[1.6] text-ink-70">
+          {MESSAGE_BIENTOT}
+        </p>
+        <p className="m-0 mt-3 max-w-[56ch] text-[14px] leading-[1.6] text-ink-70">
+          Vous retrouverez ici les pièces confiées à la boutique et leur statut.
+        </p>
+      </>
+    )
+  }
+
   const supabase = await createClient()
 
   // `user_id` n'est plus lisible par `authenticated` (migration 0023, qui
@@ -57,7 +77,8 @@ export default async function MesDepotsPage() {
     return {
       id: i.id,
       name: c?.name_fr ?? 'Carte',
-      ref: c?.number ?? '—',
+      // Un tiret à la place d'une référence ne dit rien : on nomme l'absence.
+      ref: c?.number ?? 'référence inconnue',
       imageUrl: c?.image_url ?? null,
       price: i.asking_price,
       status: i.status,

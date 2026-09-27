@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import { Pagination } from '@/components/ui/Pagination'
 import {
   corrigerCarte, relacherChampCarte,
-  ajouterVariante, supprimerVariante,
+  supprimerVariante,
+  ajouterVarianteAxes, modifierAxesVariante,
 } from '@/app/admin/catalogue/actions'
 import type { SetNettoyage, TypeVariante } from './types'
 
@@ -39,8 +40,27 @@ export interface VarianteAdmin {
   image_url: string | null
   image_manuelle: string | null
   locked_fields: string[]
-  pokemon_variant_types: TypeVariante | TypeVariante[]
+  source: string
+  /** Axe 1 — obligatoire : quelle impression a été mise en vente. */
+  tirage_id: string
+  /** Axe 2 — NULL = finition NON DÉTERMINÉE, distinct de « non-holo ». */
+  finition_id: string | null
+  /** Axe 3 — ce qui a été apposé après impression. */
+  tampon_id: string | null
+  /**
+   * HÉRITAGE. La jointure n'est plus `!inner` : depuis la migration 0045 une
+   * variante créée à la main porte `variant_type_id = NULL` et aurait disparu
+   * de l'écran — une ligne invisible qu'on aurait recréée en boucle.
+   */
+  pokemon_variant_types: TypeVariante | TypeVariante[] | null
   pokemon_listings: Exemplaire[] | null
+}
+
+/** Les trois tables de référence, servies par la page. */
+export interface AxesVariantes {
+  tirages: TypeVariante[]
+  finitions: TypeVariante[]
+  tampons: TypeVariante[]
 }
 
 export interface CarteAdmin {
@@ -62,12 +82,44 @@ export interface CarteAdmin {
 interface Ligne {
   variante: VarianteAdmin
   carte: CarteAdmin
-  type: TypeVariante | undefined
+  /** Nom de la variante sur les trois axes — voir `notation()`. */
+  libelle: string
   /** Nombre de variantes de la même carte — sert au rattachement visuel. */
   fratrie: number
 }
 
-const seul = <T,>(v: T | T[]): T => (Array.isArray(v) ? v[0] : v)
+const seul = <T,>(v: T | T[] | null | undefined): T | undefined =>
+  Array.isArray(v) ? v[0] : (v ?? undefined)
+
+/**
+ * Nom lisible d'une variante, construit sur les TROIS AXES.
+ *
+ * ⚠️ NE PAS revenir à `pokemon_variant_types.label`. Depuis 0045 une variante
+ * créée à la main porte `variant_type_id = NULL` : la nommer par ce champ
+ * rendait une étiquette VIDE. La variante existait bien en base, mais l'écran
+ * la montrait anonyme — on la recréait en boucle en croyant avoir échoué.
+ * L'ancien label ne sert plus que de dernier recours, pour les lignes d'import
+ * qui n'ont pas encore été reprises.
+ *
+ * `finition_id` NULL n'est PAS une lacune : c'est la finition normale de la
+ * rareté de la carte, et on ne l'écrit pas. « Normale · — » ferait passer pour
+ * incomplet ce qui est renseigné.
+ */
+function notation(v: VarianteAdmin, axes: AxesVariantes): string {
+  const nom = (liste: TypeVariante[], id: string | null) =>
+    id ? liste.find(x => x.id === id)?.label : undefined
+  const parts = [
+    nom(axes.tirages, v.tirage_id),
+    nom(axes.finitions, v.finition_id),
+    nom(axes.tampons, v.tampon_id),
+  ].filter(Boolean)
+  if (parts.length > 0) return parts.join(' · ')
+  return seul(v.pokemon_variant_types)?.label ?? 'variante sans axe'
+}
+
+/** Rang de tri d'une variante : l'ordre des tirages, pas celui des vieux types. */
+const rangTirage = (v: VarianteAdmin, axes: AxesVariantes) =>
+  axes.tirages.find(x => x.id === v.tirage_id)?.sort_order ?? 0
 const variantesDe = (c: CarteAdmin) => c.pokemon_card_variants ?? []
 
 type Tri = 'collection' | 'az' | 'za'
@@ -77,13 +129,17 @@ const etatVisuel = (v: VarianteAdmin): EtatVisuel =>
   v.image_manuelle ? 'manuel' : v.image_url ? 'api' : 'aucun'
 
 export default function VueEditeur({
-  sets, setCourant, cartes, typesAutorises,
+  sets, setCourant, cartes, axes, checklist,
 }: {
   sets: SetNettoyage[]
   setCourant: SetNettoyage | null
   cartes: CarteAdmin[]
-  typesAutorises: TypeVariante[]
+  axes: AxesVariantes
+  /** Paires [numéro de carte, cases attendues] — sérialisable, contrairement à une Map. */
+  checklist: [string, number][]
 }) {
+  // Reconstituée côté client : une Map ne traverse pas la frontière serveur.
+  const casesAttendues = useMemo(() => new Map(checklist), [checklist])
   const [fType, setFType] = useState<string | null>(null)
   const [fRarete, setFRarete] = useState<string | null>(null)
   const [fVariante, setFVariante] = useState<string | null>(null)
@@ -101,15 +157,15 @@ export default function VueEditeur({
       cartes.flatMap(c => {
         const vs = variantesDe(c)
           .slice()
-          .sort((a, b) => (seul(a.pokemon_variant_types)?.sort_order ?? 0) - (seul(b.pokemon_variant_types)?.sort_order ?? 0))
+          .sort((a, b) => rangTirage(a, axes) - rangTirage(b, axes))
         return vs.map(v => ({
           variante: v,
           carte: c,
-          type: seul(v.pokemon_variant_types),
+          libelle: notation(v, axes),
           fratrie: vs.length,
         }))
       }),
-    [cartes],
+    [cartes, axes],
   )
 
   const facettes = useMemo(() => {
@@ -124,7 +180,7 @@ export default function VueEditeur({
     return {
       types: compter(l => l.carte.card_type),
       raretes: compter(l => l.carte.rarity),
-      variantes: compter(l => l.type?.label),
+      variantes: compter(l => l.libelle),
       verrouillees: toutes.filter(l => (l.carte.locked_fields?.length ?? 0) > 0 || (l.variante.locked_fields?.length ?? 0) > 0).length,
       visuelApi: toutes.filter(l => etatVisuel(l.variante) === 'api').length,
       visuelManuel: toutes.filter(l => etatVisuel(l.variante) === 'manuel').length,
@@ -136,7 +192,7 @@ export default function VueEditeur({
     const out = toutes
       .filter(l => !fType || l.carte.card_type === fType)
       .filter(l => !fRarete || l.carte.rarity === fRarete)
-      .filter(l => !fVariante || l.type?.label === fVariante)
+      .filter(l => !fVariante || l.libelle === fVariante)
       .filter(l => {
         if (!fEtat) return true
         const verrouillee = (l.carte.locked_fields?.length ?? 0) > 0 || (l.variante.locked_fields?.length ?? 0) > 0
@@ -263,7 +319,7 @@ export default function VueEditeur({
                 {/* Le TYPE DE VARIANTE en clair : c'est ce qui distingue cette
                     vignette de sa voisine. */}
                 <span className="gk-tag" data-etat={vis === 'aucun' ? 'aucun' : vis === 'manuel' ? 'logo' : 'symbole'}>
-                  {l.type?.label ?? '—'}{vis === 'aucun' && ' · sans visuel'}
+                  {l.libelle}{vis === 'aucun' && ' · sans visuel'}
                 </span>
               </button>
             )
@@ -303,9 +359,10 @@ export default function VueEditeur({
       <aside className="gk-colonne" aria-label="Éditeur de variante" style={{ borderLeft: '1px solid var(--gk-line)', padding: 18 }}>
         {ligneActive ? (
           <EditeurVariante
+            axes={axes}
+            casesAttendues={casesAttendues}
             ligne={ligneActive}
             fratrie={variantesDe(ligneActive.carte)}
-            typesAutorises={typesAutorises}
             codeSet={setCourant?.code ?? ''}
             onSelectionner={setSelection}
           />
@@ -353,15 +410,17 @@ function LigneFacette({
  *     Normale : le dire est indispensable, sinon la correction surprend.
  */
 function EditeurVariante({
-  ligne, fratrie, typesAutorises, codeSet, onSelectionner,
+  ligne, fratrie, codeSet, axes, casesAttendues, onSelectionner,
 }: {
   ligne: Ligne
   fratrie: VarianteAdmin[]
-  typesAutorises: TypeVariante[]
   codeSet: string
+  axes: AxesVariantes
+  /** Numéro de carte → cases de la checklist. Vide si le set n'en a pas. */
+  casesAttendues: Map<string, number>
   onSelectionner: (id: string) => void
 }) {
-  const { carte, variante, type } = ligne
+  const { carte, variante, libelle } = ligne
   const [msg, setMsg] = useState<string | null>(null)
   const [aDeplacer, setADeplacer] = useState(false)
   const [enCours, demarrer] = useTransition()
@@ -378,9 +437,30 @@ function EditeurVariante({
   const verrousCarte = carte.locked_fields ?? []
   const stock = (variante.pokemon_listings ?? []).reduce((n, e) => n + (e.quantity ?? 0), 0)
   const soeurs = fratrie.filter(v => v.id !== variante.id)
-  const dejaPris = new Set(fratrie.map(v => seul(v.pokemon_variant_types)?.id))
-  const ajoutables = typesAutorises.filter(t => !dejaPris.has(t.id))
   const vis = etatVisuel(variante)
+
+  /**
+   * Axes de la variante À CRÉER. Trois états distincts de ceux de la variante
+   * affichée : saisir une création ne doit rien changer à la ligne ouverte.
+   */
+  const [nTirage, setNTirage] = useState('')
+  const [nFinition, setNFinition] = useState('')
+  const [nTampon, setNTampon] = useState('')
+
+  const apercuNouvelle = notation(
+    { ...variante, tirage_id: nTirage, finition_id: nFinition || null, tampon_id: nTampon || null },
+    axes,
+  )
+  /**
+   * Doublon détecté AVANT l'appel, pour désactiver le bouton plutôt que de
+   * laisser partir une écriture vouée au refus. La comparaison porte sur les
+   * trois axes — la clé d'unicité réelle — et non sur `variant_type_id`, qui est
+   * NULL sur toute variante créée à la main et rendrait le test toujours vrai.
+   */
+  const dejaLa = !!nTirage && fratrie.some(v =>
+    v.tirage_id === nTirage
+    && (v.finition_id ?? '') === nFinition
+    && (v.tampon_id ?? '') === nTampon)
 
   const champCarte = (nom: string, label: string, valeur: string | null) => {
     const verrouille = verrousCarte.includes(nom)
@@ -421,6 +501,23 @@ function EditeurVariante({
         )}
       </label>
     )
+  }
+
+  /**
+   * Enregistre les trois axes d'un coup.
+   *
+   * Une seule écriture, et non une par liste : les trois valeurs forment la clé
+   * d'unicité `(carte, tirage, finition, tampon)`. Les enregistrer séparément
+   * ferait passer la ligne par des états intermédiaires qui peuvent entrer en
+   * collision avec une autre variante de la même carte — l'écriture serait
+   * refusée pour une combinaison que l'utilisateur ne voulait pas.
+   */
+  async function enregistrerAxes(tirageId: string, finitionId: string | null, tamponId: string | null) {
+    demarrer(async () => {
+      const r = await modifierAxesVariante(variante.id, tirageId, finitionId, tamponId)
+      setMsg(r.ok ? 'Axes enregistrés — la variante passe en « manuel ».' : (r.erreur ?? 'Échec'))
+      if (r.ok) router.refresh()
+    })
   }
 
   async function poserVisuel(fichier: File) {
@@ -484,13 +581,121 @@ function EditeurVariante({
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 12 }}>{carte.name_fr}</div>
           <div className="gk-dim" style={{ fontSize: 10 }}>{codeSet} · {carte.number}</div>
-          <div className="gk-tag" data-etat="logo" style={{ marginTop: 4 }}>{type?.label ?? '—'}</div>
+          <div className="gk-tag" data-etat="logo" style={{ marginTop: 4 }}>{libelle}</div>
           {stock > 0 && <div className="gk-verrou" style={{ fontSize: 10 }}>{stock} en stock</div>}
         </div>
       </div>
 
+      {/* ── La checklist PokéCardex, en regard ───────────────────────────────
+          C'est ce qui rend l'écran utilisable : la source dit combien de cases
+          existent pour cette carte. L'utilisateur compare au lieu de deviner.
+
+          On affiche l'ÉCART, pas seulement les deux nombres — c'est l'écart qui
+          appelle une action. Et on distingue « pas de checklist » de « zéro
+          case » : 176 sets sur 185 ont une référence, les autres n'en ont pas,
+          et un tableau vide se lirait comme « rien à faire ». */}
+      {(() => {
+        const attendu = casesAttendues.get(carte.number.replace(/^0+(?=\d)/, ''))
+        const presentes = fratrie.length
+        if (casesAttendues.size === 0) {
+          return (
+            <div className="gk-field">
+              <span className="gk-label">Checklist PokéCardex</span>
+              <span className="gk-aide">
+                Aucune checklist rattachée à ce set — rien à quoi comparer. Ce n&apos;est pas
+                « zéro variante attendue ».
+              </span>
+            </div>
+          )
+        }
+        if (attendu === undefined) {
+          return (
+            <div className="gk-field">
+              <span className="gk-label">Checklist PokéCardex</span>
+              <span className="gk-aide">
+                Le set a une checklist, mais elle ne mentionne pas le numéro {carte.number}.
+              </span>
+            </div>
+          )
+        }
+        const ecart = presentes - attendu
+        return (
+          <div className="gk-field">
+            <span className="gk-label">Checklist PokéCardex</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <span style={{ fontSize: 17, fontWeight: 500 }}>{presentes} / {attendu}</span>
+              <span
+                className="gk-tag"
+                data-ton={ecart === 0 ? undefined : ecart < 0 ? 'rouge' : 'violet'}
+              >
+                {ecart === 0 ? 'conforme' : ecart < 0 ? `${-ecart} manquante(s)` : `${ecart} en trop`}
+              </span>
+            </div>
+            <span className="gk-aide">
+              Variantes en base face aux cases de la checklist. Un écart négatif signale une
+              version jamais créée ; un écart positif, une version que la source ne connaît pas.
+            </span>
+          </div>
+        )
+      })()}
+
       {/* ── Ce qui appartient à CETTE variante ────────────────────────────── */}
       <div className="gk-label" style={{ marginBottom: 6 }}>Cette variante</div>
+
+      {/* ── Les trois axes ──────────────────────────────────────────────────
+          Une carte réelle se décrit par trois choses indépendantes. Un champ
+          unique obligeait à choisir entre « 1ère édition » et « non-holo », donc
+          à écrire quelque chose de faux — c'est le cas Mélodelfe #17.
+
+          Le TIRAGE est obligatoire : c'est lui qui dit quelle impression a été
+          mise en vente. Les deux autres ont une option « non déterminée » qui
+          n'est PAS une valeur par défaut mais un aveu utile : « non-holo » et
+          « Sans tampon » existent comme valeurs explicites, et les confondre
+          avec l'absence de saisie ferait passer pour vérifié ce qui ne l'est
+          pas. */}
+      <div className="gk-field">
+        <span className="gk-label">Tirage</span>
+        <select
+          className="gk-input"
+          value={variante.tirage_id}
+          disabled={enCours}
+          onChange={e => enregistrerAxes(e.target.value, variante.finition_id, variante.tampon_id)}
+        >
+          {axes.tirages.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        <span className="gk-aide">Quelle impression a été mise en vente. Obligatoire.</span>
+      </div>
+
+      <div className="gk-field">
+        <span className="gk-label">Finition</span>
+        <select
+          className="gk-input"
+          value={variante.finition_id ?? ''}
+          disabled={enCours}
+          onChange={e => enregistrerAxes(variante.tirage_id, e.target.value || null, variante.tampon_id)}
+        >
+          <option value="">— non déterminée —</option>
+          {axes.finitions.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        <span className="gk-aide">
+          « Non déterminée » n&apos;est pas « non-holo » : cette dernière est une valeur
+          explicite de la liste. 23 159 variantes reprises attendent encore leur finition.
+        </span>
+      </div>
+
+      <div className="gk-field">
+        <span className="gk-label">Tampon</span>
+        <select
+          className="gk-input"
+          value={variante.tampon_id ?? ''}
+          disabled={enCours}
+          onChange={e => enregistrerAxes(variante.tirage_id, variante.finition_id, e.target.value || null)}
+        >
+          <option value="">— aucun renseigné —</option>
+          {axes.tampons.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        <span className="gk-aide">Ce qui a été apposé après impression. « Sans tampon » existe comme valeur explicite.</span>
+      </div>
 
       <div className="gk-field">
         <span className="gk-label">Visuel</span>
@@ -566,7 +771,7 @@ function EditeurVariante({
                   setMsg(r.ok ? 'Exemplaires déplacés, variante supprimée.' : (r.erreur ?? 'Échec'))
                   setADeplacer(false)
                 })}>
-                {seul(x.pokemon_variant_types)?.label}
+                {notation(x, axes)}
               </button>
             ))}
             <button type="button" className="gk-btn" onClick={() => setADeplacer(false)}>Annuler</button>
@@ -593,7 +798,7 @@ function EditeurVariante({
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {soeurs.map(x => (
               <button key={x.id} type="button" className="gk-btn" onClick={() => onSelectionner(x.id)}>
-                {seul(x.pokemon_variant_types)?.label}
+                {notation(x, axes)}
                 {!x.image_url && ' ·sans visuel'}
               </button>
             ))}
@@ -601,25 +806,92 @@ function EditeurVariante({
         </div>
       )}
 
-      {ajoutables.length > 0 && (
-        <div className="gk-field">
-          <span className="gk-label">Ajouter une variante</span>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {ajoutables.map(t => (
-              <button key={t.id} type="button" className="gk-btn"
-                onClick={() => demarrer(async () => {
-                  const r = await ajouterVariante(carte.id, t.id)
-                  setMsg(r.ok ? `Variante ${t.label} ajoutée.` : (r.erreur ?? 'Échec'))
-                })}>
-                + {t.label}
-              </button>
-            ))}
-          </div>
-          <span className="gk-aide">
-            Seuls les types autorisés par {codeSet} sont proposés.
-          </span>
+      {/* ── Créer une variante, sur les TROIS AXES ───────────────────────────
+          Remplace une rangée de boutons « + Normale / + Reverse » qui appelait
+          `admin_ajouter_variante` : cette RPC n'écrit que `variant_type_id`, et
+          depuis que `tirage_id` est NOT NULL (0044) elle échouait à CHAQUE clic
+          sur `23502 null value in column "tirage_id"`. La création était donc
+          totalement morte, pendant que la suppression, elle, marchait.
+
+          Une variante ne se DUPLIQUE pas depuis une autre : ce qui la distingue,
+          ce sont ses trois axes. Les choisir explicitement est le geste — copier
+          une ligne puis la corriger ferait passer par une combinaison
+          intermédiaire qui peut déjà exister, et l'écriture serait refusée pour
+          une variante que personne ne voulait créer. */}
+      <div className="gk-field">
+        <span className="gk-label">Créer une variante sur cette carte</span>
+
+        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+          <label className="gk-field" style={{ gap: 3 }}>
+            <span className="gk-aide">Tirage — obligatoire</span>
+            <select className="gk-input" value={nTirage} disabled={enCours}
+              onChange={e => { setNTirage(e.target.value); setMsg(null) }}>
+              <option value="">— choisir —</option>
+              {axes.tirages.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </label>
+
+          <label className="gk-field" style={{ gap: 3 }}>
+            <span className="gk-aide">Finition</span>
+            <select className="gk-input" value={nFinition} disabled={enCours}
+              onChange={e => { setNFinition(e.target.value); setMsg(null) }}>
+              <option value="">— non déterminée —</option>
+              {axes.finitions.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </label>
+
+          <label className="gk-field" style={{ gap: 3 }}>
+            <span className="gk-aide">Tampon</span>
+            <select className="gk-input" value={nTampon} disabled={enCours}
+              onChange={e => { setNTampon(e.target.value); setMsg(null) }}>
+              <option value="">— aucun —</option>
+              {axes.tampons.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </label>
         </div>
-      )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', marginTop: 4 }}>
+          <button type="button" className="gk-btn" data-primaire
+            disabled={enCours || !nTirage || dejaLa}
+            onClick={() => demarrer(async () => {
+              const r = await ajouterVarianteAxes(carte.id, nTirage, nFinition || null, nTampon || null)
+              if (r.ok) {
+                setMsg(`Variante « ${apercuNouvelle} » créée sur ${carte.name_fr}.`)
+                setNTirage(''); setNFinition(''); setNTampon('')
+                // L'action revalide le cache serveur, mais ce composant tient sa
+                // propre sélection : sans `refresh`, la nouvelle variante
+                // n'apparaît ni dans la grille ni dans les sœurs.
+                router.refresh()
+              } else {
+                setMsg(r.erreur ?? 'Échec')
+              }
+            })}>
+            Créer cette variante
+          </button>
+          {nTirage && (
+            <span className="gk-tag" data-etat={dejaLa ? 'aucun' : 'logo'}>{apercuNouvelle}</span>
+          )}
+        </div>
+
+        <span className="gk-aide">
+          {!nTirage
+            ? 'Le tirage dit quelle impression a été mise en vente. Sans lui, la base refuse la ligne.'
+            : dejaLa
+              ? 'Cette carte porte déjà exactement cette combinaison — rien à créer.'
+              : "Créée à la main, la variante est marquée « manuel » : aucun import ne l'écrasera."}
+        </span>
+        <span className="gk-aide">
+          {/* Dit pourquoi la liste n'est plus restreinte par le set, plutôt que
+              de laisser croire à un oubli : la restriction de {codeSet} est
+              exprimée en types de l'ANCIEN modèle, où « Illimité » et
+              « Normale » retombent tous deux sur `NORMAL`. La transposer aux
+              trois axes demanderait une table de correspondance qui n'existe
+              pas — l'inventer ici aurait interdit des tirages légitimes. */}
+          Les {axes.tirages.length} tirages sont proposés : la restriction de {codeSet}{' '}
+          est écrite dans l&apos;ancien vocabulaire et ne se transpose pas aux trois axes.
+          C&apos;est la checklist, plus haut, qui dit combien de cases ce numéro attend.
+        </span>
+      </div>
 
       {/* ── Ce qui appartient à la CARTE, donc à toutes ses variantes ─────── */}
       <div className="gk-label" style={{ margin: '18px 0 4px' }}>
@@ -627,7 +899,7 @@ function EditeurVariante({
       </div>
       <p className="gk-aide" style={{ marginBottom: 8 }}>
         Ces champs appartiennent à la CARTE. Les corriger depuis
-        {' '}« {type?.label ?? 'cette variante'} » les change aussi sur
+        {' '}« {libelle} » les change aussi sur
         {' '}{fratrie.length > 1 ? `ses ${fratrie.length - 1} autre(s) variante(s)` : 'toutes ses variantes'}.
       </p>
 

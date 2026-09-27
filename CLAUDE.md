@@ -89,6 +89,40 @@ background-image:
 background-attachment: fixed;
 ```
 
+## Fonds de page (doctrine arrêtée le 2026-09-27, mission NOVA)
+
+**Trois natures de fond, et trois seulement.** La règle est appliquée par une source
+unique, `lib/fond.ts` : `natureDuFond(pathname)`. Aucune page ne monte son fond elle-même,
+à une exception près, documentée plus bas.
+
+| Nature | Routes | Ce qui est monté |
+|---|---|---|
+| `univers` | `/catalogue/pokemon**`, `/catalogue/onepiece**` | Le motif de l'univers : Poké Ball gravée ou carte marine, monté par le layout du rayon. Rien d'autre ne s'y superpose. |
+| `neutre` | Tout le reste du parcours public et du compte : accueil, catalogue, scellés, recherche, want to buy, rachat, dépôt-vente, panier, auth, compte, pages légales | Le wallpaper commun (`public/wallpaper.webp` et `public/wallpaper-mobile.webp`), monté une seule fois par `FondNeutreAuto` dans le layout racine. |
+| `aucun` | `/admin**`, `/checkout**` | Rien. Le back-office est verrouillé en sombre, le tunnel de paiement ne doit pas distraire. |
+
+**La fiche produit `/{uuid}` est la seule exception, et elle est structurelle** : son
+univers ne se lit pas dans le chemin mais en base. `natureDuFond()` répond `fiche`, les
+couches globales se retirent et `app/[slug]/layout.tsx` monte lui-même le motif d'univers
+ou, pour un scellé, le wallpaper.
+
+**Point de bascule du wallpaper : `lg`, soit 1024 px**, l'unique point du design system.
+Sous 1024 px la version portrait, au-delà la version large, et UN SEUL fichier est
+téléchargé par écran, parce que la bascule est une media query CSS et jamais du JavaScript.
+
+**Voile.** Le wallpaper porte toujours un voile clair, renforcé sur les écrans à forte
+densité de texte (pages légales, compte, panier), liste tenue dans `fondDense()`. Règle
+d'arbitrage : le voile ne doit jamais faire descendre le contraste d'un texte en dessous
+de ce qu'il vaut sur le parchemin nu.
+
+**Le canvas d'atmosphère ne sert plus de fond.** Il ne subsiste que sur l'accueil,
+invisible au repos, uniquement pour le morph de la transition vers un univers.
+
+**Tout le rendu est centralisé dans `styles/globals.css`** (`.fond-neutre`, `.voile-hero`).
+Un composant ne porte qu'une classe, jamais une valeur. Ajouter une page neutre ne demande
+aucun travail : elle hérite du fond. Ajouter un rayon d'univers demande une seule ligne,
+dans `lib/fond.ts`.
+
 ## Typographie — FINALE, remplace toutes les versions précédentes
 | Rôle | Police | Note |
 |---|---|---|
@@ -153,11 +187,11 @@ motion-system (skill complet, `docs/MOTION-SYSTEM-SKILL.md` si déposé, sinon c
 2. **Home** — cascade GSAP ScrollTrigger sur les cartes catégories, magnetic sur le CTA principal.
 3. **Catalogue (CardTile/CardGrid)** — tilt 3D au curseur, reflet/shine piloté par la rareté, curseur "VOIR →" au survol, stagger reveal.
 4. **Transition Home→Univers** (`template.tsx`, jamais `layout.tsx`) — le morph d'`AtmosphereCanvas` s'intensifie pendant la transition.
-5. **AtmosphereCanvas/UniverseProvider** — MONTÉS en `fixed -z-10` sur tout le parcours public, exclus de `/admin` et `/checkout`. ⚠️ Ces composants ont existé en code mort pendant plusieurs missions sans être montés nulle part — toujours vérifier leur présence réelle dans l'arbre rendu (pas juste `npm run build`) avant de les tenir pour acquis.
+5. **AtmosphereCanvas/UniverseProvider** — monté en `fixed -z-10` sur la SEULE page d'accueil depuis le 2026-09-27, et invisible au repos : il ne sert plus de fond, le wallpaper commun a pris ce rôle (voir « Fonds de page »). Il n'y subsiste que pour le morph de la signature 4. ⚠️ Ces composants ont existé en code mort pendant plusieurs missions sans être montés nulle part — toujours vérifier leur présence réelle dans l'arbre rendu (pas juste `npm run build`) avant de les tenir pour acquis.
 
    **Deux cartographies, pas une seule déclinée.** One Piece = NAVIGATION (rose des vents gravée, anneaux gradués, relèvements). Pokémon = CLASSIFICATION (Pokéball gravée, viseur d'index, réglette). Le fondu est croisé et STRICT : à `ease = 1` la rose est à zéro, et réciproquement. Vérifier au RENDU sur les deux univers — un `npm run build` vert ne prouve rien ici.
 
-   **Le fond ne porte que le motif d'univers et le gradient radial.** Pas de quadrillage, pas de réseau de points, pas de grille technique par-dessus : un motif identique sur tous les écrans écrase les différences de composition, ce qui est l'inverse du but recherché.
+   **Sur une page d'univers, le fond ne porte que le motif d'univers et le gradient radial.** Pas de quadrillage, pas de réseau de points, pas de grille technique par-dessus, et pas de wallpaper : un motif identique sur tous les écrans écrase les différences de composition, ce qui est l'inverse du but recherché. Sur une page neutre, c'est l'inverse qui s'applique : le wallpaper commun, et lui seul.
 
    ⚠️ Sous `prefers-reduced-motion`, le canvas n'a **aucune boucle rAF** : il n'est peint qu'une fois. Tout changement d'état (univers, intensité) doit donc déclencher un redessin EXPLICITE, sinon l'écran reste figé sur le premier motif — bug réel, corrigé le 2026-08-22.
 6. **Fiche carte (CardViewer)** — profondeur réelle (ombre parallax, glow à la manipulation), approfondissement de l'existant, pas de nouvel effet gadget.

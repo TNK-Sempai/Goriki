@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SetCardData } from '@/components/catalogue/SetGrid'
+import { parentsDesRattaches } from '@/lib/catalogue/rattachements'
 
 export interface Era {
   name: string
@@ -22,6 +23,9 @@ const TABLES = {
  *
  * Les deux univers portent `serie_name` : `pokemon_sets` depuis la migration 0014,
  * `onepiece_sets` depuis la 0022 (alimenté par le `set_type` de Poneglyphe).
+ *
+ * Sets rattachés (migration 0057) : absents de la liste, leur stock et leur
+ * nombre de cartes s'ajoutent à ceux de leur parent, dont la page les montre.
  */
 export async function getSeriesByEra(
   supabase: SupabaseClient,
@@ -36,6 +40,10 @@ export async function getSeriesByEra(
     .order('release_date', { ascending: false })
 
   if (!sets?.length) return []
+
+  const parentDe = await parentsDesRattaches(supabase, universe)
+  /** Le set sous lequel une carte s'affiche : son parent s'il est rattaché. */
+  const setAffiche = (id: string) => parentDe.get(id) ?? id
 
   // Cartes réellement en vente, avec leur set et leur prix. Filtré côté base :
   // seules les lignes en stock remontent.
@@ -75,8 +83,9 @@ export async function getSeriesByEra(
 
   const stock = new Map<string, { n: number; min: number }>()
   for (const row of (live ?? []) as unknown as Record<string, unknown>[]) {
-    const setId = setDeLaLigne(row)
-    if (!setId) continue
+    const setReel = setDeLaLigne(row)
+    if (!setReel) continue
+    const setId = setAffiche(setReel)
     const prix = Number(row.price ?? 0)
     const cur = stock.get(setId)
     if (cur) {
@@ -99,14 +108,24 @@ export async function getSeriesByEra(
     else apercus.set(a.set_id, [a.image_url])
   }
 
-  const eras = new Map<string, SetCardData[]>()
-  for (const raw of sets as unknown as {
+  const lignes = sets as unknown as {
     id: string
     code: string
     name_fr: string
     card_count: number | null
     serie_name?: string | null
-  }[]) {
+  }[]
+
+  // Cartes annoncées par groupe : le parent compte aussi celles de ses rattachés.
+  const totalDuGroupe = new Map<string, number>()
+  for (const raw of lignes) {
+    const cible = setAffiche(raw.id)
+    totalDuGroupe.set(cible, (totalDuGroupe.get(cible) ?? 0) + (raw.card_count ?? 0))
+  }
+
+  const eras = new Map<string, SetCardData[]>()
+  for (const raw of lignes) {
+    if (parentDe.has(raw.id)) continue
     const s = stock.get(raw.id)
     const era = raw.serie_name?.trim() || 'Autres'
     const card: SetCardData = {
@@ -114,7 +133,7 @@ export async function getSeriesByEra(
       code: raw.code,
       name_fr: raw.name_fr,
       inStock: s?.n ?? 0,
-      total: raw.card_count ?? 0,
+      total: totalDuGroupe.get(raw.id) ?? 0,
       priceFrom: s?.min ?? null,
       preview: apercus.get(raw.id) ?? [],
     }

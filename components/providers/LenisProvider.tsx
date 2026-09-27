@@ -24,8 +24,8 @@ import { PREFIXE_ADMIN } from '@/lib/constants'
  * de défilement à la souris. C'est exactement le défaut signalé sur les écrans
  * d'administration, qui sont bâtis sur des colonnes défilantes.
  *
- * La doctrine réserve déjà Lenis au parcours PUBLIC ; `AtmosphereLayer` exclut
- * `/admin` pour la même raison de nature. On aligne : pas de lissage dans
+ * La doctrine réserve déjà Lenis au parcours PUBLIC ; `natureDuFond()` écarte
+ * `/admin` de tout fond pour la même raison. On aligne : pas de lissage dans
  * l'outil de travail, le scroll natif y est la bonne réponse.
  *
  * Le préfixe vient de `PREFIXE_ADMIN` et n'est PAS réécrit ici : recopié, il a

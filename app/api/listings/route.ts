@@ -2,6 +2,24 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { doitRepasserEnVente } from '@/lib/annonces'
+
+/** Une ligne de `PATCH /api/listings`. Tous les champs sauf `id` sont optionnels. */
+interface MiseAJourListing {
+  id: string
+  quantity?: number
+  price?: number
+  condition?: string
+  is_active?: boolean
+}
+
+/** L'état d'une annonce avant la sauvegarde, tel que relu ici. */
+interface EtatListing {
+  id: string
+  price: number
+  quantity: number
+  is_active: boolean
+}
 
 async function getAdminClient() {
   const cookieStore = await cookies()
@@ -136,13 +154,54 @@ export async function PATCH(request: NextRequest) {
   if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
 
   const { tcg, updates } = await request.json()
-  // updates: Array<{ id: string, quantity?: number, price?: number, condition?: string, is_active?: boolean }>
 
   const table = tcg === 'onepiece' ? 'onepiece_listings' : 'pokemon_listings'
-  const results = []
+  const lignes = (Array.isArray(updates) ? updates : []) as MiseAJourListing[]
+  const results: { id: string; ok?: boolean; error?: string }[] = []
 
-  for (const update of updates) {
+  /**
+   * L'état AVANT, lu en une seule requête pour toute la sauvegarde.
+   *
+   * C'est ce qui permet la remise en vente automatique : la décision porte sur
+   * l'état d'avant (masquée, non chiffrée, en stock), pas sur le seul contenu
+   * du PATCH. Une lecture par ligne aurait coûté 245 allers-retours sur un set
+   * complet ; `in` en coûte un.
+   *
+   * CETTE ROUTE EST LE SEUL POINT D'ÉCRITURE des trois écrans de saisie :
+   * l'édition en ligne de la grille, l'application à une sélection et la fiche
+   * d'annonce passent tous par ici. La règle est donc posée une fois, et aucun
+   * des trois ne peut l'oublier.
+   */
+  const ids = lignes.map(l => l.id).filter((v): v is string => typeof v === 'string')
+  const { data: avantRows } = ids.length
+    ? await supabase.from(table).select('id, price, quantity, is_active').in('id', ids)
+    : { data: [] }
+
+  const avantParId = new Map(
+    ((avantRows ?? []) as EtatListing[]).map(r => [r.id, r]),
+  )
+
+  for (const update of lignes) {
     const { id, ...fields } = update
+    const avant = avantParId.get(id)
+
+    if (avant) {
+      // `??` et non `||` : un prix ou un stock à 0 est une valeur, pas une
+      // absence. `0 || avant.price` aurait silencieusement repris l'ancien prix.
+      const apres = {
+        price: fields.price ?? avant.price,
+        quantity: fields.quantity ?? avant.quantity,
+      }
+
+      // La case « actif » envoyée par l'écran n'entre PAS dans la décision :
+      // la fiche d'annonce la renvoie telle quelle, donc `false` sur une
+      // annonce masquée, sans que personne l'ait touchée. Voir le long
+      // commentaire de `doitRepasserEnVente`.
+      if (doitRepasserEnVente(avant, apres)) {
+        fields.is_active = true
+      }
+    }
+
     const { error } = await supabase.from(table).update(fields).eq('id', id)
     if (error) results.push({ id, error: error.message })
     else results.push({ id, ok: true })

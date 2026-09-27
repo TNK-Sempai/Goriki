@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/service'
-import { resend, FROM_EMAIL } from '@/lib/resend'
+import { resend, FROM_EMAIL, REPLY_TO } from '@/lib/resend'
 import { orderShippedHtml } from '@/lib/emails/order-shipped'
 
 async function adminClient() {
@@ -31,7 +31,10 @@ export async function GET(request: NextRequest) {
   if (id) {
     const { data, error } = await supabase
       .from('orders')
-      .select('*, profiles(email, full_name), order_items(*)')
+      // Le tarif est joint pour la fiche d'expédition : c'est lui qui dit si
+      // l'option s'affranchit à la main (`kind = 'letter'`) ou passe par une
+      // méthode Sendcloud, et si elle exige un point relais.
+      .select('*, profiles(email, full_name), order_items(*), shipping_rates(code, label, kind, country, price, sendcloud_method_code, needs_service_point, tracked)')
       .eq('id', id)
       .single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -82,9 +85,18 @@ export async function PATCH(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Email d'expédition : uniquement à la PREMIÈRE saisie d'un numéro de suivi.
-  if (tracking_number && tracking_number !== current.tracking_number) {
-    await sendShippedEmail(current.user_id, id, tracking_number)
+  /**
+   * Email d'expédition, envoyé UNE seule fois.
+   *
+   * Deux déclencheurs, parce qu'il y a deux façons d'expédier : la première
+   * saisie d'un numéro de suivi (colis Sendcloud), et le passage en « shipped »
+   * (lettre simple, qui n'aura jamais de numéro). Sans le second, un client
+   * servi par lettre n'était jamais prévenu du départ de sa commande.
+   */
+  const suiviNouveau = Boolean(tracking_number) && tracking_number !== current.tracking_number
+  const passeEnExpediee = status === 'shipped' && current.status !== 'shipped'
+  if (suiviNouveau || passeEnExpediee) {
+    await sendShippedEmail(current.user_id, id, tracking_number || current.tracking_number || null)
   }
 
   return NextResponse.json(data)
@@ -109,7 +121,7 @@ async function refundOrder(order: RefundableOrder): Promise<{ ok: true } | { ok:
   // il n'y a rien à rembourser chez Stripe, seulement du crédit à rendre.
   if (order.total > 0) {
     if (!order.stripe_payment_id) {
-      return { ok: false, error: 'Aucun paiement Stripe rattaché à cette commande — remboursement impossible' }
+      return { ok: false, error: 'Aucun paiement Stripe rattaché à cette commande · remboursement impossible' }
     }
     try {
       await stripe.refunds.create({ payment_intent: order.stripe_payment_id })
@@ -150,7 +162,7 @@ async function refundOrder(order: RefundableOrder): Promise<{ ok: true } | { ok:
 }
 
 /** Email d'expédition — non bloquant, comme la confirmation de commande. */
-async function sendShippedEmail(userId: string | null, orderId: string, trackingNumber: string) {
+async function sendShippedEmail(userId: string | null, orderId: string, trackingNumber: string | null) {
   if (!userId) return
   try {
     const service = createServiceClient()
@@ -164,8 +176,9 @@ async function sendShippedEmail(userId: string | null, orderId: string, tracking
 
     await resend.emails.send({
       from: FROM_EMAIL,
+      replyTo: REPLY_TO,
       to: profile.email,
-      subject: 'Votre commande est expédiée — Goriki',
+      subject: 'Votre commande est expédiée · Goriki',
       html: orderShippedHtml({
         orderNumber: orderId,
         customerName: profile.full_name ?? profile.email,

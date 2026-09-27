@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState, useSyncExternalStore } from 'react'
+import { useRouter } from 'next/navigation'
 import { corrigerSet, relacherChampSet, definirTypesSet, creerTypeVariante } from '@/app/admin/catalogue/actions'
 import {
   sAbonnerPreferences,
@@ -319,6 +320,13 @@ function Ligne({
           {s.cartes_corrigees > 0 && (
             <span className="gk-verrou" style={{ marginLeft: 7 }}>{s.cartes_corrigees}🔒</span>
           )}
+          {/* Regroupement d'affichage boutique (migration 0057). */}
+          {s.rattache_a && (
+            <span className="gk-dim" style={{ marginLeft: 7 }}>↳ rattaché à {s.rattache_a}</span>
+          )}
+          {(s.rattaches?.length ?? 0) > 0 && (
+            <span className="gk-dim" style={{ marginLeft: 7 }}>+ {s.rattaches!.join(', ')}</span>
+          )}
         </span>
       )}
       {montrerSerie && <span className="gk-dim">{s.serie_name ?? '—'}</span>}
@@ -355,6 +363,10 @@ function PanneauSet({
   const [occupe, setOccupe] = useState(false)
   const [filtreType, setFiltreType] = useState('')
   const [nouveauType, setNouveauType] = useState('')
+  /** Champs « coller une URL » du logo et du symbole, et leur état d'envoi. */
+  const [urlVisuel, setUrlVisuel] = useState<Record<'logo' | 'symbole', string>>({ logo: '', symbole: '' })
+  const [visuelEnCours, setVisuelEnCours] = useState<'logo' | 'symbole' | null>(null)
+  const router = useRouter()
 
   const typesFiltres = useMemo(() => {
     const q = filtreType.trim().toLowerCase()
@@ -363,6 +375,120 @@ function PanneauSet({
   }, [types, filtreType])
 
   const verrouille = (c: string) => (s.locked_fields ?? []).includes(c)
+
+  /**
+   * Corrige le logo ou le symbole du set à partir d'une URL collée.
+   *
+   * Passe par une route dédiée, et non par l'action `corrigerSet` déjà présente :
+   * celle-ci écrit sans rien vérifier et accepterait « coucou » comme logo. La
+   * route valide le domaine et SONDE le lien — on est ici précisément parce
+   * qu'un logo d'API ne répond plus, remplacer une image morte par une autre
+   * serait le seul échec que ce champ ne doit pas permettre.
+   *
+   * La route pose aussi le verrou : c'est lui, et non une colonne séparée, qui
+   * fait survivre la correction au prochain import (voir l'en-tête de la route).
+   */
+  async function poserVisuelSet(nature: 'logo' | 'symbole') {
+    const valeur = urlVisuel[nature].trim()
+    if (!valeur) { setMsg('Collez une URL.'); return }
+    setVisuelEnCours(nature)
+    setMsg(null)
+    try {
+      const r = await fetch('/api/admin/catalogue/logo-set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ set_id: s.set_id, nature, url: valeur }),
+      })
+      const j = await r.json()
+      if (!r.ok) { setMsg(j.error ?? 'Échec'); return }
+      setUrlVisuel(u => ({ ...u, [nature]: '' }))
+      setMsg(j.avertissement ?? `${nature === 'logo' ? 'Logo' : 'Symbole'} corrigé et verrouillé — l'import ne l'écrasera plus.`)
+      // La route d'API ne revalide rien : sans ce rafraîchissement, la vignette
+      // et le cadenas resteraient sur l'ancien état alors que la base a changé.
+      router.refresh()
+    } finally {
+      setVisuelEnCours(null)
+    }
+  }
+
+  /** Bloc « visuel » : aperçu, champ URL, bouton, et relâchement si verrouillé. */
+  const champVisuel = (nature: 'logo' | 'symbole', urlActuelle: string | null) => {
+    const colonne = nature === 'logo' ? 'image_url' : 'symbol_url'
+    const label = nature === 'logo' ? 'Logo' : 'Symbole'
+    return (
+      <div className="gk-field" key={nature}>
+        <span className="gk-label">
+          {label}
+          {verrouille(colonne) && <span className="gk-verrou" style={{ marginLeft: 6 }}>🔒</span>}
+        </span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          {urlActuelle ? (
+            // eslint-disable-next-line @next/next/no-img-element -- aperçu interne, hôte variable
+            <img
+              src={urlActuelle}
+              alt=""
+              style={{ height: 34, width: 52, objectFit: 'contain', background: 'rgba(255,255,255,0.04)' }}
+            />
+          ) : (
+            <span
+              style={{ height: 34, width: 52, display: 'block', background: 'rgba(255,255,255,0.04)' }}
+              aria-hidden
+            />
+          )}
+          <span className="gk-tag" data-etat={urlActuelle ? 'logo' : 'aucun'}>
+            {urlActuelle ? (verrouille(colonne) ? 'corrigé' : 'fourni par TCGdex') : 'absent'}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <input
+            className="gk-input"
+            type="url"
+            inputMode="url"
+            placeholder="Coller une URL"
+            value={urlVisuel[nature]}
+            onChange={e => setUrlVisuel(u => ({ ...u, [nature]: e.target.value }))}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); poserVisuelSet(nature) } }}
+            style={{ flex: 1, minWidth: 0 }}
+            aria-label={`URL du ${label.toLowerCase()} de ce set`}
+          />
+          <button
+            type="button"
+            className="gk-btn"
+            disabled={visuelEnCours !== null || !urlVisuel[nature].trim()}
+            onClick={() => poserVisuelSet(nature)}
+          >
+            {visuelEnCours === nature ? 'Vérification…' : 'Poser'}
+          </button>
+        </div>
+
+        <span className="gk-aide">
+          {verrouille(colonne)
+            ? "Corrigé à la main : l'import ne l'écrase plus."
+            : "Fourni par TCGdex. Coller une URL le corrige ET le verrouille contre le prochain import."}
+        </span>
+        <span className="gk-aide">
+          Le lien est sondé avant d&apos;être accepté. Seuls TCGdex et le Cloudinary du site sont acceptés.
+        </span>
+
+        {verrouille(colonne) && (
+          <button
+            type="button"
+            className="gk-btn"
+            style={{ alignSelf: 'flex-start', marginTop: 3 }}
+            onClick={async () => {
+              const r = await relacherChampSet(s.set_id, colonne)
+              setMsg(r.ok ? `${label} relâché — l'API reprendra la main au prochain import.` : (r.erreur ?? 'Échec'))
+              if (r.ok) router.refresh()
+            }}
+          >
+            Relâcher vers l&apos;API
+          </button>
+        )}
+      </div>
+    )
+  }
 
   async function chargerTypes() {
     const r = await fetch(`/api/admin/catalogue/types-set?setId=${s.set_id}`)
@@ -445,11 +571,40 @@ function PanneauSet({
         </div>
       </div>
 
+      {/* Regroupement d'affichage boutique : lecture seule ici. Il se déclare
+          en base (`display_parent_id`), sans code, et n'altère ni l'import ni
+          cet écran, où chaque set reste séparé. */}
+      {(s.rattache_a || (s.rattaches?.length ?? 0) > 0) && (
+        <div style={{ border: '1px solid var(--gk-line)', padding: 10, marginBottom: 16 }}>
+          <div className="gk-label" style={{ marginBottom: 6 }}>Affichage boutique</div>
+          <div style={{ fontSize: 11, lineHeight: 1.7 }}>
+            {s.rattache_a ? (
+              <div>
+                Rattaché à {s.rattache_a} : ses cartes s&apos;affichent en fin de page de{' '}
+                {s.rattache_a}, et son ancienne URL y redirige.
+              </div>
+            ) : (
+              <div>
+                Regroupe {s.rattaches!.join(', ')} : leurs cartes s&apos;affichent en fin de
+                page de ce set.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {champ('code', 'Code', "Identifiant du set dans les URL de catalogue et les références « SV10 197 ». Le changer casse les liens déjà partagés.")}
       {champ('name_fr', 'Nom', 'Affiché sur la fiche du set et dans la recherche.')}
       {champ('serie_name', 'Série', "Regroupe les sets dans les filtres du catalogue public et le tri de cet écran.")}
       {champ('release_date', 'Sortie', "Sert l'ordre chronologique de travail et le hero « nouveautés » de la home.", 'date')}
       {champ('card_count', 'Nombre attendu', "Nombre officiel de cartes du set. C'est lui qui alimente la colonne ÉTAT : le corriger fait disparaître ou apparaître un écart.", 'number')}
+
+      {/* Les deux visuels du set. Ils n'étaient exposés NULLE PART, alors que
+          `admin_corriger_set` les gère depuis toujours et que le trigger de
+          verrous les protège : le mécanisme existait, seule son ouverture
+          manquait. C'est ce trou-là qui empêchait de corriger un logo mort. */}
+      {champVisuel('logo', s.image_url ?? null)}
+      {champVisuel('symbole', s.symbol_url ?? null)}
 
       <div style={{ marginTop: 18 }}>
         <div className="gk-label" style={{ marginBottom: 4 }}>Variantes autorisées</div>

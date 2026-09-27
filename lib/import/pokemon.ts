@@ -168,6 +168,16 @@ async function loadGlobalVariantTypes(supabase: SupabaseClient): Promise<Variant
   return data ?? []
 }
 
+async function loadAxes(supabase: SupabaseClient): Promise<{ tirages: VariantTypeRow[]; finitions: VariantTypeRow[] }> {
+  const [{ data: tirages, error: e1 }, { data: finitions, error: e2 }] = await Promise.all([
+    supabase.from('pokemon_variant_tirages').select('id, code'),
+    supabase.from('pokemon_variant_finitions').select('id, code'),
+  ])
+  if (e1) throw new Error(`Tirages : ${e1.message}`)
+  if (e2) throw new Error(`Finitions : ${e2.message}`)
+  return { tirages: tirages ?? [], finitions: finitions ?? [] }
+}
+
 async function upsertSet(
   supabase: SupabaseClient,
   setData: TCGdexSet,
@@ -261,23 +271,78 @@ async function upsertCards(
   return idByNumber
 }
 
-// Variantes réelles TCGdex → ids pokemon_variant_types. Fallback [NORMAL] si
-// aucune variante vraie ou détail indisponible.
-function pickVariantIds(variants: TCGdexCardVariants | null, variantTypes: VariantTypeRow[]): string[] {
-  const idOf = (code: string) => variantTypes.find(v => v.code === code)?.id
+/**
+ * Bascule Wizards : avant cette date, les checklists ne portent que DEUX
+ * tirages — 1ère édition et Illimité. « Normale » n'y a jamais été imprimée.
+ * Même valeur que celle utilisée par la migration de reprise 0044 : les deux
+ * doivent rester d'accord, sinon un réimport reclasserait les 568 lignes
+ * converties en « Illimité ».
+ */
+const BASCULE_WIZARDS = Date.UTC(2002, 2, 1) // 1er mars 2002
 
-  if (variants) {
-    const ids = [
-      variants.normal && idOf('NORMAL'),
-      variants.reverse && idOf('REVERSE'),
-      variants.holo && idOf('HOLO'),
-      variants.firstEdition && idOf('FIRST_EDITION'),
-    ].filter((id): id is string => Boolean(id))
-    if (ids.length > 0) return ids
+const estWizards = (releaseDate: string | null | undefined): boolean => {
+  if (!releaseDate) return false
+  const t = Date.parse(releaseDate)
+  return Number.isFinite(t) && t < BASCULE_WIZARDS
+}
+
+/** Une variante à écrire, sur les trois axes plus l'ancien champ. */
+interface LigneVariante {
+  /**
+   * `variant_type_id` est encore `NOT NULL` : la migration 0043 a délibérément
+   * gardé la colonne le temps de la vérification. L'import doit donc continuer
+   * de l'alimenter EN PLUS des trois axes — l'omettre ferait échouer chaque
+   * insertion. Elle disparaîtra avec la migration de retrait.
+   */
+  variant_type_id: string
+  tirage_id: string
+  finition_id: string | null
+}
+
+/**
+ * Drapeaux TCGdex → lignes du modèle à trois axes.
+ *
+ * La source ne donne que quatre drapeaux : `normal`, `reverse`, `holo`,
+ * `firstEdition`. La correspondance est EXACTEMENT celle de la reprise 0044,
+ * règle de date comprise — deux tables de conversion divergentes finiraient par
+ * classer la même carte de deux façons selon qu'elle a été reprise ou importée.
+ *
+ * `finition_id` reste NULL partout sauf pour `holo` : l'import ne devine pas
+ * une finition que la source ne donne pas. NULL veut dire « non déterminée »,
+ * pas « non-holo » — la nuance est tout l'intérêt de l'axe.
+ */
+function pickVariantIds(
+  variants: TCGdexCardVariants | null,
+  variantTypes: VariantTypeRow[],
+  tirages: VariantTypeRow[],
+  finitions: VariantTypeRow[],
+  wizards: boolean,
+): LigneVariante[] {
+  const typeOf = (code: string) => variantTypes.find(v => v.code === code)?.id
+  const tirageOf = (code: string) => tirages.find(v => v.code === code)?.id
+  const finitionOf = (code: string) => finitions.find(v => v.code === code)?.id
+
+  const ligne = (typeCode: string, tirageCode: string, finitionCode?: string): LigneVariante | null => {
+    const t = typeOf(typeCode)
+    const ti = tirageOf(tirageCode)
+    if (!t || !ti) return null
+    return { variant_type_id: t, tirage_id: ti, finition_id: finitionCode ? finitionOf(finitionCode) ?? null : null }
   }
 
-  const fallback = idOf('NORMAL')
-  return fallback ? [fallback] : []
+  const tirageNormal = wizards ? 'ILLIMITE' : 'NORMALE'
+
+  if (variants) {
+    const lignes = [
+      variants.normal       && ligne('NORMAL',        tirageNormal),
+      variants.reverse      && ligne('REVERSE',       'REVERSE'),
+      variants.holo         && ligne('HOLO',          'NORMALE', 'HOLO'),
+      variants.firstEdition && ligne('FIRST_EDITION', 'PREMIERE_EDITION'),
+    ].filter((l): l is LigneVariante => Boolean(l))
+    if (lignes.length > 0) return lignes
+  }
+
+  const repli = ligne('NORMAL', tirageNormal)
+  return repli ? [repli] : []
 }
 
 // Insert des listings en lot (chunks ~500), ON CONFLICT DO NOTHING : ne touche
@@ -287,25 +352,74 @@ async function insertListings(
   cards: ResolvedCard[],
   idByNumber: Map<string, string>,
   variantTypes: VariantTypeRow[],
+  tirages: VariantTypeRow[],
+  finitions: VariantTypeRow[],
+  releaseDate: string | null | undefined,
   log: LogFn
 ): Promise<number> {
   // Depuis ARCHI-01, l'import ne crée que des VARIANTES. `quantity` et `price`
   // appartiennent à l'exemplaire physique, que l'import n'a pas à inventer.
-  const rows: { card_id: string; variant_type_id: string; image_api: string | null }[] = []
+  const wizards = estWizards(releaseDate)
+  const rows: {
+    card_id: string; variant_type_id: string
+    tirage_id: string; finition_id: string | null
+    image_api: string | null
+  }[] = []
 
   for (const card of cards) {
     const cardId = idByNumber.get(card.number)
     if (!cardId) continue
-    for (const variantTypeId of pickVariantIds(card.variants, variantTypes)) {
-      rows.push({ card_id: cardId, variant_type_id: variantTypeId, image_api: card.image })
+    for (const l of pickVariantIds(card.variants, variantTypes, tirages, finitions, wizards)) {
+      rows.push({ card_id: cardId, ...l, image_api: card.image })
     }
   }
 
+  // ── Exclusions manuelles ────────────────────────────────────────────────
+  //
+  // `ignoreDuplicates` protège les variantes qui EXISTENT ; rien ne protégeait
+  // celles qu'on avait volontairement supprimées. TCGdex continuant de les
+  // déclarer, chaque import les ressuscitait — et l'utilisateur refaisait
+  // l'arbitrage sans voir qu'il l'avait déjà fait.
+  //
+  // UNE seule requête pour tout le set, et non une par carte : un set porte
+  // jusqu'à 300 cartes, et cette fonction tourne pour chacun des 185 sets.
+  const cardIds = [...new Set(rows.map(r => r.card_id))]
+  const exclues = new Set<string>()
+  if (cardIds.length > 0) {
+    // `in` sur la colonne de tête de la clé primaire (card_id, variant_type_id) :
+    // l'index de la PK suffit, aucun index supplémentaire n'a été créé.
+    for (const lot of chunk(cardIds, 500)) {
+      const { data, error } = await supabase
+        .from('pokemon_variant_exclusions')
+        .select('card_id, variant_type_id')
+        .in('card_id', lot)
+
+      if (error) {
+        // On NE poursuit PAS en silence : importer sans connaître les exclusions
+        // reviendrait à recréer exactement ce que l'utilisateur a supprimé.
+        // Mieux vaut un import qui s'arrête et le dit.
+        throw new Error(`Lecture des exclusions de variantes : ${error.message}`)
+      }
+      for (const e of data ?? []) exclues.add(`${e.card_id}|${e.variant_type_id}`)
+    }
+  }
+
+  const retenues = exclues.size
+    ? rows.filter(r => !exclues.has(`${r.card_id}|${r.variant_type_id}`))
+    : rows
+
+  const ecartees = rows.length - retenues.length
+  if (ecartees > 0) log(`[SKIP] ${ecartees} variante(s) exclue(s) manuellement`)
+
   let created = 0
-  for (const batch of chunk(rows, 500)) {
+  for (const batch of chunk(retenues, 500)) {
     const { data, error } = await supabase
       .from('pokemon_card_variants')
-      .upsert(batch, { onConflict: 'card_id,variant_type_id', ignoreDuplicates: true })
+      // La cible du conflit suit désormais les TROIS AXES. `ignoreDuplicates`
+      // est conservé : c'est lui qui empêche d'écraser une variante corrigée à
+      // la main. La contrainte `NULLS NOT DISTINCT` fait que deux lignes à
+      // finition non déterminée se reconnaissent bien comme la même.
+      .upsert(batch, { onConflict: 'card_id,tirage_id,finition_id,tampon_id', ignoreDuplicates: true })
       .select('id')
 
     if (error) {
@@ -315,7 +429,7 @@ async function insertListings(
     created += data?.length ?? 0
   }
 
-  log(`[DB] ${created} variante(s) créée(s) (${rows.length} candidat(s))`)
+  log(`[DB] ${created} variante(s) créée(s) (${retenues.length} candidat(s) retenu(s) sur ${rows.length})`)
   return created
 }
 
@@ -350,10 +464,13 @@ export async function importPokemonSet(
 
   const { id: setRowId, name: setName } = await upsertSet(supabase, setData, log)
   const variantTypes = await loadGlobalVariantTypes(supabase)
+  const { tirages, finitions } = await loadAxes(supabase)
 
   const cards = await resolveCards(briefs, log, errors)
   const idByNumber = await upsertCards(supabase, setRowId, cards, log)
-  const listingsCreated = await insertListings(supabase, cards, idByNumber, variantTypes, log)
+  const listingsCreated = await insertListings(
+    supabase, cards, idByNumber, variantTypes, tirages, finitions, setData.releaseDate, log,
+  )
 
   const cardsImported = idByNumber.size
   const cardsFailed = cards.length - cardsImported

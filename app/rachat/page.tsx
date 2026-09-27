@@ -5,6 +5,10 @@ import PageContainer from '@/components/layout/PageContainer'
 import SelecteurSingles from '@/components/rachat/SelecteurSingles'
 import DeclarationBulk from '@/components/rachat/DeclarationBulk'
 import { createClient } from '@/lib/supabase/server'
+import { RACHAT_OUVERT } from '@/lib/fonctionnalites'
+import SiteHeaderFerme from '@/components/layout/SiteHeader'
+import SiteFooterFerme from '@/components/layout/SiteFooter'
+import BientotDisponible from '@/components/layout/BientotDisponible'
 
 export const metadata = { title: 'Rachat de cartes' }
 export const dynamic = 'force-dynamic'
@@ -32,6 +36,21 @@ export default async function RachatPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
+  /**
+   * FERMÉ AU LANCEMENT. Le reste de cette page est conservé INTACT :
+   * rouvrir la fonction consiste à passer `RACHAT_OUVERT` à `true`.
+   * La route serveur refuse de son côté, indépendamment de cet écran.
+   */
+  if (!RACHAT_OUVERT) {
+    return (
+      <>
+        <SiteHeaderFerme />
+        <BientotDisponible titre={'Rachat de cartes'} accroche={"Nous rachèterons vos cartes, à l'unité comme au lot, après inspection et sans estimation à l'aveugle."} />
+        <SiteFooterFerme />
+      </>
+    )
+  }
+
   const sp = await searchParams
   const mode = sp.mode === 'bulk' ? 'bulk' : 'singles'
 

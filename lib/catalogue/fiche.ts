@@ -31,8 +31,8 @@ export interface CardLike {
   category?: string | null
   color?: string | null
   set_id: string
-  pokemon_sets?: { id: string; code: string; name_fr: string }
-  onepiece_sets?: { id: string; code: string; name_fr: string }
+  pokemon_sets?: { id: string; code: string; name_fr: string; display_parent_id: string | null }
+  onepiece_sets?: { id: string; code: string; name_fr: string; display_parent_id: string | null }
 }
 
 export interface ListingLike {
@@ -71,7 +71,7 @@ export const getListing = cache(async function getListing(slug: string) {
       id, image_url,
       pokemon_listings(id, price, quantity, condition, front_photo_url, back_photo_url, needs_photo, is_active),
       pokemon_cards!inner(id, number, name_fr, rarity, card_type, attribute, category, set_id,
-        pokemon_sets!inner(id, code, name_fr)),
+        pokemon_sets!inner(id, code, name_fr, display_parent_id)),
       pokemon_variant_types!inner(id, code, label)
     `)
     .eq('id', slug)
@@ -84,7 +84,7 @@ export const getListing = cache(async function getListing(slug: string) {
     .select(`
       id, price, quantity, condition, front_photo_url, back_photo_url, image_api, needs_photo,
       onepiece_cards!inner(id, number, name_fr, rarity, card_type, color, set_id,
-        onepiece_sets!inner(id, code, name_fr)),
+        onepiece_sets!inner(id, code, name_fr, display_parent_id)),
       onepiece_variant_types!inner(id, code, label)
     `)
     .eq('id', slug)

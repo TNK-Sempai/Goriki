@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { rattachesDe } from '@/lib/catalogue/rattachements'
 import { getListing } from '@/lib/catalogue/fiche'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
@@ -226,13 +227,18 @@ export default async function ProductPage({ params }: Props) {
     if (data?.length) depotVente = { prixDemande: Number(data[0].asking_price ?? 0) || null }
   }
 
-  /** Taille réelle du set, pour le lien « Voir les N cartes → ». */
+  // Page de set vers laquelle pointent les liens : celle du parent pour un set
+  // rattaché (migration 0057), qui montre ses cartes en fin de liste.
+  const pageDuSet = set?.display_parent_id ?? card?.set_id ?? null
+
+  /** Taille réelle du set affiché, rattachés compris, pour « Voir les N cartes → ». */
   let cartesDuSet: number | null = null
-  if (card?.set_id && tcg !== 'sealed') {
+  if (pageDuSet && tcg !== 'sealed') {
+    const groupe = [pageDuSet, ...(await rattachesDe(supabase, tcg, pageDuSet)).map(r => r.id)]
     const { count } = await supabase
       .from(tcg === 'pokemon' ? 'pokemon_cards' : 'onepiece_cards')
       .select('id', { count: 'exact', head: true })
-      .eq('set_id', card.set_id)
+      .in('set_id', groupe)
     cartesDuSet = count ?? null
   }
 
@@ -412,7 +418,7 @@ export default async function ProductPage({ params }: Props) {
             {set && (
               <>
                 <span className="mx-1.5 text-ink-55">/</span>
-                <Link href={`/catalogue/${tcg}/${card?.set_id}`} className="hover:text-ochre">
+                <Link href={`/catalogue/${tcg}/${pageDuSet}`} className="hover:text-ochre">
                   {set.code}
                 </Link>
               </>
@@ -684,8 +690,8 @@ export default async function ProductPage({ params }: Props) {
               : undefined
           }
           lien={
-            cartesDuSet && card?.set_id
-              ? { href: `/catalogue/${tcg}/${card.set_id}`, label: `Voir les ${cartesDuSet} cartes` }
+            cartesDuSet && pageDuSet
+              ? { href: `/catalogue/${tcg}/${pageDuSet}`, label: `Voir les ${cartesDuSet} cartes` }
               : undefined
           }
           vignettes={sameSet}
